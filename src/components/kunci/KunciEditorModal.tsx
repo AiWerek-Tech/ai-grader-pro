@@ -9,100 +9,117 @@ import {
   Check,
   CheckCircle2,
   ClipboardCheck,
+  ClipboardPaste,
   Copy,
   FilePlus2,
   Grid2x2,
   History,
   Info,
-  Layers,
   ListChecks,
   Loader2,
-  Minus,
-  Plus,
   Printer,
   Search,
-  Sparkles,
+  SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { saveKunciAction } from '@/lib/actions/kunci';
-import { getTipeMeta, TIPE_COLOR, TIPE_SOAL_AKM, TipeSoalKode } from '@/lib/constants/tipe-soal';
+import {
+  composeJudulAsesmen,
+  detectJenisAsesmen,
+  getTipeMeta,
+  JENIS_ASESMEN_KM,
+  JenisAsesmenKode,
+  SEMESTER_OPTIONS,
+  SemesterKode,
+  TIPE_COLOR,
+  TIPE_SOAL_AKM,
+  TipeSoalKode,
+} from '@/lib/constants/tipe-soal';
 import BulkPastePanel from './BulkPastePanel';
+import CompositionConfigurator from './CompositionConfigurator';
 import JawabanInput, { SafeNumberInput } from './JawabanInput';
 import QuickTapGrid from './QuickTapGrid';
-import WeightingStudioPanel from './WeightingStudioPanel';
 import {
   autoScalePoinTo100,
-  buildSoalItem,
+  buildItemsFromComposition,
   calcTotalPoin,
   changeSoalTipe,
+  CompositionConfig,
   computePgDistribution,
+  DEFAULT_COMPOSITION,
   estimateLjkPreview,
+  extractCompositionFromItems,
+  getCompositionTotals,
+  hasInterleavedTypes,
   hydrateSoalItems,
   inferDominantTipe,
   isSoalFilled,
   KompleksMode,
   parsePengaturanPoinSafe,
   PerlakuanSoal,
-  PRESET_TEMPLATES,
-  PresetTemplate,
-  resizeSoalItems,
   SoalItem,
 } from './kunci-utils';
 
 export type EditorMode = 'create' | 'edit' | 'duplicate';
 
-const DRAFT_KEY = 'wmvaa_kunci_editor_draft_v1';
+const DRAFT_KEY = 'wmvaa_kunci_editor_draft_v2';
 
 interface KunciEditorModalProps {
   open: boolean;
   mode: EditorMode;
   editingKunci: any | null;
   masterData: { kelas: any[]; mapel: any[] };
+  defaultSemester?: SemesterKode;
   onClose: () => void;
   onSaved: (idKunci?: string, goToLjk?: boolean) => Promise<void> | void;
 }
 
 const STEPS = [
-  { id: 1 as const, label: 'Info & Paket' },
-  { id: 2 as const, label: 'Tipe & Kilat' },
-  { id: 3 as const, label: 'Isi Kunci' },
+  { id: 1 as const, label: '1. Identitas & Komposisi Soal' },
+  { id: 2 as const, label: '2. Isi Kunci Jawaban' },
 ];
 
-/** Studio Terpandu 3-Langkah: Auto-Draft, Mode Papan Cepat, Multi-Kelas, Ekstrak AI/Excel & Pratinjau LJK. */
+/** Studio Terpandu 2-Langkah: Identitas Asesmen Kurikulum Merdeka + Bank Soal Configurator + Isi Kunci. */
 export default function KunciEditorModal({
   open,
   mode,
   editingKunci,
   masterData,
+  defaultSemester = 'GANJIL',
   onClose,
   onSaved,
 }: KunciEditorModalProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [judulUjian, setJudulUjian] = useState('');
+  const [step, setStep] = useState<1 | 2>(1);
+
+  // Identitas Ujian
+  const [jenisAsesmen, setJenisAsesmen] = useState<JenisAsesmenKode>('STS');
+  const [semester, setSemester] = useState<SemesterKode>(defaultSemester);
+  const [keterangan, setKeterangan] = useState('');
+  const [customJudul, setCustomJudul] = useState('');
   const [idMapel, setIdMapel] = useState('');
   const [idKelas, setIdKelas] = useState('');
   const [multiKelasMode, setMultiKelasMode] = useState(false);
   const [selectedKelasIds, setSelectedKelasIds] = useState<string[]>([]);
 
-  const [poinBenar, setPoinBenar] = useState(1);
+  // Konfigurasi Komposisi & Penilaian
+  const [composition, setComposition] = useState<CompositionConfig>(DEFAULT_COMPOSITION);
   const [poinSalah, setPoinSalah] = useState(0);
   const [kompleksMode, setKompleksMode] = useState<KompleksMode>('mutlak');
 
-  const [defaultTipe, setDefaultTipe] = useState<TipeSoalKode>('single_choice');
+  // Daftar Butir Kunci
   const [soalItems, setSoalItems] = useState<SoalItem[]>([]);
+  const [isLegacyInterleaved, setIsLegacyInterleaved] = useState(false);
+  const [compositionDirty, setCompositionDirty] = useState(false);
 
-  const [rangeStart, setRangeStart] = useState(1);
-  const [rangeEnd, setRangeEnd] = useState(5);
-  const [rangeTipe, setRangeTipe] = useState<TipeSoalKode>('single_choice');
-  const [rangePoin, setRangePoin] = useState(1);
-
+  // Kontrol UI Langkah 2
   const [butirSearch, setButirSearch] = useState('');
-  const [butirFilter, setButirFilter] = useState<'all' | 'unfilled' | 'complex'>('all');
-  const [step3Layout, setStep3Layout] = useState<'detail' | 'grid'>('detail');
+  const [butirFilter, setButirFilter] = useState<'all' | 'unfilled'>('all');
+  const [step2Layout, setStep2Layout] = useState<'detail' | 'grid'>('detail');
+  const [showCorrectionTools, setShowCorrectionTools] = useState(false);
+  const [showQuickTools, setShowQuickTools] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<any | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
@@ -122,23 +139,29 @@ export default function KunciEditorModal({
     setPendingDraft(null);
     setButirSearch('');
     setButirFilter('all');
-    setStep3Layout('detail');
+    setStep2Layout('detail');
+    setShowCorrectionTools(false);
+    setShowQuickTools(false);
     setSaving(false);
 
     if (editingKunci) {
       const hydrated = hydrateSoalItems(editingKunci);
-      const items =
-        hydrated.length > 0
-          ? hydrated
-          : Array.from({ length: 20 }, (_, i) => buildSoalItem(i + 1, 'single_choice', 5));
       const poinCfg = parsePengaturanPoinSafe(editingKunci.pengaturan_poin);
-      const pb = poinCfg.benar !== undefined ? Number(poinCfg.benar) : 1;
       const ps = poinCfg.salah !== undefined ? Number(poinCfg.salah) : 0;
-      const firstTipe = items[0]?.tipe || 'single_choice';
-      const baseJudul =
+      const km: KompleksMode = poinCfg.kompleks_mode === 'parsial' ? 'parsial' : 'mutlak';
+
+      const rawSem = String(editingKunci.semester || defaultSemester).toUpperCase();
+      const initSem: SemesterKode = rawSem === 'GENAP' ? 'GENAP' : 'GANJIL';
+
+      const rawJudul =
         mode === 'duplicate'
           ? `${String(editingKunci.judul_ujian || 'Ujian').replace(/\s*\(Salinan\)$/i, '')} (Salinan)`
           : String(editingKunci.judul_ujian || '');
+
+      const detected = detectJenisAsesmen(rawJudul, poinCfg.jenis_asesmen);
+      const initComp = hydrated.length > 0 ? extractCompositionFromItems(hydrated) : DEFAULT_COMPOSITION;
+      const interleaved = hasInterleavedTypes(hydrated);
+
       const baseMapel = editingKunci.id_mapel || masterData.mapel[0]?.id_mapel || '';
       const baseKelas = editingKunci.id_kelas || masterData.kelas[0]?.id_kelas || '';
       const initMulti = mode === 'duplicate';
@@ -149,95 +172,128 @@ export default function KunciEditorModal({
               .slice(0, 1)
               .map((k) => k.id_kelas)
           : [baseKelas].filter(Boolean);
+      const initMultiArr =
+        defaultMultiSel.length > 0 ? defaultMultiSel : baseKelas ? [baseKelas] : [];
 
-      setJudulUjian(baseJudul);
+      setJenisAsesmen(mode === 'duplicate' && detected.kode !== 'KUSTOM' ? detected.kode : detected.kode);
+      setSemester(initSem);
+      setKeterangan(
+        mode === 'duplicate' && detected.kode !== 'KUSTOM'
+          ? detected.keterangan
+            ? `${detected.keterangan} - Salinan`
+            : 'Salinan'
+          : detected.keterangan
+      );
+      setCustomJudul(detected.kode === 'KUSTOM' ? rawJudul : '');
       setIdMapel(baseMapel);
       setIdKelas(baseKelas);
       setMultiKelasMode(initMulti);
-      setSelectedKelasIds(defaultMultiSel.length > 0 ? defaultMultiSel : baseKelas ? [baseKelas] : []);
-      setPoinBenar(Number.isFinite(pb) ? pb : 1);
+      setSelectedKelasIds(initMultiArr);
+      setComposition(initComp);
+      setIsLegacyInterleaved(interleaved);
+      setCompositionDirty(false);
       setPoinSalah(Number.isFinite(ps) && ps < 0 ? ps : 0);
-      setKompleksMode(poinCfg.kompleks_mode === 'parsial' ? 'parsial' : 'mutlak');
-      setDefaultTipe(firstTipe);
-      setSoalItems(items);
-      setRangeStart(1);
-      setRangeEnd(Math.min(5, items.length));
-      setRangeTipe(firstTipe);
-      setRangePoin(items[0]?.poin || 1);
-      setStep(mode === 'edit' ? 3 : 1);
-      setActivePresetId(null);
+      setKompleksMode(km);
+      setSoalItems(hydrated);
+      setStep(mode === 'edit' ? 2 : 1);
 
       initialSnapshotRef.current = JSON.stringify({
-        judul: baseJudul,
+        jenis: detected.kode,
+        sem: initSem,
+        ket: detected.keterangan,
+        cust: detected.kode === 'KUSTOM' ? rawJudul : '',
         mapel: baseMapel,
         kelas: baseKelas,
-        multi: initMulti ? defaultMultiSel : [baseKelas],
+        multi: initMulti ? initMultiArr : [baseKelas],
+        comp: initComp,
         ps: Number.isFinite(ps) && ps < 0 ? ps : 0,
-        km: poinCfg.kompleks_mode === 'parsial' ? 'parsial' : 'mutlak',
-        items,
+        km,
+        items: hydrated,
       });
     } else {
-      const items = Array.from({ length: 20 }, (_, i) => buildSoalItem(i + 1, 'single_choice', 5));
       const baseMapel = masterData.mapel[0]?.id_mapel || '';
       const baseKelas = masterData.kelas[0]?.id_kelas || '';
 
-      setJudulUjian('');
+      setJenisAsesmen('STS');
+      setSemester(defaultSemester);
+      setKeterangan('');
+      setCustomJudul('');
       setIdMapel(baseMapel);
       setIdKelas(baseKelas);
       setMultiKelasMode(false);
       setSelectedKelasIds(baseKelas ? [baseKelas] : []);
-      setPoinBenar(1);
+      setComposition(DEFAULT_COMPOSITION);
+      setIsLegacyInterleaved(false);
+      setCompositionDirty(false);
       setPoinSalah(0);
       setKompleksMode('mutlak');
-      setDefaultTipe('single_choice');
-      setSoalItems(items);
-      setRangeStart(1);
-      setRangeEnd(5);
-      setRangeTipe('single_choice');
-      setRangePoin(5);
+      setSoalItems([]);
       setStep(1);
-      setActivePresetId('pg20_harian');
 
       initialSnapshotRef.current = JSON.stringify({
-        judul: '',
+        jenis: 'STS',
+        sem: defaultSemester,
+        ket: '',
+        cust: '',
         mapel: baseMapel,
         kelas: baseKelas,
         multi: [baseKelas],
+        comp: DEFAULT_COMPOSITION,
         ps: 0,
         km: 'mutlak',
-        items,
+        items: [],
       });
 
-      // Cek draf tersimpan di localStorage untuk pemulihan aman
       try {
         const raw = window.localStorage.getItem(DRAFT_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed?.soalItems) && parsed.soalItems.length > 0) {
+          if (parsed && (Array.isArray(parsed.soalItems) || parsed.composition)) {
             setPendingDraft(parsed);
           }
         }
       } catch {}
     }
-  }, [open, editingKunci, mode, masterData.kelas, masterData.mapel]);
+  }, [open, editingKunci, mode, defaultSemester, masterData.kelas, masterData.mapel]);
+
+  const resolvedJudul = useMemo(
+    () => composeJudulAsesmen(jenisAsesmen, semester, keterangan, customJudul),
+    [jenisAsesmen, semester, keterangan, customJudul]
+  );
 
   const currentSnapshot = useMemo(
     () =>
       JSON.stringify({
-        judul: judulUjian,
+        jenis: jenisAsesmen,
+        sem: semester,
+        ket: keterangan,
+        cust: customJudul,
         mapel: idMapel,
         kelas: idKelas,
         multi: multiKelasMode ? selectedKelasIds : [idKelas],
+        comp: composition,
         ps: poinSalah,
         km: kompleksMode,
         items: soalItems,
       }),
-    [judulUjian, idMapel, idKelas, multiKelasMode, selectedKelasIds, poinSalah, kompleksMode, soalItems]
+    [
+      jenisAsesmen,
+      semester,
+      keterangan,
+      customJudul,
+      idMapel,
+      idKelas,
+      multiKelasMode,
+      selectedKelasIds,
+      composition,
+      poinSalah,
+      kompleksMode,
+      soalItems,
+    ]
   );
 
   const isDirty = open && initialSnapshotRef.current !== '' && currentSnapshot !== initialSnapshotRef.current;
 
-  // Auto-save draft di mode Create saat user sudah mengedit
   useEffect(() => {
     if (!open || mode !== 'create' || !isDirty) return;
     const timer = setTimeout(() => {
@@ -245,9 +301,13 @@ export default function KunciEditorModal({
         window.localStorage.setItem(
           DRAFT_KEY,
           JSON.stringify({
-            judulUjian,
+            jenisAsesmen,
+            semester,
+            keterangan,
+            customJudul,
             idMapel,
             idKelas,
+            composition,
             soalItems,
             savedAt: new Date().toISOString(),
           })
@@ -255,7 +315,19 @@ export default function KunciEditorModal({
       } catch {}
     }, 600);
     return () => clearTimeout(timer);
-  }, [open, mode, isDirty, judulUjian, idMapel, idKelas, soalItems]);
+  }, [
+    open,
+    mode,
+    isDirty,
+    jenisAsesmen,
+    semester,
+    keterangan,
+    customJudul,
+    idMapel,
+    idKelas,
+    composition,
+    soalItems,
+  ]);
 
   const requestClose = useCallback(() => {
     if (saving) return;
@@ -275,22 +347,27 @@ export default function KunciEditorModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, requestClose]);
 
+  const { totalSoal: compSoalCount, totalPct: compTotalPct } = useMemo(
+    () => getCompositionTotals(composition),
+    [composition]
+  );
+
+  // Pratinjau layout LJK berdasarkan soalItems aktif atau komposisi saat ini
+  const previewItemsForLjk = useMemo(() => {
+    if (soalItems.length > 0 && !compositionDirty) return soalItems;
+    return buildItemsFromComposition(composition, soalItems);
+  }, [soalItems, composition, compositionDirty]);
+
+  const ljkEstimate = useMemo(() => estimateLjkPreview(previewItemsForLjk), [previewItemsForLjk]);
   const totalPoin = useMemo(() => calcTotalPoin(soalItems), [soalItems]);
   const filledCount = useMemo(() => soalItems.filter((s) => isSoalFilled(s)).length, [soalItems]);
   const unfilledCount = soalItems.length - filledCount;
   const pgStats = useMemo(() => computePgDistribution(soalItems), [soalItems]);
-  const ljkEstimate = useMemo(() => estimateLjkPreview(soalItems), [soalItems]);
 
   const filteredItems = useMemo(() => {
     const q = butirSearch.trim().toLowerCase();
     return soalItems.filter((s) => {
       if (butirFilter === 'unfilled' && isSoalFilled(s)) return false;
-      if (
-        butirFilter === 'complex' &&
-        ['single_choice', 'single_choice_4', 'true_false'].includes(s.tipe)
-      ) {
-        return false;
-      }
       if (!q) return true;
       const noMatch = String(s.no) === q || `#${s.no}`.includes(q);
       const ansStr = typeof s.jawaban === 'string' ? s.jawaban.toLowerCase() : '';
@@ -304,12 +381,14 @@ export default function KunciEditorModal({
 
   const restoreDraft = () => {
     if (!pendingDraft) return;
-    setJudulUjian(pendingDraft.judulUjian || '');
+    if (pendingDraft.jenisAsesmen) setJenisAsesmen(pendingDraft.jenisAsesmen);
+    if (pendingDraft.semester) setSemester(pendingDraft.semester);
+    if (pendingDraft.keterangan !== undefined) setKeterangan(pendingDraft.keterangan);
+    if (pendingDraft.customJudul !== undefined) setCustomJudul(pendingDraft.customJudul);
     if (pendingDraft.idMapel) setIdMapel(pendingDraft.idMapel);
     if (pendingDraft.idKelas) setIdKelas(pendingDraft.idKelas);
-    if (Array.isArray(pendingDraft.soalItems) && pendingDraft.soalItems.length > 0) {
-      setSoalItems(pendingDraft.soalItems);
-    }
+    if (pendingDraft.composition) setComposition(pendingDraft.composition);
+    if (Array.isArray(pendingDraft.soalItems)) setSoalItems(pendingDraft.soalItems);
     setPendingDraft(null);
     toast.success('Draf kunci jawaban berhasil dipulihkan.');
   };
@@ -321,22 +400,47 @@ export default function KunciEditorModal({
     } catch {}
   };
 
-  const handleApplyPreset = (preset: PresetTemplate) => {
-    const built = preset.buildItems();
-    setSoalItems(built);
-    setDefaultTipe(preset.defaultTipe);
-    setRangeStart(1);
-    setRangeEnd(Math.min(10, built.length));
-    setRangeTipe(preset.defaultTipe);
-    setRangePoin(built[0]?.poin || 1);
-    setActivePresetId(preset.id);
-    toast.success(`Paket "${preset.nama}" diterapkan (${built.length} soal = ${preset.totalPoin} poin).`);
+  const handleCompositionChange = (next: CompositionConfig) => {
+    setComposition(next);
+    setCompositionDirty(true);
   };
 
-  const handleCountChange = (nextCount: number) => {
-    const clamped = Math.max(1, Math.min(100, Math.round(nextCount) || 1));
-    setSoalItems((prev) => resizeSoalItems(prev, clamped, defaultTipe, prev[0]?.poin || 1));
-    setRangeEnd((prev) => Math.min(clamped, Math.max(1, prev)));
+  /** Bangun atau sinkronkan daftar soal sebelum masuk ke Langkah 2 (Isi Kunci). */
+  const syncItemsFromStep1AndGo = (): SoalItem[] | null => {
+    if (compSoalCount <= 0) {
+      toast.error('Isi minimal 1 jumlah soal pada komposisi terlebih dahulu.');
+      return null;
+    }
+    if (compSoalCount > 100) {
+      toast.error('Jumlah total soal maksimal 100 butir per ujian.');
+      return null;
+    }
+    if (Math.abs(compTotalPct - 100) >= 0.05) {
+      toast.error(
+        `Total bobot nilai saat ini ${compTotalPct}%. Pastikan tepat 100% (atau klik "Bagi Otomatis 100%").`
+      );
+      return null;
+    }
+
+    if (soalItems.length > 0 && !compositionDirty) {
+      setStep(2);
+      return soalItems;
+    }
+
+    const built = buildItemsFromComposition(composition, soalItems);
+    setSoalItems(built);
+    setCompositionDirty(false);
+    setIsLegacyInterleaved(false);
+    setStep(2);
+    return built;
+  };
+
+  const handleStepClick = (targetStep: 1 | 2) => {
+    if (targetStep === 1) {
+      setStep(1);
+      return;
+    }
+    syncItemsFromStep1AndGo();
   };
 
   const handlePatchItem = (index: number, patch: Partial<SoalItem>) => {
@@ -349,39 +453,6 @@ export default function KunciEditorModal({
 
   const handleChangeTipeItem = (index: number, newTipe: TipeSoalKode) => {
     setSoalItems((prev) => prev.map((item, idx) => (idx === index ? changeSoalTipe(item, newTipe) : item)));
-  };
-
-  const handleApplyRange = () => {
-    const start = Math.max(1, Math.min(rangeStart, rangeEnd));
-    const end = Math.min(soalItems.length, Math.max(rangeStart, rangeEnd));
-    const clampedPoin = Math.max(0.05, Math.round((rangePoin || 1) * 100) / 100);
-    setSoalItems((prev) =>
-      prev.map((item) => {
-        if (item.no < start || item.no > end) return item;
-        const updated = changeSoalTipe(item, rangeTipe);
-        return {
-          ...updated,
-          poin: item.perlakuan === 'anulir' ? 0 : clampedPoin,
-        };
-      })
-    );
-    toast.success(`Nomor ${start}–${end} diubah ke ${getTipeMeta(rangeTipe).short} (${clampedPoin} poin/soal).`);
-  };
-
-  const handleUniformAll = (tipe: TipeSoalKode) => {
-    setDefaultTipe(tipe);
-    setRangeTipe(tipe);
-    setSoalItems((prev) => prev.map((item) => changeSoalTipe(item, tipe)));
-    toast.success(`Semua ${soalItems.length} soal diseragamkan ke ${getTipeMeta(tipe).label}.`);
-  };
-
-  const handleAuto100 = (scaleMode: 'proportional' | 'equal' = 'proportional') => {
-    setSoalItems((prev) => autoScalePoinTo100(prev, scaleMode));
-    toast.success(
-      scaleMode === 'proportional'
-        ? 'Bobot diskalakan proporsional hingga Total = 100 poin.'
-        : 'Bobot dibagi rata hingga Total = 100 poin.'
-    );
   };
 
   const handleChangePerlakuan = (idx: number, nextPerlakuan: PerlakuanSoal) => {
@@ -411,16 +482,23 @@ export default function KunciEditorModal({
   const handleInspectInDetail = (no: number) => {
     setButirFilter('all');
     setButirSearch('');
-    setStep3Layout('detail');
+    setStep2Layout('detail');
     setTimeout(() => {
       detailRowRefs.current[no]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
   };
 
+  const handleApplyQuickPaste = (updated: SoalItem[]) => {
+    setSoalItems(updated);
+    setComposition(extractCompositionFromItems(updated));
+    setCompositionDirty(false);
+    setStep(2);
+  };
+
   const handleSave = async (goToLjk = false) => {
-    if (!judulUjian.trim()) {
+    if (!resolvedJudul) {
       setStep(1);
-      toast.error('Judul ujian wajib diisi terlebih dahulu.');
+      toast.error('Judul ujian wajib diisi.');
       return;
     }
 
@@ -432,32 +510,51 @@ export default function KunciEditorModal({
       toast.error('Pilih Mata Pelajaran dan minimal 1 Kelas target terlebih dahulu.');
       return;
     }
-    if (soalItems.length === 0) {
-      setStep(2);
+
+    // Pastikan butir soal tersinkron jika tombol Simpan ditekan dari Langkah 1
+    let itemsToSave = soalItems;
+    if (step === 1 || soalItems.length === 0 || compositionDirty) {
+      const synced = syncItemsFromStep1AndGo();
+      if (!synced) return;
+      itemsToSave = synced;
+    }
+
+    if (itemsToSave.length === 0) {
+      setStep(1);
       toast.error('Minimal harus ada 1 butir soal.');
+      return;
+    }
+
+    const unfilled = itemsToSave.filter((s) => !isSoalFilled(s));
+    if (unfilled.length > 0) {
+      setStep(2);
+      setButirFilter('unfilled');
+      toast.error(`Masih ada ${unfilled.length} soal yang kunci jawabannya belum diisi.`);
       return;
     }
 
     setSaving(true);
     try {
       const poinMap: Record<string, any> = {
-        benar: poinBenar,
+        benar: 1,
         salah: poinSalah < 0 ? poinSalah : 0,
         kompleks_mode: kompleksMode,
+        jenis_asesmen: jenisAsesmen,
       };
-      soalItems.forEach((s) => {
+      itemsToSave.forEach((s) => {
         poinMap[String(s.no)] = s.perlakuan === 'anulir' ? 0 : Number(s.poin) || 1;
       });
 
       const res = await saveKunciAction({
         id_kunci: mode === 'edit' ? editingKunci?.id_kunci : undefined,
-        judul_ujian: judulUjian.trim(),
+        judul_ujian: resolvedJudul,
+        semester,
         id_mapel: idMapel,
         id_kelas: effectiveKelasIds[0],
         target_kelas_ids: mode !== 'edit' ? effectiveKelasIds : undefined,
-        tipe_soal: inferDominantTipe(soalItems),
+        tipe_soal: inferDominantTipe(itemsToSave),
         pengaturan_poin: poinMap,
-        data_json: soalItems,
+        data_json: itemsToSave,
         segmen: [],
       });
 
@@ -483,13 +580,18 @@ export default function KunciEditorModal({
     }
   };
 
-  const activeTipeMeta = getTipeMeta(defaultTipe);
   const modalTitle =
     mode === 'edit'
       ? 'Edit Kunci Jawaban'
       : mode === 'duplicate'
         ? 'Duplikat Kunci ke Kelas Lain'
         : 'Buat Kunci Jawaban Baru';
+
+  const headerSoalCount = step === 1 ? compSoalCount : soalItems.length;
+  const headerPoinDisplay =
+    step === 1
+      ? `${compTotalPct}%`
+      : `${totalPoin} Poin`;
 
   return (
     <div
@@ -512,14 +614,16 @@ export default function KunciEditorModal({
                   {modalTitle}
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/25">
-                  {soalItems.length} Soal · Total {totalPoin} Poin
+                  {headerSoalCount} Soal · {headerPoinDisplay}
                 </span>
-                <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                  LJK: {ljkEstimate.columns} Kolom · {ljkEstimate.densityLabel}
-                </span>
+                {headerSoalCount > 0 && (
+                  <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                    LJK: {ljkEstimate.columns} Kolom · {ljkEstimate.densityLabel}
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Mendukung 8 tipe soal AKM, impor Excel/AI, dan sinkron otomatis ke LJK + AI Scanner.
+                Standar Asesmen Kurikulum Merdeka, otomatis tersinkron ke Generator LJK PDF &amp; AI Scanner.
               </p>
             </div>
             <button
@@ -531,8 +635,8 @@ export default function KunciEditorModal({
             </button>
           </div>
 
-          {/* 3-Step Nav Pills */}
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+          {/* 2-Step Nav Pills */}
+          <div className="grid grid-cols-2 gap-2">
             {STEPS.map((st) => {
               const active = step === st.id;
               const passed = step > st.id;
@@ -540,8 +644,8 @@ export default function KunciEditorModal({
                 <button
                   key={st.id}
                   type="button"
-                  onClick={() => setStep(st.id)}
-                  className={`flex items-center justify-center sm:justify-start gap-2 px-2.5 py-2 rounded-xl text-[11px] sm:text-xs font-black border transition-colors duration-100 ${
+                  onClick={() => handleStepClick(st.id)}
+                  className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-black border transition-colors duration-100 ${
                     active
                       ? 'bg-purple-600 text-white border-purple-500 ring-2 ring-purple-500/35 shadow-sm'
                       : passed
@@ -573,8 +677,7 @@ export default function KunciEditorModal({
               <div className="flex items-center gap-2.5 text-xs text-cyan-800 dark:text-cyan-200">
                 <History className="w-4 h-4 shrink-0" />
                 <span>
-                  Draf tersimpan ditemukan (<strong>{pendingDraft.judulUjian || 'Tanpa Judul'}</strong>,{' '}
-                  {pendingDraft.soalItems.length} soal). Lanjutkan pengisian sebelumnya?
+                  Draf pengisian sebelumnya ditemukan ({pendingDraft.soalItems?.length || 0} butir). Lanjutkan?
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -599,14 +702,14 @@ export default function KunciEditorModal({
             <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-amber-800 dark:text-amber-200">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <p className="text-xs font-medium leading-relaxed">
-                Ujian ini sudah memiliki <strong>{hasilCount} hasil scan siswa</strong>. Hindari mengurangi jumlah nomor soal agar data analisis butir &amp; hasil tetap selaras.
+                Ujian ini sudah memiliki <strong>{hasilCount} hasil scan siswa</strong>. Setelah menyimpan perubahan kunci atau bobot, buka <strong>Detail</strong> kunci untuk menghitung ulang nilai siswa.
               </p>
             </div>
           )}
 
-          {/* STEP 1: INFO UJIAN, MULTI-KELAS & PAKET TEMPLATE */}
+          {/* LANGKAH 1: IDENTITAS ASESMEN & KOMPOSISI SOAL */}
           {step === 1 && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {(masterData.mapel.length === 0 || masterData.kelas.length === 0) && (
                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-amber-800 dark:text-amber-200">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -616,12 +719,13 @@ export default function KunciEditorModal({
                 </div>
               )}
 
+              {/* Identitas Ujian */}
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Info className="w-4 h-4 text-purple-500" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                      Identitas Ujian
+                      Identitas Ujian (Kurikulum Merdeka)
                     </h4>
                   </div>
 
@@ -640,28 +744,50 @@ export default function KunciEditorModal({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+                  <div className="md:col-span-5">
                     <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-                      Judul Ujian *
+                      Jenis Asesmen *
                     </label>
-                    <input
-                      type="text"
-                      value={judulUjian}
-                      onChange={(e) => setJudulUjian(e.target.value)}
-                      placeholder="Contoh: Sumatif Tengah Semester 1"
-                      className="w-full h-11 px-3.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/15"
-                    />
+                    <select
+                      value={jenisAsesmen}
+                      onChange={(e) => setJenisAsesmen(e.target.value as JenisAsesmenKode)}
+                      aria-label="Jenis Asesmen"
+                      className="w-full h-11 px-3 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-xs sm:text-sm outline-none focus:border-purple-500">
+                      {JENIS_ASESMEN_KM.map((j) => (
+                        <option key={j.kode} value={j.kode}>
+                          {j.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  <div>
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                      Semester *
+                    </label>
+                    <select
+                      value={semester}
+                      onChange={(e) => setSemester(e.target.value as SemesterKode)}
+                      aria-label="Semester"
+                      className="w-full h-11 px-3 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-xs sm:text-sm outline-none focus:border-purple-500">
+                      {SEMESTER_OPTIONS.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-4">
                     <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
                       Mata Pelajaran *
                     </label>
                     <select
                       value={idMapel}
                       onChange={(e) => setIdMapel(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-sm outline-none focus:border-purple-500">
+                      aria-label="Mata Pelajaran"
+                      className="w-full h-11 px-3 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-xs sm:text-sm outline-none focus:border-purple-500">
                       <option value="">-- Pilih Mapel --</option>
                       {masterData.mapel.map((m) => (
                         <option key={m.id_mapel} value={m.id_mapel}>
@@ -672,8 +798,60 @@ export default function KunciEditorModal({
                   </div>
                 </div>
 
-                {/* Pilihan Kelas Tunggal vs Multi-Kelas */}
-                {mode !== 'edit' && multiKelasMode ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    {jenisAsesmen === 'KUSTOM' ? (
+                      <>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                          Judul Ujian Manual *
+                        </label>
+                        <input
+                          type="text"
+                          value={customJudul}
+                          onChange={(e) => setCustomJudul(e.target.value)}
+                          placeholder="Ketik judul ujian khusus..."
+                          className="w-full h-11 px-3.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-sm outline-none focus:border-purple-500"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                          Keterangan / Materi (Opsional)
+                        </label>
+                        <input
+                          type="text"
+                          value={keterangan}
+                          onChange={(e) => setKeterangan(e.target.value)}
+                          placeholder="Misal: Bab 1–3, Susulan, atau Paket A (boleh kosong)"
+                          className="w-full h-11 px-3.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-semibold text-sm outline-none focus:border-purple-500"
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {!(mode !== 'edit' && multiKelasMode) && (
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                        Kelas Target *
+                      </label>
+                      <select
+                        value={idKelas}
+                        onChange={(e) => setIdKelas(e.target.value)}
+                        aria-label="Kelas Target"
+                        className="w-full h-11 px-3 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-xs sm:text-sm outline-none focus:border-purple-500">
+                        <option value="">-- Pilih Kelas --</option>
+                        {masterData.kelas.map((k) => (
+                          <option key={k.id_kelas} value={k.id_kelas}>
+                            {k.nama_kelas}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Multi-Kelas Checklist */}
+                {mode !== 'edit' && multiKelasMode && (
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-cyan-700 dark:text-cyan-300 uppercase tracking-widest">
@@ -712,275 +890,44 @@ export default function KunciEditorModal({
                       })}
                     </div>
                   </div>
-                ) : (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-                      Kelas Target *
-                    </label>
-                    <select
-                      value={idKelas}
-                      onChange={(e) => setIdKelas(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold text-sm outline-none focus:border-purple-500">
-                      <option value="">-- Pilih Kelas --</option>
-                      {masterData.kelas.map((k) => (
-                        <option key={k.id_kelas} value={k.id_kelas}>
-                          {k.nama_kelas}
-                        </option>
-                      ))}
-                    </select>
+                )}
+
+                {resolvedJudul && (
+                  <div className="px-3 py-2 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-[11px] flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Label Ujian: <strong className="text-slate-900 dark:text-white">{resolvedJudul}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowQuickTools(true);
+                        setStep(2);
+                      }}
+                      className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1">
+                      <ClipboardPaste className="w-3 h-3" /> Atau Impor dari Excel / AI →
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Paket Template Siap Pakai */}
-              <div className="space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-purple-500" />
-                      Pilih Paket Template Cepat (Opsional)
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Cocok untuk pemula: klik satu paket untuk langsung mengatur jumlah soal &amp; bobot nilai Total = 100.
-                    </p>
-                  </div>
-                  {mode === 'edit' && (
-                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                      Hati-hati: klik paket akan mengganti komposisi soal saat ini
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {PRESET_TEMPLATES.map((tpl) => {
-                    const selected = activePresetId === tpl.id;
-                    return (
-                      <button
-                        key={tpl.id}
-                        type="button"
-                        onClick={() => handleApplyPreset(tpl)}
-                        className={`p-4 rounded-2xl text-left border transition-all flex flex-col justify-between gap-2.5 ${
-                          selected
-                            ? 'bg-purple-500/10 border-purple-500 ring-2 ring-purple-500/20'
-                            : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/10 hover:border-purple-400'
-                        }`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-sm font-black text-slate-900 dark:text-white leading-snug">
-                            {tpl.nama}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-500/15 text-purple-700 dark:text-purple-300 shrink-0">
-                            {tpl.tag}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{tpl.desc}</p>
-                        <div className="flex items-center justify-between pt-1 text-[10px] font-black text-purple-600 dark:text-purple-400">
-                          <span>
-                            {tpl.totalSoal} Butir · {tpl.totalPoin} Poin
-                          </span>
-                          <span>{selected ? '✓ Terpilih' : 'Pakai Paket →'}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: STRUKTUR, TIPE SOAL, BOBOT & INPUT KILAT */}
-          {step === 2 && (
-            <div className="space-y-4">
-              {/* Bar Jumlah Soal & Auto Total 100 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                      Jumlah Butir Soal (1–100)
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleCountChange(soalItems.length - 1)}
-                        className="w-8 h-8 rounded-xl bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-100"
-                        aria-label="Kurangi jumlah soal">
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <SafeNumberInput
-                        value={soalItems.length}
-                        min={1}
-                        max={100}
-                        step={1}
-                        onChangeValue={handleCountChange}
-                        ariaLabel="Jumlah soal"
-                        className="w-16 h-8 text-center rounded-xl bg-white dark:bg-[#050314] border border-purple-500/40 text-purple-600 dark:text-purple-400 font-black text-sm outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleCountChange(soalItems.length + 1)}
-                        className="w-8 h-8 rounded-xl bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-100"
-                        aria-label="Tambah jumlah soal">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[10, 20, 25, 30, 40, 50].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => handleCountChange(n)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all ${
-                          soalItems.length === n
-                            ? 'bg-purple-600 text-white border-purple-600'
-                            : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-purple-400'
-                        }`}>
-                        {n} Soal
-                      </button>
-                    ))}
-                  </div>
-                  <div className="pt-1 border-t border-slate-200/70 dark:border-white/10 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                    Pratinjau Kertas LJK: {ljkEstimate.columns} Kolom · {ljkEstimate.densityLabel} (
-                    {ljkEstimate.objectiveCount} objektif
-                    {ljkEstimate.essayCount > 0 ? ` + ${ljkEstimate.essayCount} esai` : ''})
-                  </div>
-                </div>
-
-                {/* Panel Pembobotan Fleksibel & Kewenangan Guru */}
-                <WeightingStudioPanel
-                  soalItems={soalItems}
-                  onUpdateItems={setSoalItems}
-                  kompleksMode={kompleksMode}
-                  onChangeKompleksMode={setKompleksMode}
-                  poinSalah={poinSalah}
-                  onChangePoinSalah={setPoinSalah}
-                />
-              </div>
-
-              {/* Pemilih Tipe Soal AKM dengan Deskripsi Ramah Pemula */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-purple-500" />
-                    8 Tipe Soal AKM &amp; Standar
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleUniformAll(defaultTipe)}
-                    className="px-3 py-1 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 text-purple-700 dark:text-purple-300 text-[10px] font-black border border-purple-500/25 transition-all">
-                    Seragamkan Semua {soalItems.length} Soal ke {activeTipeMeta.short}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {TIPE_SOAL_AKM.map((t) => {
-                    const active = defaultTipe === t.kode;
-                    return (
-                      <button
-                        key={t.kode}
-                        type="button"
-                        onClick={() => setDefaultTipe(t.kode)}
-                        className={`p-2.5 rounded-xl text-left border transition-all ${
-                          active
-                            ? `${TIPE_COLOR[t.color]} ring-2 ring-current/25`
-                            : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-slate-400'
-                        }`}>
-                        <div className="text-[11px] font-black">
-                          {t.short} · {t.label.split(' ')[0]}
-                        </div>
-                        <div className="text-[10px] opacity-80 truncate">{t.label}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="p-3 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                  <span className="text-slate-700 dark:text-slate-200 font-medium">
-                    <strong className="font-black text-purple-600 dark:text-purple-400">{activeTipeMeta.label}:</strong>{' '}
-                    {activeTipeMeta.desc}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/5 font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                    Contoh: {activeTipeMeta.contoh}
-                  </span>
-                </div>
-              </div>
-
-              {/* Atur Rentang Nomor Soal */}
-              <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-2.5">
-                <p className="text-[11px] font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
-                  Atur Rentang Nomor (Untuk Soal Campuran, Misal No. 26–30 = Esai)
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 items-end">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Dari No.</label>
-                    <SafeNumberInput
-                      value={rangeStart}
-                      min={1}
-                      max={soalItems.length}
-                      step={1}
-                      onChangeValue={setRangeStart}
-                      className="w-full h-9 px-2.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-black text-center outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Sampai No.</label>
-                    <SafeNumberInput
-                      value={rangeEnd}
-                      min={1}
-                      max={soalItems.length}
-                      step={1}
-                      onChangeValue={setRangeEnd}
-                      className="w-full h-9 px-2.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-black text-center outline-none"
-                    />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Tipe Soal</label>
-                    <select
-                      value={rangeTipe}
-                      onChange={(e) => setRangeTipe(e.target.value as TipeSoalKode)}
-                      className="w-full h-9 px-2.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold outline-none">
-                      {TIPE_SOAL_AKM.map((t) => (
-                        <option key={t.kode} value={t.kode}>
-                          {t.short} — {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Poin / Soal</label>
-                    <SafeNumberInput
-                      value={rangePoin}
-                      min={0.05}
-                      max={100}
-                      step={0.25}
-                      onChangeValue={setRangePoin}
-                      className="w-full h-9 px-2.5 rounded-xl bg-white dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-black text-center text-emerald-600 outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleApplyRange}
-                    className="h-9 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition-all">
-                    Terapkan Rentang
-                  </button>
-                </div>
-              </div>
-
-              {/* Input Kilat: Teks, Excel (.xlsx), Ekstrak AI */}
-              <BulkPastePanel
-                soalItems={soalItems}
-                onApply={(updated) => setSoalItems(updated)}
-                onSuggestJudul={(suggested) => {
-                  if (!judulUjian.trim()) setJudulUjian(suggested);
-                }}
-                onAppliedJumpToReview={() => setStep(3)}
+              {/* Konfigurasi Jumlah Soal & Bobot Nilai (Gaya Gambar 4) */}
+              <CompositionConfigurator
+                config={composition}
+                onChange={handleCompositionChange}
+                ljkEstimate={ljkEstimate}
+                kompleksMode={kompleksMode}
+                onChangeKompleksMode={setKompleksMode}
+                poinSalah={poinSalah}
+                onChangePoinSalah={setPoinSalah}
+                isLegacyInterleaved={isLegacyInterleaved}
               />
             </div>
           )}
 
-          {/* STEP 3: ISI KUNCI JAWABAN PER BUTIR */}
-          {step === 3 && (
+          {/* LANGKAH 2: ISI KUNCI JAWABAN */}
+          {step === 2 && (
             <div className="space-y-4">
-              {/* Toolbar Filter, Switch Mode & Kelengkapan */}
+              {/* Toolbar Bersih */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="relative flex-1">
@@ -995,13 +942,12 @@ export default function KunciEditorModal({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Layout Mode Toggle */}
                     <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-200/70 dark:bg-white/10 border border-slate-200 dark:border-white/10">
                       <button
                         type="button"
-                        onClick={() => setStep3Layout('detail')}
+                        onClick={() => setStep2Layout('detail')}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 ${
-                          step3Layout === 'detail'
+                          step2Layout === 'detail'
                             ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-sm'
                             : 'text-slate-600 dark:text-slate-300'
                         }`}>
@@ -1009,9 +955,9 @@ export default function KunciEditorModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setStep3Layout('grid')}
+                        onClick={() => setStep2Layout('grid')}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 ${
-                          step3Layout === 'grid'
+                          step2Layout === 'grid'
                             ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-sm'
                             : 'text-slate-600 dark:text-slate-300'
                         }`}>
@@ -1021,8 +967,7 @@ export default function KunciEditorModal({
 
                     {[
                       { id: 'all' as const, label: `Semua (${soalItems.length})` },
-                      { id: 'unfilled' as const, label: `Belum (${unfilledCount})` },
-                      { id: 'complex' as const, label: 'AKM/Esai' },
+                      { id: 'unfilled' as const, label: `Belum Diisi (${unfilledCount})` },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -1036,11 +981,28 @@ export default function KunciEditorModal({
                         {tab.label}
                       </button>
                     ))}
+
                     <button
                       type="button"
-                      onClick={() => handleAuto100('proportional')}
-                      className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/20">
-                      Total=100
+                      onClick={() => setShowQuickTools((v) => !v)}
+                      className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black border inline-flex items-center gap-1 ${
+                        showQuickTools
+                          ? 'bg-cyan-600 text-white border-cyan-600'
+                          : 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/25'
+                      }`}>
+                      <ClipboardPaste className="w-3 h-3" /> Input Kilat
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCorrectionTools((v) => !v)}
+                      className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black border inline-flex items-center gap-1 ${
+                        showCorrectionTools
+                          ? 'bg-amber-600 text-white border-amber-600'
+                          : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/10'
+                      }`}
+                      title="Tampilkan kontrol Bonus/Anulir atau ubah tipe per nomor">
+                      <SlidersHorizontal className="w-3 h-3" /> Bonus/Anulir
                     </button>
                   </div>
                 </div>
@@ -1079,7 +1041,7 @@ export default function KunciEditorModal({
                     <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] pt-1 border-t border-slate-200/70 dark:border-white/10">
                       <div className="flex flex-wrap items-center gap-1.5 font-bold text-slate-500 dark:text-slate-400">
                         <BarChart2 className="w-3.5 h-3.5 text-indigo-500" />
-                        <span>Sebaran PG:</span>
+                        <span>Sebaran PG terisi ({pgStats.totalPg}):</span>
                         {(['A', 'B', 'C', 'D', 'E'] as const).map((opt) => (
                           <span
                             key={opt}
@@ -1098,15 +1060,36 @@ export default function KunciEditorModal({
                 </div>
               </div>
 
-              {/* List or QuickTap Grid */}
+              {/* Drawer Input Kilat (Opsional saat dibuka) */}
+              {showQuickTools && (
+                <BulkPastePanel
+                  soalItems={soalItems}
+                  defaultOpen={true}
+                  initialTab={soalItems.length === 0 ? 'excel' : 'text'}
+                  onCloseDrawer={() => setShowQuickTools(false)}
+                  onApply={(updated) => {
+                    handleApplyQuickPaste(updated);
+                    setShowQuickTools(false);
+                  }}
+                  onSuggestJudul={(suggested) => {
+                    if (jenisAsesmen === 'KUSTOM' && !customJudul.trim()) setCustomJudul(suggested);
+                    else if (!keterangan.trim()) setKeterangan(suggested.slice(0, 40));
+                  }}
+                  onAppliedJumpToReview={() => setShowQuickTools(false)}
+                />
+              )}
+
+              {/* Daftar Kunci per Butir */}
               {filteredItems.length === 0 ? (
                 <div className="py-10 text-center rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   <ClipboardCheck className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                    Tidak ada butir soal yang cocok dengan filter ini.
+                    {soalItems.length === 0
+                      ? 'Belum ada komposisi soal. Kembali ke Langkah 1 untuk mengisi jumlah soal.'
+                      : 'Tidak ada butir soal yang cocok dengan filter ini.'}
                   </p>
                 </div>
-              ) : step3Layout === 'grid' ? (
+              ) : step2Layout === 'grid' ? (
                 <QuickTapGrid
                   items={filteredItems}
                   onChangeJawaban={handleChangeJawabanByNo}
@@ -1114,115 +1097,156 @@ export default function KunciEditorModal({
                 />
               ) : (
                 <div className="space-y-2.5">
-                  {filteredItems.map((s) => {
+                  {filteredItems.map((s, viewIdx) => {
                     const idx = soalItems.findIndex((x) => x.no === s.no);
                     const meta = getTipeMeta(s.tipe);
                     const filled = isSoalFilled(s);
+                    const prevItem = viewIdx > 0 ? filteredItems[viewIdx - 1] : null;
+                    const showSectionHeader = !prevItem || prevItem.tipe !== s.tipe;
 
                     return (
-                      <div
-                        key={s.no}
-                        ref={(el) => {
-                          detailRowRefs.current[s.no] = el;
-                        }}
-                        className={`p-3.5 rounded-2xl border transition-all flex flex-col lg:flex-row lg:items-center gap-3 ${
-                          filled
-                            ? 'bg-white dark:bg-white/[0.025] border-slate-200 dark:border-white/10'
-                            : 'bg-amber-500/5 border-amber-500/35'
-                        }`}>
-                        {/* Baris kiri: Nomor + Tipe + Poin */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 lg:w-[370px] shrink-0">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <React.Fragment key={s.no}>
+                        {showSectionHeader && (
+                          <div className="pt-2 first:pt-0 flex items-center justify-between gap-2">
                             <span
-                              className={`w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center border shrink-0 ${
-                                s.perlakuan === 'anulir'
-                                  ? 'bg-slate-400 dark:bg-slate-700 text-white border-transparent'
-                                  : s.perlakuan === 'bonus'
-                                    ? 'bg-emerald-600 text-white border-emerald-500'
-                                    : filled
-                                      ? 'bg-slate-900 dark:bg-white/10 text-white border-transparent'
-                                      : 'bg-amber-500 text-white border-amber-500'
-                              }`}>
-                              {s.no}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-black border ${TIPE_COLOR[meta.color]}`}>
+                              {meta.short} · {meta.label}
                             </span>
-                            <select
-                              value={s.tipe}
-                              onChange={(e) => handleChangeTipeItem(idx, e.target.value as TipeSoalKode)}
-                              aria-label={`Tipe soal nomor ${s.no}`}
-                              className={`h-8 flex-1 min-w-0 px-2 rounded-xl text-[11px] font-black border outline-none cursor-pointer truncate ${TIPE_COLOR[meta.color]}`}>
-                              {TIPE_SOAL_AKM.map((t) => (
-                                <option
-                                  key={t.kode}
-                                  value={t.kode}
-                                  className="bg-white dark:bg-[#0d111d] text-slate-900 dark:text-white">
-                                  {t.short} — {t.label}
-                                </option>
-                              ))}
-                            </select>
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {s.perlakuan === 'anulir' ? 'Dianulir' : `${s.poin} poin / soal`}
+                            </span>
+                          </div>
+                        )}
+
+                        <div
+                          ref={(el) => {
+                            detailRowRefs.current[s.no] = el;
+                          }}
+                          className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex flex-col lg:flex-row lg:items-center gap-3 ${
+                            s.perlakuan === 'bonus'
+                              ? 'bg-emerald-500/5 border-emerald-500/30'
+                              : s.perlakuan === 'anulir'
+                                ? 'bg-slate-100/80 dark:bg-white/[0.015] border-slate-200 dark:border-white/10'
+                                : filled
+                                  ? 'bg-white dark:bg-white/[0.025] border-slate-200 dark:border-white/10'
+                                  : 'bg-amber-500/5 border-amber-500/35'
+                          }`}>
+                          {/* Info Nomor + Poin (atau Kontrol Edit Lanjutan jika diaktifkan) */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 lg:shrink-0">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+                              <span
+                                className={`w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center border shrink-0 ${
+                                  s.perlakuan === 'anulir'
+                                    ? 'bg-slate-400 dark:bg-slate-700 text-white border-transparent'
+                                    : s.perlakuan === 'bonus'
+                                      ? 'bg-emerald-600 text-white border-emerald-500'
+                                      : filled
+                                        ? 'bg-purple-600 text-white border-transparent'
+                                        : 'bg-amber-500 text-white border-amber-500'
+                                }`}>
+                                {s.no}
+                              </span>
+
+                              {showCorrectionTools ? (
+                                <>
+                                  <select
+                                    value={s.tipe}
+                                    onChange={(e) =>
+                                      handleChangeTipeItem(idx, e.target.value as TipeSoalKode)
+                                    }
+                                    aria-label={`Tipe soal nomor ${s.no}`}
+                                    className={`h-8 max-w-[148px] sm:max-w-[190px] truncate px-2 rounded-xl text-[11px] font-black border outline-none cursor-pointer ${TIPE_COLOR[meta.color]}`}>
+                                    {TIPE_SOAL_AKM.map((t) => (
+                                      <option
+                                        key={t.kode}
+                                        value={t.kode}
+                                        className="bg-white dark:bg-[#0d111d] text-slate-900 dark:text-white">
+                                        {t.short} — {t.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={s.perlakuan || 'normal'}
+                                    onChange={(e) =>
+                                      handleChangePerlakuan(idx, e.target.value as PerlakuanSoal)
+                                    }
+                                    aria-label={`Perlakuan soal nomor ${s.no}`}
+                                    className="h-8 px-2 rounded-xl text-[10px] font-black border bg-white dark:bg-[#050314] border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 outline-none">
+                                    <option value="normal">Normal</option>
+                                    <option value="bonus">Bonus</option>
+                                    <option value="anulir">Anulir</option>
+                                  </select>
+                                  {s.perlakuan !== 'anulir' && (
+                                    <SafeNumberInput
+                                      value={s.poin}
+                                      min={0.05}
+                                      max={100}
+                                      step={0.25}
+                                      ariaLabel={`Poin soal nomor ${s.no}`}
+                                      onChangeValue={(val) => handlePatchItem(idx, { poin: val })}
+                                      className="w-14 h-8 px-1.5 rounded-xl bg-slate-50 dark:bg-[#050314] border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-xs text-center outline-none shrink-0"
+                                    />
+                                  )}
+                                </>
+                              ) : (
+                                <span
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-black border ${
+                                    s.perlakuan === 'anulir'
+                                      ? 'bg-slate-200 dark:bg-white/10 text-slate-500 border-transparent'
+                                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                                  }`}>
+                                  {s.perlakuan === 'anulir'
+                                    ? 'Anulir (0p)'
+                                    : s.perlakuan === 'bonus'
+                                      ? `Bonus (${s.poin}p)`
+                                      : `${s.poin} poin`}
+                                </span>
+                              )}
+                            </div>
+
+                            {!showCorrectionTools && !filled && (
+                              <span className="lg:hidden text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                Belum diisi
+                              </span>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <select
-                              value={s.perlakuan || 'normal'}
-                              onChange={(e) =>
-                                handleChangePerlakuan(idx, e.target.value as PerlakuanSoal)
-                              }
-                              aria-label={`Perlakuan soal nomor ${s.no}`}
-                              title="Kewenangan Guru: Normal, Bonus (semua siswa dapat poin penuh), atau Anulir (tidak dihitung)"
-                              className={`h-8 px-1.5 rounded-xl text-[10px] font-black border outline-none cursor-pointer ${
-                                s.perlakuan === 'bonus'
-                                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/35'
-                                  : s.perlakuan === 'anulir'
-                                    ? 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-white/20'
-                                    : 'bg-slate-50 dark:bg-[#050314] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/10'
-                              }`}>
-                              <option value="normal">Normal</option>
-                              <option value="bonus">Bonus</option>
-                              <option value="anulir">Anulir</option>
-                            </select>
-
-                            {s.perlakuan === 'anulir' ? (
-                              <span className="w-14 h-8 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[10px] font-black text-slate-400 flex items-center justify-center">
-                                0p
-                              </span>
+                          {/* Baris kanan: Jawaban Interaktif atau Status Bonus/Anulir */}
+                          <div className="flex-1 min-w-0">
+                            {s.perlakuan === 'bonus' ? (
+                              <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                                Soal Bonus — Seluruh siswa otomatis memperoleh poin penuh ({s.poin}p).
+                              </div>
+                            ) : s.perlakuan === 'anulir' ? (
+                              <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                Soal Dianulir — Dikecualikan dari pembagi skor akhir (0 poin).
+                              </div>
                             ) : (
-                              <label className="inline-flex items-center gap-1 text-[10px] font-black text-slate-500 dark:text-slate-400">
-                                <span>Poin</span>
-                                <SafeNumberInput
-                                  value={s.poin}
-                                  min={0.05}
-                                  max={100}
-                                  step={0.25}
-                                  ariaLabel={`Poin soal nomor ${s.no}`}
-                                  onChangeValue={(val) => handlePatchItem(idx, { poin: val })}
-                                  className="w-14 h-8 px-1.5 rounded-xl bg-slate-50 dark:bg-[#050314] border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-xs text-center outline-none focus:border-emerald-500"
-                                />
-                              </label>
+                              <JawabanInput
+                                item={s}
+                                onChangeJawaban={(val) => handlePatchItem(idx, { jawaban: val })}
+                                onPatchItem={(patch) => handlePatchItem(idx, patch)}
+                              />
                             )}
                           </div>
                         </div>
-
-                        {/* Baris kanan: Jawaban Interaktif atau info Bonus/Anulir */}
-                        <div className="flex-1 min-w-0">
-                          {s.perlakuan === 'bonus' ? (
-                            <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                              Soal Bonus — Seluruh siswa otomatis memperoleh poin penuh ({s.poin}p).
-                            </div>
-                          ) : s.perlakuan === 'anulir' ? (
-                            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                              Soal Dianulir — Dikecualikan dari pembagi skor akhir (0 poin).
-                            </div>
-                          ) : (
-                            <JawabanInput
-                              item={s}
-                              onChangeJawaban={(val) => handlePatchItem(idx, { jawaban: val })}
-                              onPatchItem={(patch) => handlePatchItem(idx, patch)}
-                            />
-                          )}
-                        </div>
-                      </div>
+                      </React.Fragment>
                     );
                   })}
+                </div>
+              )}
+
+              {Math.abs(totalPoin - 100) >= 0.1 && soalItems.length > 0 && showCorrectionTools && (
+                <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-bold text-indigo-800 dark:text-indigo-200">
+                    Total poin mentah setelah penyesuaian: <strong>{totalPoin} Poin</strong>.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSoalItems((prev) => autoScalePoinTo100(prev, 'proportional'))}
+                    className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-black">
+                    Skalakan Ulang ke 100
+                  </button>
                 </div>
               )}
             </div>
@@ -1258,10 +1282,10 @@ export default function KunciEditorModal({
         {/* Sticky Footer */}
         <div className="px-4 py-3 sm:px-6 sm:py-4 pb-safe border-t border-slate-200 dark:border-white/10 bg-slate-50/95 dark:bg-[#0a0e1a] shrink-0 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
-            {step > 1 ? (
+            {step === 2 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => (s === 3 ? 2 : 1))}
+                onClick={() => setStep(1)}
                 className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-white/10">
                 <ArrowLeft className="w-3.5 h-3.5" /> Kembali
               </button>
@@ -1276,41 +1300,47 @@ export default function KunciEditorModal({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {step < 3 && (
+            {step === 1 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => (s === 1 ? 2 : 3))}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-sm transition-all">
-                <span>{step === 1 ? 'Lanjut: Atur Soal' : 'Lanjut: Isi Kunci'}</span>
+                onClick={() => syncItemsFromStep1AndGo()}
+                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all">
+                <span>Lanjut: Isi Kunci Jawaban</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => handleSave(false)}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all">
+                  {saving ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FilePlus2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {mode === 'edit'
+                      ? 'Simpan Perubahan'
+                      : multiKelasMode && selectedKelasIds.length > 1
+                        ? `Simpan (${selectedKelasIds.length} Kelas)`
+                        : 'Simpan Kunci'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => handleSave(true)}
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
+                  title="Simpan kunci lalu langsung cetak lembar jawab (LJK)">
+                  <Printer className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Simpan &amp; Cetak LJK</span>
+                  <span className="sm:hidden">LJK</span>
+                </button>
+              </>
             )}
-
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => handleSave(false)}
-              className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FilePlus2 className="w-3.5 h-3.5" />}
-              <span>
-                {mode === 'edit'
-                  ? 'Simpan Perubahan'
-                  : multiKelasMode && selectedKelasIds.length > 1
-                    ? `Simpan (${selectedKelasIds.length} Kelas)`
-                    : 'Simpan Kunci'}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => handleSave(true)}
-              className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
-              title="Simpan kunci lalu langsung cetak lembar jawab (LJK)">
-              <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Simpan &amp; Cetak LJK</span>
-              <span className="sm:hidden">LJK</span>
-            </button>
           </div>
         </div>
       </div>

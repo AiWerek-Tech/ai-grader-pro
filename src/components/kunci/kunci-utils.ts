@@ -35,17 +35,48 @@ export interface TypeWeightSummary {
   pctOfTotal: number;
 }
 
-/** Ringkasan template cepat untuk guru pemula. */
-export interface PresetTemplate {
-  id: string;
-  nama: string;
-  tag: string;
-  desc: string;
-  totalSoal: number;
-  totalPoin: number;
-  defaultTipe: TipeSoalKode;
-  buildItems: () => SoalItem[];
+/** Konfigurasi komposisi jumlah & bobot persentase per jenis soal (gaya Bank Soal). */
+export interface CompositionConfig {
+  pgCount: number;
+  pgOpsi: '4' | '5';
+  pgPct: number;
+  tfCount: number;
+  tfPct: number;
+  pgkCount: number;
+  pgkPct: number;
+  mtfCount: number;
+  mtfPct: number;
+  mtfPernyataan: number;
+  jdhCount: number;
+  jdhPct: number;
+  jdhPasang: number;
+  isnCount: number;
+  isnPct: number;
+  isnPanjang: number;
+  esiCount: number;
+  esiPct: number;
 }
+
+export const DEFAULT_COMPOSITION: CompositionConfig = {
+  pgCount: 0,
+  pgOpsi: '5',
+  pgPct: 0,
+  tfCount: 0,
+  tfPct: 0,
+  pgkCount: 0,
+  pgkPct: 0,
+  mtfCount: 0,
+  mtfPct: 0,
+  mtfPernyataan: 3,
+  jdhCount: 0,
+  jdhPct: 0,
+  jdhPasang: 3,
+  isnCount: 0,
+  isnPct: 0,
+  isnPanjang: 10,
+  esiCount: 0,
+  esiPct: 0,
+};
 
 export interface BulkParseResult {
   updatedItems: SoalItem[];
@@ -77,11 +108,10 @@ export function defaultJawaban(tipe: TipeSoalKode | string, jp = 3, jps = 3): an
   switch (meta.kode) {
     case 'single_choice':
     case 'single_choice_4':
-      return 'A';
     case 'true_false':
-      return 'B';
+      return '';
     case 'multiple_select':
-      return ['A', 'B'];
+      return [];
     case 'multiple_true_false':
       return Array.from({ length: jp }, (_, i) => (i % 2 === 0 ? 'B' : 'S'));
     case 'matching': {
@@ -789,59 +819,230 @@ export async function importKunciFromXlsx(file: File): Promise<{
   };
 }
 
-/** Paket template siap pakai untuk membuat ujian dalam 1 klik. */
-export const PRESET_TEMPLATES: PresetTemplate[] = [
-  {
-    id: 'pg20_harian',
-    nama: 'Ulangan Harian (20 PG)',
-    tag: 'Paling Populer',
-    desc: '20 Pilihan Ganda A–E, masing-masing 5 poin (Total 100).',
-    totalSoal: 20,
-    totalPoin: 100,
-    defaultTipe: 'single_choice',
-    buildItems: () => Array.from({ length: 20 }, (_, i) => buildSoalItem(i + 1, 'single_choice', 5)),
-  },
-  {
-    id: 'pg40_smp',
-    nama: 'Ujian SMP / SD (40 PG A–D)',
-    tag: '4 Opsi A–D',
-    desc: '40 Pilihan Ganda A–D, masing-masing 2.5 poin (Total 100).',
-    totalSoal: 40,
-    totalPoin: 100,
-    defaultTipe: 'single_choice_4',
-    buildItems: () => Array.from({ length: 40 }, (_, i) => buildSoalItem(i + 1, 'single_choice_4', 2.5)),
-  },
-  {
-    id: 'pg_esai_30',
-    nama: 'Campuran: 25 PG + 5 Esai',
-    tag: 'UTS / UAS',
-    desc: 'No 1–25 PG (2 poin = 50) & No 26–30 Esai (10 poin = 50).',
-    totalSoal: 30,
-    totalPoin: 100,
-    defaultTipe: 'single_choice',
-    buildItems: () => [
-      ...Array.from({ length: 25 }, (_, i) => buildSoalItem(i + 1, 'single_choice', 2)),
-      ...Array.from({ length: 5 }, (_, i) => buildSoalItem(26 + i, 'essay', 10)),
-    ],
-  },
-  {
-    id: 'akm_lengkap_25',
-    nama: 'Paket AKM Lengkap (25 Soal)',
-    tag: 'Kurikulum Merdeka',
-    desc: '10 PG + 5 PGK + 3 MTF + 3 Menjodohkan + 2 Isian + 2 Esai (Total 100).',
-    totalSoal: 25,
-    totalPoin: 100,
-    defaultTipe: 'single_choice',
-    buildItems: () => [
-      ...Array.from({ length: 10 }, (_, i) => buildSoalItem(i + 1, 'single_choice', 3)),
-      ...Array.from({ length: 5 }, (_, i) => buildSoalItem(11 + i, 'multiple_select', 4)),
-      ...Array.from({ length: 3 }, (_, i) => buildSoalItem(16 + i, 'multiple_true_false', 5)),
-      ...Array.from({ length: 3 }, (_, i) => buildSoalItem(19 + i, 'matching', 5)),
-      ...Array.from({ length: 2 }, (_, i) => buildSoalItem(22 + i, 'short_answer', 5)),
-      ...Array.from({ length: 2 }, (_, i) => buildSoalItem(24 + i, 'essay', 5)),
-    ],
-  },
-];
+/** Hitung total soal dan total persentase dari CompositionConfig. */
+export function getCompositionTotals(comp: CompositionConfig): {
+  totalSoal: number;
+  totalPct: number;
+} {
+  const totalSoal =
+    (Math.max(0, Math.round(comp.pgCount)) || 0) +
+    (Math.max(0, Math.round(comp.tfCount)) || 0) +
+    (Math.max(0, Math.round(comp.pgkCount)) || 0) +
+    (Math.max(0, Math.round(comp.mtfCount)) || 0) +
+    (Math.max(0, Math.round(comp.jdhCount)) || 0) +
+    (Math.max(0, Math.round(comp.isnCount)) || 0) +
+    (Math.max(0, Math.round(comp.esiCount)) || 0);
+
+  const rawPct =
+    (comp.pgCount > 0 ? Math.max(0, Number(comp.pgPct) || 0) : 0) +
+    (comp.tfCount > 0 ? Math.max(0, Number(comp.tfPct) || 0) : 0) +
+    (comp.pgkCount > 0 ? Math.max(0, Number(comp.pgkPct) || 0) : 0) +
+    (comp.mtfCount > 0 ? Math.max(0, Number(comp.mtfPct) || 0) : 0) +
+    (comp.jdhCount > 0 ? Math.max(0, Number(comp.jdhPct) || 0) : 0) +
+    (comp.isnCount > 0 ? Math.max(0, Number(comp.isnPct) || 0) : 0) +
+    (comp.esiCount > 0 ? Math.max(0, Number(comp.esiPct) || 0) : 0);
+
+  return { totalSoal, totalPct: Math.round(rawPct * 10) / 10 };
+}
+
+/** Cek apakah daftar item memiliki susunan tipe yang berselang-seling (mis. soal lama acak). */
+export function hasInterleavedTypes(items: SoalItem[]): boolean {
+  const seen = new Set<string>();
+  let prev = '';
+  for (const s of items) {
+    const key = s.tipe === 'single_choice' || s.tipe === 'single_choice_4' ? 'PG' : s.tipe;
+    if (key !== prev) {
+      if (seen.has(key)) return true;
+      seen.add(key);
+      prev = key;
+    }
+  }
+  return false;
+}
+
+/** Baca CompositionConfig dari daftar SoalItem yang sudah ada (saat mode Edit / Duplikat). */
+export function extractCompositionFromItems(items: SoalItem[]): CompositionConfig {
+  const totalPoin = calcTotalPoin(items);
+  const pct = (sum: number) => (totalPoin > 0 ? Math.round((sum / totalPoin) * 1000) / 10 : 0);
+  const sumActive = (arr: SoalItem[]) =>
+    arr.reduce((a, x) => a + (x.perlakuan === 'anulir' ? 0 : Number(x.poin) || 0), 0);
+
+  const pg5 = items.filter((s) => s.tipe === 'single_choice');
+  const pg4 = items.filter((s) => s.tipe === 'single_choice_4');
+  const pgAll = [...pg5, ...pg4];
+  const tf = items.filter((s) => s.tipe === 'true_false');
+  const pgk = items.filter((s) => s.tipe === 'multiple_select');
+  const mtf = items.filter((s) => s.tipe === 'multiple_true_false');
+  const jdh = items.filter((s) => s.tipe === 'matching');
+  const isn = items.filter((s) => s.tipe === 'short_answer');
+  const esi = items.filter((s) => s.tipe === 'essay');
+
+  return {
+    pgCount: pgAll.length,
+    pgOpsi: pg4.length >= pg5.length && pg4.length > 0 ? '4' : '5',
+    pgPct: pct(sumActive(pgAll)),
+    tfCount: tf.length,
+    tfPct: pct(sumActive(tf)),
+    pgkCount: pgk.length,
+    pgkPct: pct(sumActive(pgk)),
+    mtfCount: mtf.length,
+    mtfPct: pct(sumActive(mtf)),
+    mtfPernyataan: mtf[0]?.jumlah_pernyataan || 3,
+    jdhCount: jdh.length,
+    jdhPct: pct(sumActive(jdh)),
+    jdhPasang: jdh[0]?.jumlah_pasang || 3,
+    isnCount: isn.length,
+    isnPct: pct(sumActive(isn)),
+    isnPanjang: isn[0]?.panjang_jawaban || 10,
+    esiCount: esi.length,
+    esiPct: pct(sumActive(esi)),
+  };
+}
+
+/** Bagi bobot % otomatis hingga 100% sesuai jumlah masing-masing jenis (Esai/Kompleks sedikit lebih tinggi bila dicampur). */
+export function autoDistributeCompositionPct(comp: CompositionConfig): CompositionConfig {
+  const specs: Array<{ countKey: keyof CompositionConfig; pctKey: keyof CompositionConfig; factor: number }> = [
+    { countKey: 'pgCount', pctKey: 'pgPct', factor: 1 },
+    { countKey: 'tfCount', pctKey: 'tfPct', factor: 1 },
+    { countKey: 'pgkCount', pctKey: 'pgkPct', factor: 1.5 },
+    { countKey: 'mtfCount', pctKey: 'mtfPct', factor: 1.5 },
+    { countKey: 'jdhCount', pctKey: 'jdhPct', factor: 1.5 },
+    { countKey: 'isnCount', pctKey: 'isnPct', factor: 2 },
+    { countKey: 'esiCount', pctKey: 'esiPct', factor: 3 },
+  ];
+
+  const active = specs.filter((s) => Number(comp[s.countKey]) > 0);
+  if (active.length === 0) return comp;
+
+  const next = { ...comp };
+  let totalWeight = 0;
+  active.forEach((s) => {
+    totalWeight += Number(comp[s.countKey]) * s.factor;
+  });
+
+  let assigned = 0;
+  active.forEach((s, idx) => {
+    if (idx === active.length - 1) {
+      (next[s.pctKey] as number) = Math.max(0, Math.round((100 - assigned) * 10) / 10);
+    } else {
+      const share = Math.round(((Number(comp[s.countKey]) * s.factor) / totalWeight) * 100);
+      (next[s.pctKey] as number) = share;
+      assigned += share;
+    }
+  });
+
+  specs.filter((s) => Number(comp[s.countKey]) <= 0).forEach((s) => {
+    (next[s.pctKey] as number) = 0;
+  });
+
+  return next;
+}
+
+/** Bangun array `SoalItem[]` berurutan dari konfigurasi Bank Soal, sambil menjaga jawaban yang sudah diisi guru! */
+export function buildItemsFromComposition(
+  comp: CompositionConfig,
+  previousItems: SoalItem[] = []
+): SoalItem[] {
+  const poolByGroup: Record<string, SoalItem[]> = {
+    PG: previousItems.filter((s) => s.tipe === 'single_choice' || s.tipe === 'single_choice_4'),
+    TF: previousItems.filter((s) => s.tipe === 'true_false'),
+    PGK: previousItems.filter((s) => s.tipe === 'multiple_select'),
+    MTF: previousItems.filter((s) => s.tipe === 'multiple_true_false'),
+    JDH: previousItems.filter((s) => s.tipe === 'matching'),
+    ISN: previousItems.filter((s) => s.tipe === 'short_answer'),
+    ESI: previousItems.filter((s) => s.tipe === 'essay'),
+  };
+
+  const pgTipe: TipeSoalKode = comp.pgOpsi === '4' ? 'single_choice_4' : 'single_choice';
+  const blocks: Array<{
+    groupKey: string;
+    tipe: TipeSoalKode;
+    count: number;
+    totalPct: number;
+    mtfPernyataan?: number;
+    jdhPasang?: number;
+    isnPanjang?: number;
+  }> = [
+    { groupKey: 'PG', tipe: pgTipe, count: Math.max(0, Math.round(comp.pgCount) || 0), totalPct: Number(comp.pgPct) || 0 },
+    { groupKey: 'TF', tipe: 'true_false', count: Math.max(0, Math.round(comp.tfCount) || 0), totalPct: Number(comp.tfPct) || 0 },
+    { groupKey: 'PGK', tipe: 'multiple_select', count: Math.max(0, Math.round(comp.pgkCount) || 0), totalPct: Number(comp.pgkPct) || 0 },
+    {
+      groupKey: 'MTF',
+      tipe: 'multiple_true_false',
+      count: Math.max(0, Math.round(comp.mtfCount) || 0),
+      totalPct: Number(comp.mtfPct) || 0,
+      mtfPernyataan: Math.max(2, Math.min(10, Math.round(comp.mtfPernyataan) || 3)),
+    },
+    {
+      groupKey: 'JDH',
+      tipe: 'matching',
+      count: Math.max(0, Math.round(comp.jdhCount) || 0),
+      totalPct: Number(comp.jdhPct) || 0,
+      jdhPasang: Math.max(2, Math.min(5, Math.round(comp.jdhPasang) || 3)),
+    },
+    {
+      groupKey: 'ISN',
+      tipe: 'short_answer',
+      count: Math.max(0, Math.round(comp.isnCount) || 0),
+      totalPct: Number(comp.isnPct) || 0,
+      isnPanjang: Math.max(3, Math.min(20, Math.round(comp.isnPanjang) || 10)),
+    },
+    { groupKey: 'ESI', tipe: 'essay', count: Math.max(0, Math.round(comp.esiCount) || 0), totalPct: Number(comp.esiPct) || 0 },
+  ];
+
+  const built: SoalItem[] = [];
+  let currentNo = 1;
+
+  for (const b of blocks) {
+    if (b.count <= 0) continue;
+    const prevPool = poolByGroup[b.groupKey] || [];
+    const perItemPoin = b.totalPct > 0 ? Math.max(0.05, round2(b.totalPct / b.count)) : 1;
+
+    for (let i = 0; i < b.count; i++) {
+      if (currentNo > 100) break;
+      const old = prevPool[i];
+      const fresh = buildSoalItem(currentNo, b.tipe, perItemPoin);
+      if (b.mtfPernyataan) {
+        fresh.jumlah_pernyataan = b.mtfPernyataan;
+        fresh.jawaban = defaultJawaban('multiple_true_false', b.mtfPernyataan);
+      }
+      if (b.jdhPasang) {
+        fresh.jumlah_pasang = b.jdhPasang;
+        fresh.jawaban = defaultJawaban('matching', 3, b.jdhPasang);
+      }
+      if (b.isnPanjang) {
+        fresh.panjang_jawaban = b.isnPanjang;
+      }
+
+      if (old) {
+        fresh.perlakuan = old.perlakuan;
+        if (old.perlakuan === 'anulir') fresh.poin = 0;
+        if (b.tipe === 'single_choice_4') {
+          const ch = String(old.jawaban || '').toUpperCase();
+          fresh.jawaban = ['A', 'B', 'C', 'D'].includes(ch) ? ch : '';
+        } else if (old.tipe === b.tipe) {
+          fresh.jawaban = old.jawaban;
+          if (old.jumlah_pernyataan && b.mtfPernyataan === old.jumlah_pernyataan) {
+            fresh.jumlah_pernyataan = old.jumlah_pernyataan;
+          }
+          if (old.jumlah_pasang && b.jdhPasang === old.jumlah_pasang) {
+            fresh.jumlah_pasang = old.jumlah_pasang;
+          }
+          if (old.panjang_jawaban) fresh.panjang_jawaban = old.panjang_jawaban;
+        }
+      }
+
+      built.push(fresh);
+      currentNo++;
+    }
+  }
+
+  const { totalPct } = getCompositionTotals(comp);
+  if (built.length > 0 && Math.abs(totalPct - 100) < 0.05 && Math.abs(calcTotalPoin(built) - 100) >= 0.01) {
+    return autoScalePoinTo100(built, 'proportional');
+  }
+  return built;
+}
 
 function csvCell(val: unknown): string {
   const s = String(val ?? '');

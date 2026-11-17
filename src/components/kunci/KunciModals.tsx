@@ -106,6 +106,11 @@ export function KunciDetailModal({
               <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-black uppercase tracking-widest">
                 {kunci.id_kunci}
               </span>
+              {kunci.semester && (
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 text-[10px] font-black uppercase">
+                  Semester {kunci.semester === 'GANJIL' ? 'Ganjil (1)' : kunci.semester === 'GENAP' ? 'Genap (2)' : kunci.semester}
+                </span>
+              )}
               {hasilCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-black inline-flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> {hasilCount} Siswa Terkoreksi

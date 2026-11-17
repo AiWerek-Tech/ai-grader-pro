@@ -33,7 +33,13 @@ import { toast } from 'sonner';
 import { getIRTStatsAction } from '@/lib/actions/admin';
 import { deleteKunciAction, getKunciListAction } from '@/lib/actions/kunci';
 import { getMasterData } from '@/lib/actions/master';
-import { getTipeDistribusi, getTipeMeta, TIPE_COLOR, TIPE_SOAL_AKM } from '@/lib/constants/tipe-soal';
+import {
+  getTipeDistribusi,
+  getTipeMeta,
+  SemesterKode,
+  TIPE_COLOR,
+  TIPE_SOAL_AKM,
+} from '@/lib/constants/tipe-soal';
 import KunciEditorModal, { EditorMode } from '@/components/kunci/KunciEditorModal';
 import { KunciDeleteModal, KunciDetailModal, KunciIrtModal } from '@/components/kunci/KunciModals';
 import KunciPrintSheet from '@/components/kunci/KunciPrintSheet';
@@ -58,10 +64,12 @@ export default function KunciJawabanPage() {
     mapel: [],
   });
   const [loading, setLoading] = useState(true);
+  const [activeSemester, setActiveSemester] = useState<SemesterKode>('GANJIL');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMapel, setFilterMapel] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
+  const [filterSemester, setFilterSemester] = useState<'' | 'GANJIL' | 'GENAP'>('');
   const [filterKind, setFilterKind] = useState<KindFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -85,9 +93,18 @@ export default function KunciJawabanPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [kRes, mRes] = await Promise.all([getKunciListAction(), getMasterData()]);
-      if (kRes.success && kRes.data) setKunciList(kRes.data);
-      else if (kRes.message) toast.error(kRes.message);
+      const [kRes, mRes] = await Promise.all([
+        getKunciListAction(undefined, 'ALL'),
+        getMasterData(),
+      ]);
+      if (kRes.success && kRes.data) {
+        setKunciList(kRes.data);
+        if (kRes.activeSemester === 'GENAP' || kRes.activeSemester === 'GANJIL') {
+          setActiveSemester(kRes.activeSemester);
+        }
+      } else if (kRes.message) {
+        toast.error(kRes.message);
+      }
 
       if (mRes.success && mRes.data) {
         setMasterData({
@@ -121,6 +138,10 @@ export default function KunciJawabanPage() {
     const list = kunciList.filter((k) => {
       if (filterMapel && k.id_mapel !== filterMapel) return false;
       if (filterKelas && k.id_kelas !== filterKelas) return false;
+      if (filterSemester) {
+        const kSem = String(k.semester || '').trim().toUpperCase();
+        if (kSem !== filterSemester) return false;
+      }
 
       if (filterKind !== 'all') {
         const items = parseDataJsonSafe(k.data_json);
@@ -160,13 +181,23 @@ export default function KunciJawabanPage() {
       return [...list].sort((a, b) => (Number(b.hasil_count) || 0) - (Number(a.hasil_count) || 0));
     }
     return list;
-  }, [kunciList, filterMapel, filterKelas, filterKind, searchQuery, sortBy, getMapelLabel, getKelasLabel]);
+  }, [
+    kunciList,
+    filterMapel,
+    filterKelas,
+    filterSemester,
+    filterKind,
+    searchQuery,
+    sortBy,
+    getMapelLabel,
+    getKelasLabel,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedKunci.length / ITEMS_PER_PAGE));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterMapel, filterKelas, filterKind, sortBy]);
+  }, [searchQuery, filterMapel, filterKelas, filterSemester, filterKind, sortBy]);
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -275,8 +306,7 @@ export default function KunciJawabanPage() {
                 Buat &amp; Kelola Kunci Jawaban
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-                Siapkan kunci jawaban dalam hitungan detik menggunakan <strong>Template Paket</strong>,{' '}
-                <strong>Input Kilat (Teks / Excel / AI)</strong>, atau <strong>Papan Cepat</strong>.
+                Atur identitas asesmen Kurikulum Merdeka, jumlah soal &amp; persentase bobot tiap jenis dalam satu layar bersih, lalu isi kunci dengan cepat via <strong>Detail</strong>, <strong>Papan Cepat</strong>, maupun <strong>Excel / AI</strong>.
               </p>
 
               {/* Alur Cepat Pemula */}
@@ -426,6 +456,16 @@ export default function KunciJawabanPage() {
               </select>
 
               <select
+                value={filterSemester}
+                onChange={(e) => setFilterSemester(e.target.value as '' | 'GANJIL' | 'GENAP')}
+                aria-label="Filter Semester"
+                className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                <option value="">Semua Semester</option>
+                <option value="GANJIL">Semester Ganjil</option>
+                <option value="GENAP">Semester Genap</option>
+              </select>
+
+              <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                 aria-label="Urutkan"
@@ -512,7 +552,7 @@ export default function KunciJawabanPage() {
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
                 {kunciList.length === 0
-                  ? 'Mulai buat master kunci ujian pertama Anda. Anda bisa memilih paket template siap pakai agar langsung selesai dalam 1 menit.'
+                  ? 'Mulai buat kunci ujian pertama Anda: pilih jenis asesmen, tentukan jumlah & bobot soal (total 100%), lalu isi jawabannya.'
                   : 'Coba ubah kata kunci pencarian atau reset filter di atas.'}
               </p>
             </div>
@@ -546,9 +586,16 @@ export default function KunciJawabanPage() {
                     className="surface-card p-4 sm:p-5 flex flex-col justify-between gap-4 hover:border-purple-500/40 transition-all">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <span className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[9px] font-mono font-black text-purple-700 dark:text-purple-300">
-                          {k.id_kunci}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[9px] font-mono font-black text-purple-700 dark:text-purple-300">
+                            {k.id_kunci}
+                          </span>
+                          {k.semester && (
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[9px] font-black text-slate-600 dark:text-slate-300 uppercase">
+                              {k.semester}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1.5">
                           {hasilCount > 0 && (
                             <span
@@ -684,7 +731,14 @@ export default function KunciJawabanPage() {
                         return (
                           <tr key={k.id_kunci} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02]">
                             <td className="py-3.5 px-5">
-                              <p className="font-black text-slate-900 dark:text-white">{k.judul_ujian}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-black text-slate-900 dark:text-white">{k.judul_ujian}</p>
+                                {k.semester && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[9px] font-black text-slate-600 dark:text-slate-300 uppercase">
+                                    Smt {k.semester === 'GANJIL' ? 'Ganjil' : k.semester === 'GENAP' ? 'Genap' : k.semester}
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
                                 <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">
                                   {k.id_kunci}
@@ -841,6 +895,7 @@ export default function KunciJawabanPage() {
           mode={editorMode}
           editingKunci={editorTarget}
           masterData={masterData}
+          defaultSemester={activeSemester}
           onClose={() => setEditorOpen(false)}
           onSaved={async (savedId, goToLjk) => {
             const editedHadHasil =

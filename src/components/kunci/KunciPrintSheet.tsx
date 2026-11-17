@@ -31,8 +31,17 @@ export default function KunciPrintSheet({
           <h1 className="text-xl font-black mt-0.5">{kunci.judul_ujian}</h1>
           <p className="text-xs font-semibold mt-1">
             Mapel: <strong>{getMapelLabel(kunci.id_mapel)}</strong> · Kelas:{' '}
-            <strong>{getKelasLabel(kunci.id_kelas)}</strong> · ID:{' '}
-            <span className="font-mono">{kunci.id_kunci}</span>
+            <strong>{getKelasLabel(kunci.id_kelas)}</strong>
+            {kunci.semester ? (
+              <>
+                {' '}
+                · Semester:{' '}
+                <strong>
+                  {kunci.semester === 'GANJIL' ? 'Ganjil (1)' : kunci.semester === 'GENAP' ? 'Genap (2)' : kunci.semester}
+                </strong>
+              </>
+            ) : null}{' '}
+            · ID: <span className="font-mono">{kunci.id_kunci}</span>
           </p>
         </div>
         <div className="text-right text-xs">

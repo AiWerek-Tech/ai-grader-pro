@@ -37,6 +37,9 @@ function normalizeKunciItemsAndPoin(dataKunci: any) {
   if (rawPoinMap.bobot_persen && typeof rawPoinMap.bobot_persen === 'object') {
     normalizedPoinMap.bobot_persen = rawPoinMap.bobot_persen;
   }
+  if (typeof rawPoinMap.jenis_asesmen === 'string' && rawPoinMap.jenis_asesmen.trim()) {
+    normalizedPoinMap.jenis_asesmen = rawPoinMap.jenis_asesmen.trim();
+  }
 
   const normalizedItems = (dataKunci.data_json || []).map((item: any, index: number) => {
     const no = Number(item.no) || index + 1;
@@ -84,12 +87,15 @@ function normalizeKunciItemsAndPoin(dataKunci: any) {
   return { normalizedItems, normalizedPoinMap };
 }
 
-export async function getKunciListAction(guruId?: string) {
+export async function getKunciListAction(
+  guruId?: string,
+  semesterMode: 'ACTIVE' | 'ALL' | 'GANJIL' | 'GENAP' = 'ACTIVE'
+) {
   try {
     const authSession = await requireAuth();
     const { data: session } = await getAcademicSessionAction();
     const tahunAjaran = String(session?.tahunAjaran || '').trim();
-    const semester = String(session?.semester || '').trim().toUpperCase();
+    const activeSemester = String(session?.semester || '').trim().toUpperCase() || 'GANJIL';
 
     const [rawKunci, allMapel, allKelas, allUsers, allTugas, allHasil] = await Promise.all([
       dbGetAll('KUNCI_JAWABAN'),
@@ -102,16 +108,21 @@ export async function getKunciListAction(guruId?: string) {
 
     let allKunci = rawKunci;
 
-    // Filter by Active Session (case-insensitive, fallback if empty)
-    if (tahunAjaran) {
-      allKunci = allKunci.filter((k) => {
-        const kTahun = String(k.tahun_ajaran || '').trim();
-        const kSem = String(k.semester || '').trim().toUpperCase();
-        const matchTahun = !kTahun || kTahun.toLowerCase() === tahunAjaran.toLowerCase();
-        const matchSem = !semester || !kSem || kSem === semester;
-        return matchTahun && matchSem;
-      });
-    }
+    // Filter by Active Tahun Ajaran + Semester sesuai mode (ACTIVE/ALL/GANJIL/GENAP)
+    const targetSem =
+      semesterMode === 'GANJIL' || semesterMode === 'GENAP'
+        ? semesterMode
+        : semesterMode === 'ACTIVE'
+          ? activeSemester
+          : '';
+
+    allKunci = allKunci.filter((k) => {
+      const kTahun = String(k.tahun_ajaran || '').trim();
+      const kSem = String(k.semester || '').trim().toUpperCase();
+      const matchTahun = !tahunAjaran || !kTahun || kTahun.toLowerCase() === tahunAjaran.toLowerCase();
+      const matchSem = !targetSem || !kSem || kSem === targetSem;
+      return matchTahun && matchSem;
+    });
 
     const hasilCountMap: Record<string, number> = {};
     allHasil.forEach((h) => {
@@ -178,7 +189,7 @@ export async function getKunciListAction(guruId?: string) {
       };
     });
 
-    return { success: true, data: parsed.reverse() };
+    return { success: true, data: parsed.reverse(), activeSemester };
   } catch (e: any) {
     return { success: false, message: e.message };
   }
@@ -217,7 +228,9 @@ export async function saveKunciAction(dataKunci: any) {
     const serializedItems = JSON.stringify(normalizedItems);
     const serializedSegmen = JSON.stringify(dataKunci.segmen || []);
     const tahunStr = acadSession?.tahunAjaran || '';
-    const semStr = acadSession?.semester || '';
+    const explicitSem = String(dataKunci.semester || '').trim().toUpperCase();
+    const validExplicitSem = explicitSem === 'GANJIL' || explicitSem === 'GENAP' ? explicitSem : '';
+    const semStr = validExplicitSem || acadSession?.semester || 'GANJIL';
 
     if (isEdit) {
       const id = String(dataKunci.id_kunci);
@@ -240,7 +253,7 @@ export async function saveKunciAction(dataKunci: any) {
         nowIso,
         serializedSegmen,
         target.tahun_ajaran || tahunStr,
-        target.semester || semStr,
+        validExplicitSem || target.semester || semStr,
       ];
       await dbUpdateRow('KUNCI_JAWABAN', id, rowUpdate);
 

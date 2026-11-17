@@ -50,6 +50,7 @@ export function SafeNumberInput({
       step={step}
       aria-label={ariaLabel}
       value={draft}
+      onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => {
         const val = e.target.value;
         setDraft(val);

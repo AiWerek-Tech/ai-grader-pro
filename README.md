@@ -19,9 +19,9 @@ Platform koreksi Lembar Jawaban Komputer (LJK) & asesmen digital tingkat enterpr
 * Ringkasan statistik siswa, guru, kunci jawaban, hasil koreksi, serta status Sesi Akademik aktif (Tahun Ajaran & Semester).
 * Indikator kesehatan sistem cepat dan navigasi responsif (sidebar sticky di desktop & bottom navigation bar ramah sentuhan di mobile).
 
-### 3. Studio Kunci Jawaban 8 Tipe Soal AKM & Pembobotan Guru (`/dashboard/kunci`)
-* **Studio Terpandu 3-Langkah:** Template paket 1-klik (UH PG, SMP A–D, PG+Esai, AKM Lengkap), **Input Kilat** (tempel teks, impor Excel `.xlsx`, & ekstrak foto/naskah via Gemini AI), serta mode **Papan Cepat** dengan navigasi keyboard.
-* **Kewenangan Pembobotan Penuh Guru:** Bagi bobot **Persentase (`%`) per tipe**, poin bebas per tipe soal, skala proporsional ke `100`, skoring **AKM Kompleks (`Mutlak` / `Parsial Proporsional`)**, penalti jawaban salah, penandaan **Bonus / Anulir** per nomor, duplikat multi-kelas sekaligus, cetak kunci pegangan guru, dan **Hitung Ulang Nilai Tersimpan (`Re-grade`)**.
+### 3. Studio Kunci Jawaban Bank Soal AKM & Pembobotan Guru (`/dashboard/kunci`)
+* **Studio 2-Langkah Gaya Bank Soal + Standar Kurikulum Merdeka:** Dropdown **Jenis Asesmen Kurikulum Merdeka** (STS, SAS, SAT, Sumatif Lingkup Materi, Formatif/UH, Diagnostik Kognitif/Non-Kognitif, ASAJ/US, Try Out, atau Kustom) & **Dropdown Semester** (Ganjil/Genap), konfigurasi **Jumlah Soal & Bobot Nilai %** per jenis dalam satu layar beserta tombol **Bagi Otomatis 100%** & rekapitulasi real-time, lalu pengisian kunci cepat via **Input Kilat** (tempel teks, Excel `.xlsx`, AI) atau **Papan Cepat** keyboard.
+* **Kewenangan Pembobotan Penuh Guru:** Pembobotan persentase `%` per jenis soal (otomatis terhitung ke poin per butir), pilihan **4 Opsi (A–D) / 5 Opsi (A–E)** langsung di kartu PG, opsi lanjutan **AKM Kompleks (`Mutlak` / `Parsial Proporsional`)**, penalti jawaban salah, penandaan **Bonus / Anulir** opsional per nomor, duplikat multi-kelas sekaligus, filter & badge semester, cetak kunci pegangan guru, dan **Hitung Ulang Nilai Tersimpan (`Re-grade`)**.
 * Mendukung penuh **8 tipe soal**:
   1. **Pilihan Ganda (`A–E`)** — `single_choice`
   2. **Pilihan Ganda (`A–D`)** — `single_choice_4`

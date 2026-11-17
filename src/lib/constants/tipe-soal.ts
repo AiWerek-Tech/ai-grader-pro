@@ -117,9 +117,72 @@ export function formatJawaban(item: any): string {
   if (!item) return '—';
   const jwb = item.jawaban;
   if (jwb === null || jwb === undefined) return '—';
-  if (Array.isArray(jwb)) return jwb.join(', ');
-  if (typeof jwb === 'object') return Object.entries(jwb).map(([k, v]) => `${k}→${v}`).join(', ');
-  return String(jwb);
+  if (Array.isArray(jwb)) return jwb.length > 0 ? jwb.join(', ') : '—';
+  if (typeof jwb === 'object') {
+    const entries = Object.entries(jwb);
+    return entries.length > 0 ? entries.map(([k, v]) => `${k}→${v}`).join(', ') : '—';
+  }
+  const str = String(jwb).trim();
+  return str || '—';
+}
+
+/** Jenis Asesmen resmi Kurikulum Merdeka (Kemendikbudristek) + Umum Sekolah */
+export const JENIS_ASESMEN_KM = [
+  { kode: 'STS', label: 'Asesmen Sumatif Tengah Semester (STS)', kategori: 'Sumatif', desc: 'Evaluasi tengah semester (pengganti PTS/UTS).' },
+  { kode: 'SAS', label: 'Asesmen Sumatif Akhir Semester (SAS)', kategori: 'Sumatif', desc: 'Evaluasi akhir semester ganjil (pengganti PAS).' },
+  { kode: 'SAT', label: 'Asesmen Sumatif Akhir Tahun (SAT)', kategori: 'Sumatif', desc: 'Evaluasi akhir semester genap / kenaikan kelas (pengganti PAT).' },
+  { kode: 'SUMATIF_LM', label: 'Asesmen Sumatif Lingkup Materi', kategori: 'Sumatif', desc: 'Penilaian sumatif setelah selesai 1 bab atau lingkup materi.' },
+  { kode: 'FORMATIF', label: 'Asesmen Formatif (Ulangan Harian / Kuis)', kategori: 'Formatif', desc: 'Pemantauan proses belajar selama pembelajaran berlangsung.' },
+  { kode: 'DIAGNOSTIK_KOG', label: 'Asesmen Diagnostik Kognitif', kategori: 'Diagnostik', desc: 'Pemetaan kemampuan prasyarat siswa di awal bab/topik.' },
+  { kode: 'DIAGNOSTIK_NON', label: 'Asesmen Diagnostik Non-Kognitif', kategori: 'Diagnostik', desc: 'Pemetaan kesiapan psikologis, minat, dan gaya belajar siswa.' },
+  { kode: 'ASAJ', label: 'Asesmen Sumatif Akhir Jenjang (ASAJ / US)', kategori: 'Sumatif', desc: 'Ujian kelulusan akhir jenjang kelas VI / IX / XII.' },
+  { kode: 'TRYOUT', label: 'Try Out / Simulasi Asesmen (ANBK / TKA)', kategori: 'Simulasi', desc: 'Latihan terstandar persiapan ANBK, TKA, atau seleksi masuk.' },
+  { kode: 'KUSTOM', label: 'Lainnya (Ketik Judul Manual)', kategori: 'Kustom', desc: 'Masukkan judul asesmen secara bebas (mis. Remedial / Lomba).' },
+] as const;
+
+export type JenisAsesmenKode = (typeof JENIS_ASESMEN_KM)[number]['kode'];
+
+export const SEMESTER_OPTIONS = [
+  { value: 'GANJIL' as const, label: 'Semester Ganjil (1)' },
+  { value: 'GENAP' as const, label: 'Semester Genap (2)' },
+] as const;
+
+export type SemesterKode = 'GANJIL' | 'GENAP';
+
+/** Susun judul ujian standar otomatis dari pilihan Jenis Asesmen, Semester, dan Keterangan opsional. */
+export function composeJudulAsesmen(
+  jenisKode: JenisAsesmenKode,
+  semester: SemesterKode,
+  keterangan = '',
+  customJudul = ''
+): string {
+  if (jenisKode === 'KUSTOM') {
+    return customJudul.trim();
+  }
+  const found = JENIS_ASESMEN_KM.find((j) => j.kode === jenisKode) ?? JENIS_ASESMEN_KM[0];
+  const semText = semester === 'GENAP' ? 'Semester Genap' : 'Semester Ganjil';
+  const note = keterangan.trim();
+  const base = `${found.label} — ${semText}`;
+  return note ? `${base} (${note})` : base;
+}
+
+/** Deteksi jenis asesmen dari kode tersimpan atau judul ujian lama. */
+export function detectJenisAsesmen(
+  judul?: string | null,
+  savedKode?: string | null
+): { kode: JenisAsesmenKode; keterangan: string } {
+  if (savedKode && JENIS_ASESMEN_KM.some((j) => j.kode === savedKode)) {
+    const jKode = savedKode as JenisAsesmenKode;
+    if (jKode !== 'KUSTOM' && judul) {
+      const m = judul.match(/\(([^()]+)\)\s*$/);
+      const foundLabel = JENIS_ASESMEN_KM.find((j) => j.kode === jKode)?.label || '';
+      const maybeKeterangan =
+        m && !foundLabel.includes(`(${m[1]})`) ? m[1] : '';
+      return { kode: jKode, keterangan: maybeKeterangan };
+    }
+    return { kode: jKode, keterangan: '' };
+  }
+  return { kode: 'KUSTOM', keterangan: '' };
 }
 
 /** Hitung distribusi tipe soal dari data_json */

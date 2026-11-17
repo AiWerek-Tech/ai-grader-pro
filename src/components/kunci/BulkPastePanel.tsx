@@ -22,14 +22,17 @@ import {
   SoalItem,
 } from './kunci-utils';
 
+type ToolTab = 'text' | 'excel' | 'ai';
+
 interface BulkPastePanelProps {
   soalItems: SoalItem[];
   onApply: (updatedItems: SoalItem[]) => void;
   onSuggestJudul?: (judul: string) => void;
   onAppliedJumpToReview?: () => void;
+  defaultOpen?: boolean;
+  initialTab?: ToolTab;
+  onCloseDrawer?: () => void;
 }
-
-type ToolTab = 'text' | 'excel' | 'ai';
 
 /** Panel Alat Isi Cepat: Tempel Teks Massal, Impor Excel (.xlsx), dan Ekstrak Kunci AI. */
 export default function BulkPastePanel({
@@ -37,9 +40,12 @@ export default function BulkPastePanel({
   onApply,
   onSuggestJudul,
   onAppliedJumpToReview,
+  defaultOpen = false,
+  initialTab = 'text',
+  onCloseDrawer,
 }: BulkPastePanelProps) {
-  const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<ToolTab>('text');
+  const [open, setOpen] = useState(defaultOpen);
+  const [tab, setTab] = useState<ToolTab>(initialTab);
 
   // Tab 1: Text Paste
   const [rawText, setRawText] = useState('');
@@ -194,7 +200,10 @@ export default function BulkPastePanel({
 
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setOpen(false);
+            onCloseDrawer?.();
+          }}
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
           aria-label="Tutup Input Kilat">
           <X className="w-4 h-4" />
