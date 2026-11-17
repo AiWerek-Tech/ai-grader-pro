@@ -1,45 +1,119 @@
 # WMVAA AI Grader Pro
 
-Aplikasi penilaian LJK berbasis Next.js, Google Sheets, dan Gemini untuk workflow guru/admin.
+Platform koreksi Lembar Jawaban Komputer (LJK) & asesmen digital tingkat enterprise berbasis **Next.js 16 (App Router)**, **Google Gemini Vision & AI**, dan **Google Sheets** sebagai database cloud real-time. Dirancang untuk operasional sekolah (Admin & Guru) melalui browser desktop, mobile, PWA, serta aplikasi Android pendamping.
 
-## Menjalankan lokal
+* 🌐 **Aplikasi Web Live:** [https://app.wmvaa.id/ai-grader](https://app.wmvaa.id/ai-grader)
+* 🏫 **Portal Resmi WMVAA:** [https://wmvaa.id](https://wmvaa.id) · [https://app.wmvaa.id](https://app.wmvaa.id)
+* 📱 **Repository Aplikasi Android:** [AiWerek-Tech/ai-grader-pro-mobile](https://github.com/AiWerek-Tech/ai-grader-pro-mobile)
 
-1. Salin `.env.example` menjadi `.env.local`
-2. Isi `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_SPREADSHEET_ID`, `GEMINI_API_KEY`
-3. Jalankan `npm install`
-4. Jalankan `npm run dev`
+---
 
-## Environment penting
+## Fitur Utama Web
 
-- `SESSION_SECRET`
-  Wajib untuk production, minimal 32 karakter acak.
-- `ALLOW_RUNTIME_SETUP`
-  Default sebaiknya `false` di production. Ubah ke `true` hanya saat onboarding awal.
-- `BOOTSTRAP_ADMIN_USERNAME`
-  Username admin pertama di production.
-- `BOOTSTRAP_ADMIN_PASSWORD`
-  Password admin pertama di production, minimal 12 karakter.
-- `BOOTSTRAP_ADMIN_NAME`
-  Nama tampilan admin pertama.
-- `EMERGENCY_ADMIN_RESET_PASSWORD`
-  Opsional. Password admin darurat saat `forceResetAdminAction` dipakai. Jika kosong, sistem akan membuat password sementara acak yang kuat.
+### 1. Autentikasi, RBAC & Keamanan Sesi
+* **Login Terenkripsi:** Cookie HTTP-only terenkripsi via `iron-session` (masa berlaku sesi 6 jam) dengan validasi hash `bcryptjs`.
+* **Pilih Cepat Akun Guru / Admin:** Dropdown nama guru/admin otomatis dari data pengguna untuk login cepat yang rapi di desktop maupun layar HP.
+* **Role-Based Access Control (RBAC):** Pemisahan hak akses ketat antara **ADMIN** dan **GURU** melalui middleware/proxy (`src/proxy.ts`) dan guard pada setiap Server Action (`requireAuth`, `requireAdmin`).
 
-## Bootstrap production
+### 2. Dashboard Overview & Pemantauan Akademik (`/dashboard`)
+* Ringkasan statistik siswa, guru, kunci jawaban, hasil koreksi, serta status Sesi Akademik aktif (Tahun Ajaran & Semester).
+* Indikator kesehatan sistem cepat dan navigasi responsif (sidebar sticky di desktop & bottom navigation bar ramah sentuhan di mobile).
 
-Di mode production, aplikasi tidak lagi membuat akun default lemah seperti `admin123` atau `guru123`.
-Jika tabel `USERS` masih kosong, bootstrap hanya akan membuat satu akun admin dari env:
+### 3. Manajemen Kunci Jawaban 8 Tipe Soal AKM (`/dashboard/kunci`)
+Mendukung penyusunan kunci jawaban terstruktur dan pembobotan poin untuk 8 tipe soal:
+1. **Pilihan Ganda (`A–E`)** — `single_choice`
+2. **Pilihan Ganda (`A–D`)** — `single_choice_4`
+3. **Benar / Salah** — `true_false`
+4. **Pilihan Ganda Kompleks** — `multiple_select`
+5. **Benar-Salah Majemuk (MTF)** — `multiple_true_false`
+6. **Menjodohkan** — `matching`
+7. **Isian Singkat** — `short_answer`
+8. **Uraian / Esai** — `essay`
 
-- `BOOTSTRAP_ADMIN_USERNAME`
-- `BOOTSTRAP_ADMIN_PASSWORD`
-- `BOOTSTRAP_ADMIN_NAME`
+### 4. Generator & Cetak LJK Digital / Hybrid (`/dashboard/ljk` & `/print/ljk`)
+* Menghasilkan lembar LJK siap cetak ukuran A4 lengkap dengan **QR Code identitas** (ID kunci, siswa/NIS) dan **4 penanda sudut (*fiducial markers*)** untuk kalibrasi pemindaian OMR lokal berakurasi tinggi.
+* Mendukung cetak per kelas, pemilihan siswa tertentu, serta pencetakan langsung dari Android APK melalui bridge `PrintManager`.
 
-## Checklist finishing production
+### 5. Pemindai & Analisis LJK Hibrida (`/dashboard/analisis` & `/api/scan`)
+* **Hybrid OMR + Gemini Vision Consensus Engine:** Memadukan deteksi grid OMR lokal berkecepatan tinggi (`hybrid-detector.ts`) dengan pembacaan visual AI (`gemini-fallback.ts`) serta fallback otomatis yang aman.
+* **Multi-Input Fleksibel:** Potret kamera 1-klik dari HP, unggah banyak foto dari galeri sekaligus, atau *Live WebRTC Scanner*.
+* **Auto-Match Siswa & Auto-Save Draft:** Mencocokkan NIS dan kemiripan nama siswa secara otomatis serta menyimpan antrean hasil scan yang belum disimpan ke `localStorage` agar aman dari reload mendadak.
 
-- Set `SESSION_SECRET` yang kuat dan unik
-- Pastikan file service account tidak ikut ter-commit
-- Set `ALLOW_RUNTIME_SETUP=false` setelah onboarding selesai
-- Pastikan reset password admin/guru tidak lagi memakai password statis; distribusikan file kredensial sementara hasil reset dengan aman
-- Jalankan `npm run lint`
-- Jalankan `npx tsc --noEmit`
-- Jalankan `npm run build`
-- Uji alur login, setup awal, scan LJK, simpan hasil, dan override skor pada staging
+### 6. Hasil Nilai, Koreksi Detail & Penilaian Esai AI (`/dashboard/hasil`)
+* Inspeksi jawaban per nomor soal secara interaktif dan koreksi manual jika diperlukan.
+* **Automated Essay Scoring (AI):** Menilai jawaban uraian/esai siswa secara batch menggunakan Gemini AI berdasarkan rubrik & poin maksimal (`scoreStudentEssaysWithAIAction`), lengkap dengan evaluasi kata kunci cadangan saat koneksi AI terkendala.
+* **Override Skor & Ekspor Excel:** Perubahan skor terkontrol dan ekspor laporan rekap nilai ke format `.xlsx` (`exceljs`).
+
+### 7. Manajemen Data Master & Akademik
+* **Data Siswa (`/dashboard/siswa`):** CRUD siswa, filter kelas & jenjang (`SMP`/`SMA`), validasi data, operasi massal (*bulk delete/clean*), serta impor/ekspor Excel.
+* **Data Guru & Akun (`/dashboard/guru` — Admin):** Tambah/edit akun guru, aktif/nonaktifkan status akun, reset password, dan unggah foto profil.
+* **Kelas, Mata Pelajaran & Kenaikan Kelas (`/dashboard/kelas-mapel`):** Pengelolaan master kelas/mapel serta fitur kenaikan kelas massal.
+* **Tugas Mengajar (`/dashboard/tugas-mengajar` — Admin):** Penugasan relasi Guru, Mata Pelajaran, dan Kelas.
+
+### 8. Pengaturan AI, System Doctor & Audit Log (Admin)
+* **Pengaturan Sistem (`/dashboard/settings`):** Atur Tahun Ajaran/Semester aktif, model Gemini AI, dan pool multi API Key (`ai_api_keys_pool`) dengan rotasi *round-robin*.
+* **System Doctor (`/dashboard/doctor`):** Diagnostik integritas struktur tab Google Spreadsheet dan pemulihan otomatis (*self-healing*).
+* **Audit Log (`/dashboard/logs`):** Pemantauan riwayat aktivitas autentikasi, pemindaian, dan perubahan data.
+* **QR Akses HP Guru (`/api/system/network`):** Pembuatan QR Code instan dari header dashboard untuk menghubungkan aplikasi Android guru ke server hosting atau server LAN sekolah.
+
+---
+
+## Teknologi & Arsitektur
+
+* **Framework:** Next.js `16.2.3` (App Router, Turbopack, `basePath: /ai-grader`) & React `19.2.4`
+* **Styling & UI:** Tailwind CSS v4, Lucide React, Sonner, `next-themes`, `qrcode.react`
+* **AI & Pemrosesan Citra:** `@google/generative-ai`, `jsqr`, `sharp` *(opsional dengan lazy loader aman)*
+* **Database & Ekspor:** `googleapis` (Google Sheets API v4), `exceljs`
+* **Keamanan:** `iron-session`, `bcryptjs`, validasi origin Server Actions, CSP & security headers di `next.config.mjs`
+* **Runtime Hosting:** Custom HTTP wrapper `server.js` kompatibel dengan **cPanel Node.js App (LiteSpeed / Phusion Passenger)** pada Node.js `>= 20.0.0`.
+
+---
+
+## Menjalankan Secara Lokal
+
+1. Salin `.env.example` menjadi `.env.local`.
+2. Isi variabel konfigurasi:
+   * `GOOGLE_APPLICATION_CREDENTIALS` (path ke file JSON Service Account Google)
+   * `GOOGLE_SPREADSHEET_ID` (ID Google Spreadsheet)
+   * `GEMINI_API_KEY` (API key Gemini)
+   * `SESSION_SECRET` (wajib minimal 32 karakter acak untuk mode production)
+   * `NEXT_PUBLIC_BASE_PATH` (default `/ai-grader`, atau kosongkan jika berjalan di root domain)
+3. Pasang dependensi & jalankan server pengembangan:
+   ```bash
+   npm install
+   npm run dev
+   ```
+4. Akses aplikasi di `http://localhost:3000/ai-grader`.
+
+---
+
+## Variabel Environment Penting
+
+| Variabel | Keterangan |
+| --- | --- |
+| `NEXT_PUBLIC_BASE_PATH` | Prefix subfolder hosting (contoh `/ai-grader` untuk `https://app.wmvaa.id/ai-grader`). |
+| `SESSION_SECRET` | Kunci enkripsi cookie `iron-session` (wajib minimal 32 karakter di production). |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path absolut atau relatif ke file kredensial JSON Service Account Google Sheets. |
+| `GOOGLE_SPREADSHEET_ID` | ID dokumen Google Spreadsheet database. |
+| `GEMINI_API_KEY` | API key utama Google Gemini (`GEMINI_API_KEYS` opsional untuk multi-key). |
+| `ALLOW_RUNTIME_SETUP` | Sebaiknya `false` di production; aktifkan `true` hanya saat onboarding awal. |
+| `BOOTSTRAP_ADMIN_USERNAME` | Username admin awal di production jika sheet pengguna masih kosong. |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Password admin awal di production (minimal 12 karakter). |
+| `BOOTSTRAP_ADMIN_NAME` | Nama tampilan akun admin awal. |
+| `EMERGENCY_ADMIN_RESET_PASSWORD` | Opsional untuk reset admin darurat (`forceResetAdminAction`). |
+
+---
+
+## Build & Deploy Production (cPanel Node.js)
+
+1. Jalankan pemeriksaan tipe dan build produksi:
+   ```bash
+   npx tsc --noEmit
+   npm run build
+   ```
+2. Pada **cPanel File Manager** (`Application root` mis. `~/wmvaa-grader`), unggah file produksi yang dibutuhkan (`server.js`, `next.config.mjs`, `package.json`, `package-lock.json`, `.env.local`, file kredensial Google JSON, `.next/` tanpa `.next/cache`, dan `public/`).
+3. Pada **cPanel Setup Node.js App**:
+   * **Node.js version:** `20.x`
+   * **Application mode:** `Production`
+   * **Application startup file:** `server.js`
+   * Klik **Run NPM Install** (saat instalasi awal atau pembaruan dependensi), isi **Environment variables**, lalu klik **RESTART**.
