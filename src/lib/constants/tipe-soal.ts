@@ -1,16 +1,103 @@
 // lib/constants/tipe-soal.ts
-// Definisi 7 Tipe Soal AKM berdasarkan Panduan Soal AKM.md
+// Definisi 8 Tipe Soal AKM & Standar Asesmen (kompatibel LJK Hybrid OMR & AI)
 
 export const TIPE_SOAL_AKM = [
-  { kode: 'single_choice',       label: 'Pilihan Ganda (A–E)',         short: 'PG-E', opsi: ['A','B','C','D','E'], color: 'indigo' },
-  { kode: 'single_choice_4',    label: 'Pilihan Ganda (A–D)',         short: 'PG-D', opsi: ['A','B','C','D'],     color: 'violet' },
-  { kode: 'true_false',         label: 'Benar / Salah',               short: 'B/S',  opsi: ['B','S'],             color: 'teal'   },
-  { kode: 'multiple_select',    label: 'Pilihan Ganda Kompleks',      short: 'PGK',  opsi: ['A','B','C','D','E'], color: 'sky'    },
-  { kode: 'multiple_true_false',label: 'Benar-Salah Majemuk (MTF)',   short: 'MTF',  opsi: [],                    color: 'cyan'   },
-  { kode: 'matching',           label: 'Menjodohkan',                 short: 'JDH',  opsi: [],                    color: 'amber'  },
-  { kode: 'short_answer',       label: 'Isian Singkat',               short: 'ISN',  opsi: [],                    color: 'orange' },
-  { kode: 'essay',              label: 'Uraian (Esai)',               short: 'ESI',  opsi: [],                    color: 'rose'   },
+  {
+    kode: 'single_choice',
+    label: 'Pilihan Ganda (A–E)',
+    short: 'PG-E',
+    opsi: ['A', 'B', 'C', 'D', 'E'],
+    color: 'indigo',
+    kategori: 'objektif',
+    desc: 'Pilihan ganda 5 opsi (A sampai E), standar SMA/SMK/MA.',
+    contoh: 'A / B / C / D / E',
+  },
+  {
+    kode: 'single_choice_4',
+    label: 'Pilihan Ganda (A–D)',
+    short: 'PG-D',
+    opsi: ['A', 'B', 'C', 'D'],
+    color: 'violet',
+    kategori: 'objektif',
+    desc: 'Pilihan ganda 4 opsi (A sampai D), standar SD/SMP/MTs.',
+    contoh: 'A / B / C / D',
+  },
+  {
+    kode: 'true_false',
+    label: 'Benar / Salah',
+    short: 'B/S',
+    opsi: ['B', 'S'],
+    color: 'teal',
+    kategori: 'objektif',
+    desc: 'Satu pernyataan dengan pilihan Benar (B) atau Salah (S).',
+    contoh: 'B atau S',
+  },
+  {
+    kode: 'multiple_select',
+    label: 'Pilihan Ganda Kompleks',
+    short: 'PGK',
+    opsi: ['A', 'B', 'C', 'D', 'E'],
+    color: 'sky',
+    kategori: 'kompleks',
+    desc: 'Lebih dari 1 jawaban benar dalam satu soal AKM.',
+    contoh: 'A, C, E',
+  },
+  {
+    kode: 'multiple_true_false',
+    label: 'Benar-Salah Majemuk (MTF)',
+    short: 'MTF',
+    opsi: [],
+    color: 'cyan',
+    kategori: 'kompleks',
+    desc: '2–10 sub-pernyataan Benar/Salah dalam satu nomor soal.',
+    contoh: 'B, S, B',
+  },
+  {
+    kode: 'matching',
+    label: 'Menjodohkan',
+    short: 'JDH',
+    opsi: [],
+    color: 'amber',
+    kategori: 'kompleks',
+    desc: 'Pasangkan 2–5 item kiri (1–5) ke jawaban kanan (A–E).',
+    contoh: '1→A, 2→C, 3→B',
+  },
+  {
+    kode: 'short_answer',
+    label: 'Isian Singkat',
+    short: 'ISN',
+    opsi: [],
+    color: 'orange',
+    kategori: 'isian',
+    desc: 'Jawaban kata/angka singkat. Pisahkan sinonim dengan tanda |',
+    contoh: 'Soekarno | Ir. Soekarno',
+  },
+  {
+    kode: 'essay',
+    label: 'Uraian (Esai)',
+    short: 'ESI',
+    opsi: [],
+    color: 'rose',
+    kategori: 'esai',
+    desc: 'Dinilai AI dari kata kunci rubrik atau input nilai manual guru.',
+    contoh: 'kata kunci | manual',
+  },
 ] as const;
+
+export type TipeSoalMeta = (typeof TIPE_SOAL_AKM)[number];
+
+/** Cari metadata tipe soal berdasarkan kode standar atau alias lama. */
+export function getTipeMeta(kode?: string | null): TipeSoalMeta {
+  const normalized =
+    kode === 'A-E'
+      ? 'single_choice'
+      : kode === 'A-D'
+        ? 'single_choice_4'
+        : kode === 'Benar-Salah'
+          ? 'true_false'
+          : kode;
+  return TIPE_SOAL_AKM.find((t) => t.kode === normalized) ?? TIPE_SOAL_AKM[0];
+}
 
 export type TipeSoalKode = typeof TIPE_SOAL_AKM[number]['kode'];
 

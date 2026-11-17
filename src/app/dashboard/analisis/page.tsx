@@ -636,7 +636,10 @@ export default function AnalisisPage() {
     if (!detailItem?.result || !selectedKunci) return;
     const kItem = selectedKunci.data_json?.find((k: any) => Number(k.no) === Number(noSoal));
     const bobot = selectedKunci.pengaturan_poin || {};
-    const maxPoin = Number(kItem?.poin ?? bobot[String(noSoal)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
+    const maxPoin =
+      kItem?.perlakuan === 'anulir'
+        ? 0
+        : Number(kItem?.poin ?? bobot[String(noSoal)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
     const clampedPoin = Math.min(maxPoin, Math.max(0, Number(newPoin) || 0));
 
     const updatedAnswers = detailItem.result.answers.map((a: any) =>
@@ -673,7 +676,10 @@ export default function AnalisisPage() {
       const payload = essayConfigs.map((k) => {
         const no = Number(k.no);
         const ansObj = detailItem.result?.answers?.find((a: any) => Number(a.no) === no);
-        const maxPoin = Number(k.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
+        const maxPoin =
+          k.perlakuan === 'anulir'
+            ? 0
+            : Number(k.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
         return {
           no,
           studentAnswer: String(ansObj?.ans ?? ''),
@@ -1691,7 +1697,10 @@ export default function AnalisisPage() {
                         <div className="space-y-2">
                           {essayQuestions.map((kItem: any) => {
                             const no = Number(kItem.no);
-                            const maxPoin = Number(kItem.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
+                            const maxPoin =
+                              kItem.perlakuan === 'anulir'
+                                ? 0
+                                : Number(kItem.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
                             const ansObj = detailItem.result?.answers?.find((a: any) => Number(a.no) === no);
                             const detRow = skorDet?.detail?.find((d: any) => Number(d.no) === no);
                             const currentPoin = Number(ansObj?.poin_manual ?? detRow?.poin_didapat ?? 0);

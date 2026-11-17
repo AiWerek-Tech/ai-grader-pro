@@ -260,7 +260,10 @@ export default function HasilPage() {
         const currentAns = Object.prototype.hasOwnProperty.call(pendingAnswerEdits, no)
           ? pendingAnswerEdits[no]
           : (detailRow?.jawaban ?? '');
-        const maxPoin = Number(k.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
+        const maxPoin =
+          k.perlakuan === 'anulir'
+            ? 0
+            : Number(k.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
         return {
           no,
           studentAnswer: String(currentAns ?? ''),
@@ -1081,7 +1084,10 @@ export default function HasilPage() {
                       const tipeNorm = normalizeTipe(kItem.tipe || detailHasil.kInfo?.tipe_soal || 'single_choice');
                       const isEssay = tipeNorm === 'essay';
                       const bobot = detailHasil.kInfo?.pengaturan_poin || {};
-                      const maxPoin = Number(kItem.poin ?? bobot[String(noSoal)] ?? (isEssay ? 8 : (bobot.benar ?? 1))) || 1;
+                      const maxPoin =
+                        kItem.perlakuan === 'anulir'
+                          ? 0
+                          : Number(kItem.poin ?? bobot[String(noSoal)] ?? (isEssay ? 8 : (bobot.benar ?? 1))) || 1;
                       const detailRow = Array.isArray(detailHasil.det?.detail)
                         ? detailHasil.det.detail.find((d: any) => Number(d.no) === noSoal) || detailHasil.det.detail[idx]
                         : null;
@@ -1179,7 +1185,10 @@ export default function HasilPage() {
                             const tipeNorm = normalizeTipe(kItem.tipe || detailHasil.kInfo?.tipe_soal || 'single_choice');
                             const isEssay = tipeNorm === 'essay';
                             const bobot = detailHasil.kInfo?.pengaturan_poin || {};
-                            const maxPoin = Number(kItem.poin ?? bobot[String(noSoal)] ?? (isEssay ? 8 : (bobot.benar ?? 1))) || 1;
+                            const maxPoin =
+                              kItem.perlakuan === 'anulir'
+                                ? 0
+                                : Number(kItem.poin ?? bobot[String(noSoal)] ?? (isEssay ? 8 : (bobot.benar ?? 1))) || 1;
                             const detailRow = Array.isArray(detailHasil.det?.detail)
                               ? detailHasil.det.detail.find((d: any) => Number(d.no) === noSoal) || detailHasil.det.detail[idx]
                               : null;
@@ -1296,7 +1305,10 @@ export default function HasilPage() {
                         <div className="space-y-1.5">
                           {essayList.map((kItem: any, idx: number) => {
                             const no = Number(kItem.no || idx + 1);
-                            const maxPoin = Number(kItem.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
+                            const maxPoin =
+                              kItem.perlakuan === 'anulir'
+                                ? 0
+                                : Number(kItem.poin ?? bobot[String(no)] ?? bobot.esai ?? bobot.benar ?? 8) || 8;
                             const detailRow = Array.isArray(detailHasil.det?.detail)
                               ? detailHasil.det.detail.find((d: any) => Number(d.no) === no)
                               : null;

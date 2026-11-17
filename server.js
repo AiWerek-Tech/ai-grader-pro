@@ -28,6 +28,6 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   }).listen(port, (err) => {
     if (err) throw err;
-    console.log(`> WMVAA AI Grader Pro v2.0.5 ready (basePath: ${basePath || '/'}, port/socket: ${port})`);
+    console.log(`> WMVAA AI Grader Pro v2.0.6 ready (basePath: ${basePath || '/'}, port/socket: ${port})`);
   });
 });

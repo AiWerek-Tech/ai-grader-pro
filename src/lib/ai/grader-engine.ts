@@ -290,6 +290,12 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
 
   const bobot = kunciObj.pengaturan_poin || {};
   const arrKunci: any[] = kunciObj.data_json || [];
+  const usePartialComplex = bobot.kompleks_mode === 'parsial';
+  const rawPenaltySalah = Number(bobot.salah);
+  const penaltySalah =
+    Number.isFinite(rawPenaltySalah) && rawPenaltySalah < 0
+      ? Math.round(rawPenaltySalah * 100) / 100
+      : 0;
 
   const totalSoal = arrKunci.length;
   let benarCount = 0;
@@ -334,15 +340,66 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
     const tipe = normalizeTipe(kItem.tipe) || globalTipe;
 
     // ── Poin per soal (prioritas: kItem.poin -> pengaturan_poin[no] -> default tipe) ──
+    const perlakuan = kItem.perlakuan === 'bonus' || kItem.perlakuan === 'anulir' ? kItem.perlakuan : 'normal';
     const defaultTipePoin = tipe === 'essay' ? (bobot.esai ?? bobot.benar ?? 1) : (bobot.benar ?? 1);
-    let poin = parseFloat(kItem.poin ?? bobot[noStr] ?? defaultTipePoin);
-    if (isNaN(poin) || !isFinite(poin) || poin <= 0) poin = 1;
+    const parsedPoin = parseFloat(kItem.poin ?? bobot[noStr] ?? defaultTipePoin);
+    let poin =
+      perlakuan === 'anulir'
+        ? 0
+        : Number.isFinite(parsedPoin) && parsedPoin > 0
+          ? Math.round(parsedPoin * 100) / 100
+          : 1;
 
     let ansSiswa = mapSiswa[noStr];
 
     // ── AI Answer Normalization sebelum scoring ──
     if (ansSiswa !== null && ansSiswa !== undefined) {
       ansSiswa = normalizeAIAnswer(ansSiswa, tipe);
+    }
+
+    // ── Soal Anulir (Tidak dihitung ke pembagi skor maksimal) ──
+    if (perlakuan === 'anulir') {
+      detail.push({
+        no: parseInt(noStr, 10),
+        tipe,
+        kunci: ansKunci,
+        jawaban: ansSiswa ?? null,
+        status: 'benar',
+        perlakuan: 'anulir',
+        poin_didapat: 0,
+        poin_max: 0,
+      });
+      continue;
+    }
+
+    // ── Soal Bonus (Seluruh siswa mendapat poin penuh) ──
+    if (perlakuan === 'bonus') {
+      maxPoin += poin;
+      poinSiswa += poin;
+      benarCount++;
+      if (tipe === 'essay') {
+        essayCount++;
+        essayGradedCount++;
+        maxPoinEsai += poin;
+        poinEsai += poin;
+      } else {
+        maxPoinObjektif += poin;
+        poinObjektif += poin;
+      }
+      detail.push({
+        no: parseInt(noStr, 10),
+        tipe,
+        kunci: ansKunci,
+        jawaban: ansSiswa ?? null,
+        status: tipe === 'essay' ? 'dinilai' : 'benar',
+        perlakuan: 'bonus',
+        poin_didapat: poin,
+        poin_max: poin,
+        ...(tipe === 'essay'
+          ? { poin_manual: poin, ai_feedback: 'Soal Bonus (Poin penuh oleh Guru)' }
+          : {}),
+      });
+      continue;
     }
 
     const isKosong =
@@ -450,7 +507,7 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
           break;
         }
 
-        // ── Pilihan Ganda Kompleks: semua pilihan harus tepat ──
+        // ── Pilihan Ganda Kompleks: mutlak atau parsial proporsional ──
         case 'multiple_select': {
           const kArr: string[] = (Array.isArray(ansKunci)
             ? ansKunci
@@ -460,11 +517,25 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
             ? ansSiswa
             : [String(ansSiswa)]
           ).map((x: any) => String(x).toUpperCase()).sort();
-          if (kArr.join(',') === sArr.join(',')) { isBenar = true; poinDidapat = poin; }
+          if (kArr.join(',') === sArr.join(',')) {
+            isBenar = true;
+            poinDidapat = poin;
+          } else if (usePartialComplex && kArr.length > 0) {
+            const kSet = new Set(kArr);
+            let tp = 0;
+            let fp = 0;
+            sArr.forEach((opt) => {
+              if (kSet.has(opt)) tp++;
+              else fp++;
+            });
+            const ratio = Math.max(0, (tp - fp) / kArr.length);
+            poinDidapat = Math.round(ratio * poin * 100) / 100;
+            isBenar = poinDidapat >= poin * 0.5;
+          }
           break;
         }
 
-        // ── Benar-Salah Majemuk (MTF): setiap pernyataan harus benar ──
+        // ── Benar-Salah Majemuk (MTF): mutlak atau parsial proporsional ──
         case 'multiple_true_false': {
           const kMTF: string[] = Array.isArray(ansKunci)
             ? ansKunci.map((x: any) => String(x).toUpperCase())
@@ -472,14 +543,21 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
           const sMTF: string[] = Array.isArray(ansSiswa)
             ? ansSiswa.map((x: any) => String(x).toUpperCase())
             : [String(ansSiswa).toUpperCase()];
-          // Semua elemen harus cocok (posisi-based)
           if (kMTF.length === sMTF.length && kMTF.every((k, idx) => k === sMTF[idx])) {
-            isBenar = true; poinDidapat = poin;
+            isBenar = true;
+            poinDidapat = poin;
+          } else if (usePartialComplex && kMTF.length > 0) {
+            let matched = 0;
+            kMTF.forEach((k, idx) => {
+              if (sMTF[idx] === k) matched++;
+            });
+            poinDidapat = Math.round((matched / kMTF.length) * poin * 100) / 100;
+            isBenar = poinDidapat >= poin * 0.5;
           }
           break;
         }
 
-        // ── Menjodohkan: setiap pasangan harus tepat ──
+        // ── Menjodohkan: mutlak atau parsial proporsional ──
         case 'matching': {
           const kMap: Record<string, string> =
             typeof ansKunci === 'object' && !Array.isArray(ansKunci)
@@ -493,7 +571,17 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
           const sEntries = Object.entries(sMap).sort(([a], [b]) => a.localeCompare(b));
           const kStr = kEntries.map(([k, v]) => `${k}:${String(v).toUpperCase()}`).join(',');
           const sStr = sEntries.map(([k, v]) => `${k}:${String(v).toUpperCase()}`).join(',');
-          if (kStr === sStr && kEntries.length > 0) { isBenar = true; poinDidapat = poin; }
+          if (kStr === sStr && kEntries.length > 0) {
+            isBenar = true;
+            poinDidapat = poin;
+          } else if (usePartialComplex && kEntries.length > 0) {
+            let matched = 0;
+            kEntries.forEach(([k, v]) => {
+              if (String(sMap[k] ?? '').toUpperCase() === String(v).toUpperCase()) matched++;
+            });
+            poinDidapat = Math.round((matched / kEntries.length) * poin * 100) / 100;
+            isBenar = poinDidapat >= poin * 0.5;
+          }
           break;
         }
 
@@ -518,10 +606,15 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
 
       if (isBenar) {
         benarCount++;
-        poinSiswa += poinDidapat;
-        poinObjektif += poinDidapat;
       } else {
         salahCount++;
+        if (poinDidapat === 0 && penaltySalah < 0) {
+          poinDidapat = penaltySalah;
+        }
+      }
+      if (poinDidapat !== 0) {
+        poinSiswa += poinDidapat;
+        poinObjektif += poinDidapat;
       }
     }
 

@@ -19,16 +19,18 @@ Platform koreksi Lembar Jawaban Komputer (LJK) & asesmen digital tingkat enterpr
 * Ringkasan statistik siswa, guru, kunci jawaban, hasil koreksi, serta status Sesi Akademik aktif (Tahun Ajaran & Semester).
 * Indikator kesehatan sistem cepat dan navigasi responsif (sidebar sticky di desktop & bottom navigation bar ramah sentuhan di mobile).
 
-### 3. Manajemen Kunci Jawaban 8 Tipe Soal AKM (`/dashboard/kunci`)
-Mendukung penyusunan kunci jawaban terstruktur dan pembobotan poin untuk 8 tipe soal:
-1. **Pilihan Ganda (`A–E`)** — `single_choice`
-2. **Pilihan Ganda (`A–D`)** — `single_choice_4`
-3. **Benar / Salah** — `true_false`
-4. **Pilihan Ganda Kompleks** — `multiple_select`
-5. **Benar-Salah Majemuk (MTF)** — `multiple_true_false`
-6. **Menjodohkan** — `matching`
-7. **Isian Singkat** — `short_answer`
-8. **Uraian / Esai** — `essay`
+### 3. Studio Kunci Jawaban 8 Tipe Soal AKM & Pembobotan Guru (`/dashboard/kunci`)
+* **Studio Terpandu 3-Langkah:** Template paket 1-klik (UH PG, SMP A–D, PG+Esai, AKM Lengkap), **Input Kilat** (tempel teks, impor Excel `.xlsx`, & ekstrak foto/naskah via Gemini AI), serta mode **Papan Cepat** dengan navigasi keyboard.
+* **Kewenangan Pembobotan Penuh Guru:** Bagi bobot **Persentase (`%`) per tipe**, poin bebas per tipe soal, skala proporsional ke `100`, skoring **AKM Kompleks (`Mutlak` / `Parsial Proporsional`)**, penalti jawaban salah, penandaan **Bonus / Anulir** per nomor, duplikat multi-kelas sekaligus, cetak kunci pegangan guru, dan **Hitung Ulang Nilai Tersimpan (`Re-grade`)**.
+* Mendukung penuh **8 tipe soal**:
+  1. **Pilihan Ganda (`A–E`)** — `single_choice`
+  2. **Pilihan Ganda (`A–D`)** — `single_choice_4`
+  3. **Benar / Salah** — `true_false`
+  4. **Pilihan Ganda Kompleks** — `multiple_select`
+  5. **Benar-Salah Majemuk (MTF)** — `multiple_true_false`
+  6. **Menjodohkan** — `matching`
+  7. **Isian Singkat** — `short_answer`
+  8. **Uraian / Esai** — `essay`
 
 ### 4. Generator & Cetak LJK Digital / Hybrid (`/dashboard/ljk` & `/print/ljk`)
 * Menghasilkan lembar LJK siap cetak ukuran A4 lengkap dengan **QR Code identitas** (ID kunci, siswa/NIS) dan **4 penanda sudut (*fiducial markers*)** untuk kalibrasi pemindaian OMR lokal berakurasi tinggi.

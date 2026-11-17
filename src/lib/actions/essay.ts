@@ -176,7 +176,7 @@ ATURAN PENILAIAN:
 
       const fromAI = aiResultsMap.get(Number(it.no));
       if (fromAI && !usedFallback) {
-        const clamped = Math.min(it.maxPoin, Math.max(0, Math.round(fromAI.score * 2) / 2));
+        const clamped = Math.min(it.maxPoin, Math.max(0, Math.round(fromAI.score * 100) / 100));
         return {
           no: it.no,
           score: clamped,
