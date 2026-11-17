@@ -13,7 +13,7 @@ import { withBasePath } from '@/lib/base-path';
 import { BrandLogo } from '@/components/BrandLogo';
 import {
   Menu, X, LayoutDashboard, Key, ScanLine, Award,
-  ChevronRight, QrCode, Smartphone, Wifi, Copy, Check
+  ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download
 } from 'lucide-react';
 
 interface ResponsiveDashboardWrapperProps {
@@ -483,11 +483,22 @@ export default function ResponsiveDashboardWrapper({
                 </div>
               )}
 
-              {/* Tips Install Aplikasi Native (PWA) di HP */}
-              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5">
-                <Smartphone className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <div className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <b className="text-emerald-600 dark:text-emerald-400">Tips Aplikasi Layar Penuh di HP:</b> Setelah terbuka di Chrome/Safari HP, ketuk menu browser lalu pilih <b>&ldquo;Tambahkan ke Layar Utama&rdquo; (Add to Home Screen)</b> agar aplikasi terpasang permanen seperti aplikasi native.
+              {/* Unduh APK Android & Tips PWA */}
+              <div className="space-y-2.5">
+                <a
+                  href="https://github.com/AiWerek-Tech/ai-grader-pro-mobile/releases/download/v2.0.5/wmvaa-ai-grader-pro-v2.0.5-android.apk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                >
+                  <Download className="w-4 h-4 shrink-0" />
+                  <span>Download APK Android v2.0.5</span>
+                </a>
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5">
+                  <Smartphone className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <b className="text-emerald-600 dark:text-emerald-400">Tips Layar Penuh:</b> Selain via APK Android, Anda juga bisa membuka URL di Chrome/Safari HP lalu pilih <b>&ldquo;Tambahkan ke Layar Utama&rdquo;</b>.
+                  </div>
                 </div>
               </div>
             </div>
