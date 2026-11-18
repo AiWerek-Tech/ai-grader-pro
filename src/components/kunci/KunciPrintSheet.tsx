@@ -28,20 +28,21 @@ export default function KunciPrintSheet({
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
             WMVAA AI GRADER PRO — LEMBAR KUNCI JAWABAN PEGANGAN GURU
           </p>
-          <h1 className="text-xl font-black mt-0.5">{kunci.judul_ujian}</h1>
+          <h1 className="text-xl font-black mt-0.5">
+            {getMapelLabel(kunci.id_mapel)} — {getKelasLabel(kunci.id_kelas)}
+          </h1>
+          <p className="text-xs font-bold text-slate-700 mt-0.5">{kunci.judul_ujian}</p>
           <p className="text-xs font-semibold mt-1">
-            Mapel: <strong>{getMapelLabel(kunci.id_mapel)}</strong> · Kelas:{' '}
-            <strong>{getKelasLabel(kunci.id_kelas)}</strong>
             {kunci.semester ? (
               <>
-                {' '}
-                · Semester:{' '}
+                Semester:{' '}
                 <strong>
                   {kunci.semester === 'GANJIL' ? 'Ganjil (1)' : kunci.semester === 'GENAP' ? 'Genap (2)' : kunci.semester}
-                </strong>
+                </strong>{' '}
+                ·{' '}
               </>
-            ) : null}{' '}
-            · ID: <span className="font-mono">{kunci.id_kunci}</span>
+            ) : null}
+            ID: <span className="font-mono">{kunci.id_kunci}</span>
           </p>
         </div>
         <div className="text-right text-xs">

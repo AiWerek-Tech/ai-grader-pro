@@ -8,7 +8,7 @@ export default async function LogsPage() {
   const logs = data || [];
 
   return (
-    <div className="p-4 sm:p-8 lg:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-10 fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in">
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">

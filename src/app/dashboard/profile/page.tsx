@@ -5,6 +5,8 @@ import { updateMyProfileAction, getMyAccountCredentialsAction } from '@/lib/acti
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { transformDriveLink } from '@/lib/utils';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import Image from 'next/image';
 import { 
   UserCircle2, 
@@ -92,25 +94,21 @@ export default function ProfilePage() {
   };
 
   if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4">
-      <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-      <div className="text-slate-500 dark:text-slate-400 font-bold animate-pulse tracking-tight">Menyiapkan Profil Anda...</div>
-    </div>
+    <DashboardLoadingState
+      title="Menyiapkan Profil Anda..."
+      subtitle="Memuat identitas digital dan kredensial akun"
+      accentClass="border-t-indigo-500"
+    />
   );
 
   return (
-    <div className="p-4 sm:p-8 lg:p-10 max-w-[1200px] mx-auto space-y-6 sm:space-y-10 fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6">
-        <div>
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">
-            <span className="p-2.5 sm:p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl sm:rounded-[1.5rem] text-indigo-500 shadow-inner border border-indigo-500/10 dark:border-indigo-500/20">
-              <User className="w-6 h-6 sm:w-8 sm:h-8" />
-            </span>
-            Pengaturan Profil
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 sm:mt-3 font-semibold text-xs sm:text-sm max-w-xl">Sesuaikan identitas digital Anda untuk tampilan di dashboard dan laporan penilaian.</p>
-        </div>
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1200px] mx-auto space-y-6 sm:space-y-8 fade-in">
+      <PageHeader
+        icon={<User className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+        title="Pengaturan Profil"
+        description="Sesuaikan identitas digital Anda untuk tampilan di dashboard dan laporan penilaian."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
         {/* Profile Card Sidebar */}

@@ -8,6 +8,8 @@ import { getSettingsAction } from '@/lib/actions/settings';
 import { TIPE_SOAL_AKM, TIPE_COLOR, getTipeDistribusi } from '@/lib/constants/tipe-soal';
 import { buildMachinePageLayout, type EssayLayoutMode } from '@/lib/scan/machine-layout';
 import { LJKSheet } from '@/components/ljk/LJKSheet';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -17,7 +19,7 @@ import {
   CheckSquare, GraduationCap,
   ClipboardList, Calendar, CopyPlus, LayoutGrid,
   ZoomIn, ZoomOut, Eye, ChevronLeft, ChevronRight,
-  Maximize2, Sparkles, CheckCircle2, QrCode
+  Maximize2, CheckCircle2, QrCode
 } from 'lucide-react';
 
 // ─── TipeBadge ────────────────────────────────────────────────────────────────
@@ -375,10 +377,11 @@ export default function CetakLJKPage() {
   };
 
   if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4">
-      <div className="w-16 h-16 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin" />
-      <div className="text-slate-500 dark:text-slate-400 font-bold animate-pulse tracking-tight">Memuat Studio Cetak LJK...</div>
-    </div>
+    <DashboardLoadingState
+      title="Memuat Studio Cetak LJK..."
+      subtitle="Menyiapkan daftar kunci ujian, peserta, dan template A4/Folio"
+      accentClass="border-t-sky-500"
+    />
   );
 
   const totalSheetsToPrint = selectedSiswaIds.size + blankCopies;
@@ -388,53 +391,50 @@ export default function CetakLJKPage() {
       {/* ══════════════════════════════════════════════════════════════════
           UI DASHBOARD UTAMA (Disembunyikan Otomatis Saat Print Kertas A4)
       ══════════════════════════════════════════════════════════════════ */}
-      <div className="p-4 sm:p-8 lg:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in print:hidden">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in print:hidden">
 
         {/* ── Header ── */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6">
-          <div>
-            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">
-              <span className="p-2.5 sm:p-3 bg-sky-500/10 dark:bg-sky-500/20 rounded-2xl sm:rounded-[1.5rem] text-sky-500 text-xl sm:text-2xl shadow-inner border border-sky-500/10 dark:border-sky-500/20">🖨️</span>
-              Cetak LJK Terpadu
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1.5 sm:mt-2 font-semibold text-xs sm:text-sm max-w-2xl">
-              Pilih paket ujian, tentukan peserta, tinjau pratinjau lembar A4 berkalibrasi OMR/AI secara langsung, dan cetak seketika.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-            <button
-              type="button"
-              onClick={() => previewSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider hover:border-sky-400 transition-all shadow-sm active:scale-95"
-            >
-              <Eye className="w-4 h-4 text-sky-500" />
-              <span>Pratinjau A4</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenPrintStudio}
-              disabled={!selectedKunci}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] text-indigo-600 dark:text-indigo-400 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider hover:border-indigo-400 transition-all shadow-sm disabled:opacity-40 active:scale-95"
-              title="Buka Studio Cetak Layar Penuh"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span>Studio Penuh</span>
-            </button>
-            <button
-              onClick={() => handleDirectPrint(false)}
-              disabled={!selectedKunci || totalSheetsToPrint === 0}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-sky-500/20 active:scale-95"
-            >
-              <Printer className="w-4 h-4" />
-              Cetak {totalSheetsToPrint > 0 ? `${totalSheetsToPrint} Lembar LJK` : 'LJK'}
-            </button>
-            <button onClick={() => fetchData(true)} disabled={refreshing}
-              title="Muat ulang data kunci & siswa"
-              className="w-10 h-10 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl flex items-center justify-center text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition-all disabled:opacity-50 shadow-sm active:scale-95">
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          icon={<Printer className="w-6 h-6 sm:w-7 sm:h-7" />}
+          iconBgClass="bg-sky-500/10 dark:bg-sky-500/20 border-sky-500/20 text-sky-600 dark:text-sky-400"
+          title="Cetak LJK Terpadu"
+          description="Pilih paket ujian, tentukan peserta, tinjau pratinjau lembar A4 berkalibrasi OMR/AI secara langsung, dan cetak seketika."
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => previewSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.1] text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider hover:border-sky-400 transition-all shadow-sm active:scale-95"
+              >
+                <Eye className="w-4 h-4 text-sky-500" />
+                <span>Pratinjau A4</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenPrintStudio}
+                disabled={!selectedKunci}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.1] text-indigo-600 dark:text-indigo-400 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider hover:border-indigo-400 transition-all shadow-sm disabled:opacity-40 active:scale-95"
+                title="Buka Studio Cetak Layar Penuh"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>Studio Penuh</span>
+              </button>
+              <button
+                onClick={() => handleDirectPrint(false)}
+                disabled={!selectedKunci || totalSheetsToPrint === 0}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-sky-500/20 active:scale-95"
+              >
+                <Printer className="w-4 h-4" />
+                Cetak {totalSheetsToPrint > 0 ? `${totalSheetsToPrint} Lembar LJK` : 'LJK'}
+              </button>
+              <button onClick={() => fetchData(true)} disabled={refreshing}
+                title="Muat ulang data kunci & siswa"
+                className="w-10 h-10 bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.1] rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-all disabled:opacity-50 shadow-sm active:scale-95">
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </>
+          }
+        />
 
         {/* ── Stats Bar ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
@@ -444,11 +444,11 @@ export default function CetakLJKPage() {
             { label: 'Lembar Siap Cetak', value: totalSheetsToPrint, icon: <CheckSquare className="w-4 h-4" />, color: totalSheetsToPrint > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500', bg: totalSheetsToPrint > 0 ? 'bg-emerald-500/10' : 'bg-slate-500/10' },
             { label: 'Jumlah Soal Aktif', value: selectedKunci ? selectedKunci.data_json?.length || 0 : 0, icon: <ClipboardList className="w-4 h-4" />, color: selectedKunci ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500', bg: selectedKunci ? 'bg-amber-500/10' : 'bg-slate-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 sm:gap-4 shadow-sm lg:backdrop-blur-sm">
+            <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 sm:gap-4 shadow-sm lg:backdrop-blur-sm">
               <div className={`w-9 h-9 sm:w-10 sm:h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} flex-shrink-0`}>{s.icon}</div>
               <div>
                 <div className={`text-xl sm:text-2xl font-black ${s.color}`}>{s.value}</div>
-                <div className="text-[8px] sm:text-[9px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-widest">{s.label}</div>
+                <div className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">{s.label}</div>
               </div>
             </div>
           ))}
@@ -520,17 +520,21 @@ export default function CetakLJKPage() {
                       {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={`font-black text-sm truncate ${isSelected ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>{k.judul_ujian}</div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`font-black text-sm truncate ${isSelected ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>
+                          {k.nama_mapel || k.judul_ujian}
+                        </span>
+                        {k.nama_kelas && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-black shrink-0">
+                            {k.nama_kelas}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5">
+                        {k.judul_ujian}
+                      </div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-[10px] text-slate-400 font-mono">{k.nama_guru}</span>
-                        <span className="text-[10px] text-slate-400">·</span>
-                        <span className="text-[10px] text-slate-500 font-bold">{k.nama_mapel}</span>
-                        {k.nama_kelas && (
-                          <>
-                            <span className="text-[10px] text-slate-400">·</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-bold">{k.nama_kelas}</span>
-                          </>
-                        )}
                         {k.semester && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black uppercase">
                             Smt {String(k.semester).toUpperCase().includes('GENAP') || String(k.semester) === '2' ? 'Genap' : 'Ganjil'}
@@ -652,7 +656,7 @@ export default function CetakLJKPage() {
                 </h3>
                 <p className="text-[11px] text-slate-500 font-medium">
                   {selectedKunci
-                    ? `${selectedKunci.judul_ujian} • ${layoutPreview?.totalSoal || 0} Soal (${layoutPreview?.layout.columns || 2} Kolom)`
+                    ? `${selectedKunci.nama_mapel || selectedKunci.judul_ujian}${selectedKunci.nama_kelas ? ` (${selectedKunci.nama_kelas})` : ''} · ${selectedKunci.judul_ujian} • ${layoutPreview?.totalSoal || 0} Soal (${layoutPreview?.layout.columns || 2} Kolom)`
                     : 'Pilih kunci jawaban di atas untuk menampilkan lembar jawaban'}
                 </p>
               </div>

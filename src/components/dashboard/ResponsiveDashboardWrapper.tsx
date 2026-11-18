@@ -14,8 +14,26 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { APP_VERSION, ANDROID_APK_RELEASE } from '@/lib/app-version';
 import {
   Menu, X, LayoutDashboard, Key, ScanLine, Award,
-  ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download
+  ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download,
+  Users, GraduationCap, BookOpen, ClipboardList, Printer,
+  ScrollText, Settings, Stethoscope, User
 } from 'lucide-react';
+
+const NAV_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  '/dashboard': LayoutDashboard,
+  '/dashboard/guru': Users,
+  '/dashboard/siswa': GraduationCap,
+  '/dashboard/kelas-mapel': BookOpen,
+  '/dashboard/tugas-mengajar': ClipboardList,
+  '/dashboard/kunci': Key,
+  '/dashboard/ljk': Printer,
+  '/dashboard/analisis': ScanLine,
+  '/dashboard/hasil': Award,
+  '/dashboard/logs': ScrollText,
+  '/dashboard/settings': Settings,
+  '/dashboard/doctor': Stethoscope,
+  '/dashboard/profile': User,
+};
 
 interface ResponsiveDashboardWrapperProps {
   children: React.ReactNode;
@@ -100,7 +118,7 @@ export default function ResponsiveDashboardWrapper({
       {/* Mobile Menu Backdrop */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden print:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/65 lg:backdrop-blur-sm z-50 lg:hidden print:hidden animate-in fade-in duration-200"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -179,19 +197,26 @@ export default function ResponsiveDashboardWrapper({
               <div className="space-y-1">
                 {section.items.map(item => {
                   const active = isRouteActive(item.href);
+                  const NavIcon = NAV_ICON_MAP[item.href] || LayoutDashboard;
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3.5 px-3.5 py-3 rounded-2xl text-[13px] font-bold transition-all group relative ${
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[13px] font-bold transition-all group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/40 ${
                         active
                           ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-md shadow-purple-500/25 dark:shadow-cyan-500/10'
                           : 'text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-white hover:bg-purple-50/70 dark:hover:bg-white/5'
                       }`}
                     >
-                      <span className="text-lg opacity-90 group-hover:scale-110 transition-transform font-emoji flex-shrink-0">
-                        {item.icon}
+                      <span
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 ${
+                          active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 dark:bg-white/[0.05] text-slate-600 dark:text-slate-300 group-hover:bg-purple-100 dark:group-hover:bg-purple-500/20 group-hover:text-purple-600 dark:group-hover:text-cyan-300'
+                        }`}
+                      >
+                        <NavIcon className="w-4 h-4" />
                       </span>
                       <span className="tracking-tight truncate">{item.label}</span>
                       {active && (
@@ -206,9 +231,11 @@ export default function ResponsiveDashboardWrapper({
         </nav>
 
         {/* Bottom Actions inside Sidebar */}
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 flex items-center justify-between">
-          <LogoutButton />
-          <div className="lg:hidden">
+        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 flex items-center gap-2.5">
+          <div className="flex-1 min-w-0">
+            <LogoutButton />
+          </div>
+          <div className="lg:hidden shrink-0">
             <ThemeToggle />
           </div>
         </div>
@@ -218,28 +245,28 @@ export default function ResponsiveDashboardWrapper({
       <main className="flex-1 flex flex-col min-w-0 print:block">
         
         {/* Top Header */}
-        <header className="h-16 lg:h-20 px-3 sm:px-6 lg:px-10 flex justify-between items-center bg-white/95 dark:bg-[#050314]/95 lg:bg-white/85 lg:dark:bg-[#050314]/85 lg:backdrop-blur-xl sticky top-0 z-30 border-b border-slate-200/80 dark:border-purple-500/10 transition-colors duration-300 print:hidden">
+        <header className="h-14 sm:h-16 lg:h-20 px-2.5 sm:px-6 lg:px-10 flex justify-between items-center gap-2 bg-white/95 dark:bg-[#050314]/95 lg:bg-white/85 lg:dark:bg-[#050314]/85 lg:backdrop-blur-xl sticky top-0 z-30 border-b border-slate-200/80 dark:border-purple-500/10 transition-colors duration-300 print:hidden">
           
           {/* Left: Mobile Brand & Hamburger Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition-colors active:scale-95"
+              className="lg:hidden p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 transition-colors active:scale-95 shrink-0"
               aria-label="Buka menu navigasi"
             >
               <Menu className="w-5 h-5" />
             </button>
 
             {/* Mobile Brand Pill */}
-            <Link href="/dashboard" className="flex items-center gap-2.5 lg:hidden">
-              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-md shadow-purple-500/20 border border-purple-200/60 dark:border-purple-500/30 bg-[#09051f]">
+            <Link href="/dashboard" className="flex items-center gap-2 sm:gap-2.5 lg:hidden min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-md shadow-purple-500/20 border border-purple-200/60 dark:border-purple-500/30 bg-[#09051f]">
                 <BrandLogo variant="app-icon" priority className="w-full h-full" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-[13px] font-black tracking-tight text-slate-900 dark:text-white leading-none">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs sm:text-[13px] font-black tracking-tight text-slate-900 dark:text-white leading-none whitespace-nowrap">
                   WMVAA Grader
                 </span>
-                <span className="text-[9px] font-bold text-purple-600 dark:text-cyan-400 uppercase tracking-widest mt-0.5">
+                <span className="text-[8px] sm:text-[9px] font-bold text-purple-600 dark:text-cyan-400 uppercase tracking-widest mt-0.5 whitespace-nowrap">
                   AI Pro v{APP_VERSION}
                 </span>
               </div>
@@ -256,15 +283,15 @@ export default function ResponsiveDashboardWrapper({
           </div>
           
           {/* Right: Android Server Switcher (khusus Android Wrapper), QR LAN Access, Theme Toggle */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {isAndroidApp && (
               <button
                 type="button"
                 onClick={() => window.WMVAANative?.openServerSettings?.()}
                 title="Pengaturan Koneksi Server Android"
-                className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-wider transition-all shadow-sm active:scale-95"
+                className="h-8 sm:h-10 px-2 sm:px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-black text-[9px] sm:text-[10px] uppercase tracking-wider transition-all shadow-sm active:scale-95"
               >
-                <Wifi className="w-4 h-4 shrink-0" />
+                <Wifi className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 <span>Server</span>
               </button>
             )}
@@ -272,7 +299,7 @@ export default function ResponsiveDashboardWrapper({
               type="button"
               onClick={() => setShowLanModal(true)}
               title="QR Code Akses HP Guru"
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/25 flex items-center gap-1.5 text-purple-600 dark:text-cyan-400 font-black text-[10px] uppercase tracking-wider transition-all shadow-sm active:scale-95"
+              className="h-8 w-8 sm:w-auto sm:h-10 sm:px-3.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/25 flex items-center justify-center gap-1.5 text-purple-600 dark:text-cyan-400 font-black text-[10px] uppercase tracking-wider transition-all shadow-sm active:scale-95"
             >
               <QrCode className="w-4 h-4 shrink-0" />
               <span className="hidden md:inline">QR Akses HP Guru</span>

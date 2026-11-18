@@ -6,8 +6,12 @@ import { toast } from 'sonner';
 import { createWorkbook, downloadWorkbook, loadWorkbookFromFile, worksheetToObjects } from '@/lib/utils/excel';
 import { transformDriveLink } from '@/lib/utils';
 import Image from 'next/image';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { 
   UserPlus, 
+  Users,
+  Search,
   FileUp, 
   Trash2, 
   Activity, 
@@ -28,8 +32,7 @@ import {
   Camera,
   Eye,
   EyeOff,
-  Copy,
-  RotateCcw
+  Copy
 } from 'lucide-react';
 
 export default function GuruPage() {
@@ -418,57 +421,57 @@ export default function GuruPage() {
   };
 
   if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4">
-      <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-      <div className="text-slate-500 dark:text-slate-400 font-bold animate-pulse tracking-tight">Sinkronisasi Database Pengajar...</div>
-    </div>
+    <DashboardLoadingState
+      title="Sinkronisasi Database Pengajar..."
+      subtitle="Memuat akun guru, admin, dan hak akses sistem"
+      accentClass="border-t-indigo-500"
+    />
   );
 
   return (
-    <div className="p-4 sm:p-8 lg:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-10 fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6">
-        <div>
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">
-            <span className="p-2.5 sm:p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl sm:rounded-[1.5rem] text-indigo-500 text-xl sm:text-2xl shadow-inner border border-indigo-500/10 dark:border-indigo-500/20">👥</span>
-            Database Pengajar
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 sm:mt-3 font-semibold text-xs sm:text-sm max-w-xl">Kelola hak akses guru dan admin, pantau produktivitas, serta manajemen akun sistem.</p>
-        </div>
-        <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-7 py-4 font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3 active:scale-95 transition-all"
-          >
-            <UserPlus className="w-4 h-4" /> Daftarkan Pengajar
-          </button>
-          <button 
-            onClick={exportAllCredentials}
-            className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2.5 active:scale-95 transition-all"
-            title="Download Daftar Semua Username & Password Guru (.xlsx)"
-          >
-            <Download className="w-4 h-4" /> Ekspor Akun & Password
-          </button>
-          <button 
-            onClick={() => setShowImportModal(true)}
-            className="flex-1 md:flex-none bg-white dark:bg-white/[0.03] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-6 py-4 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 dark:hover:bg-white/5 flex items-center justify-center gap-2.5 shadow-sm active:scale-95"
-          >
-            <FileUp className="w-4 h-4 text-indigo-500" /> Impor Guru (Pro)
-          </button>
-        </div>
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in">
+      <PageHeader
+        icon={<Users className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+        title="Database Pengajar"
+        description="Kelola hak akses guru dan admin, pantau produktivitas, serta manajemen akun sistem."
+        actions={
+          <>
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2.5 active:scale-95 transition-all"
+            >
+              <UserPlus className="w-4 h-4" /> Daftarkan Pengajar
+            </button>
+            <button 
+              onClick={exportAllCredentials}
+              className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              title="Download Daftar Semua Username & Password Guru (.xlsx)"
+            >
+              <Download className="w-4 h-4" /> Ekspor Akun
+            </button>
+            <button 
+              onClick={() => setShowImportModal(true)}
+              className="flex-1 md:flex-none bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/[0.1] px-5 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 dark:hover:bg-white/10 flex items-center justify-center gap-2 shadow-sm active:scale-95"
+            >
+              <FileUp className="w-4 h-4 text-indigo-500" /> Impor Guru
+            </button>
+          </>
+        }
+      />
 
       {/* Stats Cards Quick Look */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
-          <div className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-2">Total Guru</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <div className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/[0.06] p-5 sm:p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
+          <div className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1.5">Total Guru</div>
           <div className="text-3xl font-black text-slate-900 dark:text-white">{data.filter(g => g.role === 'GURU').length}</div>
         </div>
-        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
-          <div className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-2">Total Admin</div>
+        <div className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/[0.06] p-5 sm:p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
+          <div className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1.5">Total Admin</div>
           <div className="text-3xl font-black text-amber-700 dark:text-amber-500">{data.filter(g => g.role === 'ADMIN').length}</div>
         </div>
-        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
-          <div className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-2">Status Aktif</div>
+        <div className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/[0.06] p-5 sm:p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
+          <div className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1.5">Status Aktif</div>
           <div className="text-3xl font-black text-emerald-700 dark:text-emerald-500">{data.filter(g => g.status === 'Aktif').length}</div>
         </div>
       </div>
@@ -476,7 +479,7 @@ export default function GuruPage() {
       {/* Filter Section */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="md:col-span-2 relative group">
-          <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-600 transition-colors">🔍</span>
+          <Search className="w-4 h-4 absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-600 transition-colors pointer-events-none" />
           <input 
             type="text" 
             placeholder="Cari Nama atau Username..." 

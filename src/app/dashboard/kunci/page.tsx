@@ -294,7 +294,7 @@ export default function KunciJawabanPage() {
 
   return (
     <>
-      <div className="space-y-6 pb-20 fade-in print:hidden">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 pb-20 fade-in print:hidden">
         {/* Hero Header */}
         <div className="surface-card p-5 sm:p-6 bg-gradient-to-br from-purple-600/10 via-indigo-500/5 to-cyan-500/10 border-purple-500/20">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
@@ -310,45 +310,47 @@ export default function KunciJawabanPage() {
               </p>
 
               {/* Alur Cepat Pemula */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                <span className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                  1. Buat Kunci &amp; Bobot
+              <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 pt-1 text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                <span className="px-2 py-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center truncate">
+                  <span className="sm:hidden">1. Buat Kunci</span>
+                  <span className="hidden sm:inline">1. Buat Kunci &amp; Bobot</span>
                 </span>
-                <span className="text-slate-400">→</span>
-                <span className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                  2. Cetak LJK PDF
+                <span className="hidden sm:inline text-slate-400">→</span>
+                <span className="px-2 py-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center truncate">
+                  2. Cetak LJK
                 </span>
-                <span className="text-slate-400">→</span>
-                <span className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                  3. Scan Lembar Siswa
+                <span className="hidden sm:inline text-slate-400">→</span>
+                <span className="px-2 py-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center truncate">
+                  <span className="sm:hidden">3. Scan LJK</span>
+                  <span className="hidden sm:inline">3. Scan Lembar Siswa</span>
                 </span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => openEditor('create', null)}
+                className="col-span-2 sm:col-span-1 sm:order-last w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-black inline-flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 active:scale-95 transition-all">
+                <Plus className="w-4 h-4" />
+                <span>Buat Kunci Baru</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setShowGuide((v) => !v)}
-                className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center gap-1.5 hover:border-purple-400 transition-all">
-                <HelpCircle className="w-4 h-4 text-purple-500" />
-                <span>{showGuide ? 'Tutup Panduan' : 'Panduan 8 Tipe'}</span>
+                className="px-3 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:border-purple-400 transition-all active:scale-95">
+                <HelpCircle className="w-4 h-4 text-purple-500 shrink-0" />
+                <span className="truncate">{showGuide ? 'Tutup Panduan' : 'Panduan 8 Tipe'}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => downloadKunciCsv(filteredAndSortedKunci, getMapelLabel, getKelasLabel)}
                 disabled={filteredAndSortedKunci.length === 0}
-                className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center gap-1.5 hover:border-emerald-400 disabled:opacity-40 transition-all">
-                <Download className="w-4 h-4 text-emerald-500" />
-                <span>Ekspor CSV</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openEditor('create', null)}
-                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-black inline-flex items-center gap-2 shadow-lg shadow-purple-500/25 active:scale-95 transition-all">
-                <Plus className="w-4 h-4" />
-                <span>Buat Kunci Baru</span>
+                className="px-3 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:border-emerald-400 disabled:opacity-40 transition-all active:scale-95">
+                <Download className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="truncate">Ekspor CSV</span>
               </button>
             </div>
           </div>
@@ -428,12 +430,12 @@ export default function KunciJawabanPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
               <select
                 value={filterMapel}
                 onChange={(e) => setFilterMapel(e.target.value)}
                 aria-label="Filter Mata Pelajaran"
-                className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                className="w-full sm:w-auto h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="">Semua Mapel</option>
                 {masterData.mapel.map((m) => (
                   <option key={m.id_mapel} value={m.id_mapel}>
@@ -446,7 +448,7 @@ export default function KunciJawabanPage() {
                 value={filterKelas}
                 onChange={(e) => setFilterKelas(e.target.value)}
                 aria-label="Filter Kelas"
-                className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                className="w-full sm:w-auto h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="">Semua Kelas</option>
                 {masterData.kelas.map((k) => (
                   <option key={k.id_kelas} value={k.id_kelas}>
@@ -459,22 +461,33 @@ export default function KunciJawabanPage() {
                 value={filterSemester}
                 onChange={(e) => setFilterSemester(e.target.value as '' | 'GANJIL' | 'GENAP')}
                 aria-label="Filter Semester"
-                className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                className="w-full sm:w-auto h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
                 <option value="">Semua Semester</option>
                 <option value="GANJIL">Semester Ganjil</option>
                 <option value="GENAP">Semester Genap</option>
               </select>
 
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                aria-label="Urutkan"
-                className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
-                <option value="newest">Terbaru</option>
-                <option value="title_asc">Judul A–Z</option>
-                <option value="most_items">Soal Terbanyak</option>
-                <option value="most_results">Hasil Terbanyak</option>
-              </select>
+              <div className="flex items-center gap-2 col-span-1 sm:w-auto">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  aria-label="Urutkan"
+                  className="flex-1 sm:w-auto h-10 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none min-w-0">
+                  <option value="newest">Terbaru</option>
+                  <option value="title_asc">Judul A–Z</option>
+                  <option value="most_items">Soal Terbanyak</option>
+                  <option value="most_results">Hasil Terbanyak</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={loadData}
+                  disabled={loading}
+                  className="h-10 px-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-purple-400 transition-all shrink-0 lg:hidden"
+                  title="Muat ulang daftar kunci">
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
 
               <div className="hidden lg:inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
                 <button
@@ -503,7 +516,7 @@ export default function KunciJawabanPage() {
                 type="button"
                 onClick={loadData}
                 disabled={loading}
-                className="h-10 px-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-purple-400 transition-all"
+                className="hidden lg:inline-flex items-center justify-center h-10 px-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-purple-400 transition-all"
                 title="Muat ulang daftar kunci">
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -511,7 +524,7 @@ export default function KunciJawabanPage() {
           </div>
 
           {/* Filter Jenis Soal Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/70 dark:border-white/10">
+          <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200/70 dark:border-white/10 overflow-x-auto no-scrollbar">
             {[
               { id: 'all' as const, label: 'Semua Format' },
               { id: 'pg_only' as const, label: 'PG Tunggal' },
@@ -522,9 +535,9 @@ export default function KunciJawabanPage() {
                 key={chip.id}
                 type="button"
                 onClick={() => setFilterKind(chip.id)}
-                className={`px-3 py-1 rounded-xl text-[11px] font-black border transition-all ${
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-black border transition-all active:scale-95 ${
                   filterKind === chip.id
-                    ? 'bg-purple-600 text-white border-purple-600'
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                     : 'bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-purple-400'
                 }`}>
                 {chip.label}
@@ -612,10 +625,11 @@ export default function KunciJawabanPage() {
 
                       <div>
                         <h3 className="text-base font-black text-slate-900 dark:text-white leading-snug line-clamp-2">
-                          {k.judul_ujian}
+                          {getMapelLabel(k.id_mapel)}
+                          <span className="text-purple-600 dark:text-cyan-400"> · {getKelasLabel(k.id_kelas)}</span>
                         </h3>
-                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-                          {getMapelLabel(k.id_mapel)} · Kelas {getKelasLabel(k.id_kelas)}
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1 line-clamp-1">
+                          {k.judul_ujian}
                         </p>
                         <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] font-bold text-slate-400">
                           <span className="inline-flex items-center gap-1">
@@ -714,8 +728,8 @@ export default function KunciJawabanPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <th className="py-3.5 px-5">Ujian &amp; Pembuat</th>
-                        <th className="py-3.5 px-4">Mapel &amp; Kelas</th>
+                        <th className="py-3.5 px-5">Mata Pelajaran &amp; Ujian</th>
+                        <th className="py-3.5 px-4">Kelas &amp; Jenis</th>
                         <th className="py-3.5 px-4">Komposisi Soal</th>
                         <th className="py-3.5 px-4 text-center">Butir / Bobot / Hasil</th>
                         <th className="py-3.5 px-5 text-right">Aksi Cepat</th>
@@ -732,12 +746,15 @@ export default function KunciJawabanPage() {
                           <tr key={k.id_kunci} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02]">
                             <td className="py-3.5 px-5">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-black text-slate-900 dark:text-white">{k.judul_ujian}</p>
+                                <p className="font-black text-slate-900 dark:text-white">{getMapelLabel(k.id_mapel)}</p>
                                 {k.semester && (
                                   <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[9px] font-black text-slate-600 dark:text-slate-300 uppercase">
                                     Smt {k.semester === 'GANJIL' ? 'Ganjil' : k.semester === 'GENAP' ? 'Genap' : k.semester}
                                   </span>
                                 )}
+                              </div>
+                              <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-0.5 truncate max-w-xs">
+                                {k.judul_ujian}
                               </div>
                               <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
                                 <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">
@@ -748,8 +765,10 @@ export default function KunciJawabanPage() {
                               </div>
                             </td>
                             <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                              <div>{getMapelLabel(k.id_mapel)}</div>
-                              <div className="text-[11px] text-slate-500">Kelas {getKelasLabel(k.id_kelas)}</div>
+                              <div className="font-black text-purple-600 dark:text-cyan-400">{getKelasLabel(k.id_kelas)}</div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                {k.pengaturan_poin?.jenis_asesmen || 'Reguler'}
+                              </div>
                             </td>
                             <td className="py-3.5 px-4">
                               <div className="flex flex-wrap gap-1">

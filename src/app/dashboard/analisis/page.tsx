@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { SmartLJKScannerModal } from '@/components/scan/SmartLJKScannerModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ScanStatus = 'pending' | 'scanning' | 'done' | 'error' | 'saved';
@@ -783,25 +785,23 @@ export default function AnalisisPage() {
 
   // ─── Loading state ───────────────────────────────────────────────────────────
   if (loadingData) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-      <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-      <p className="text-slate-400 font-bold animate-pulse">Memuat sistem analisis LJK...</p>
-    </div>
+    <DashboardLoadingState
+      title="Memuat Sistem Analisis LJK..."
+      subtitle="Menghubungkan kunci ujian, data siswa, dan engine Gemini AI"
+      accentClass="border-t-violet-500"
+    />
   );
 
   return (
-    <div className="p-3.5 pb-44 sm:p-8 lg:p-10 max-w-[1700px] mx-auto space-y-5 sm:space-y-8">
+    <div className="p-4 pb-44 sm:p-6 lg:p-8 xl:p-10 max-w-[1700px] mx-auto space-y-5 sm:space-y-8">
 
       {/* ── Header ── */}
-      <div>
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">
-          <span className="p-2.5 sm:p-3 bg-violet-500/10 dark:bg-violet-500/20 rounded-2xl sm:rounded-[1.5rem] text-xl sm:text-2xl shadow-inner border border-violet-500/10 dark:border-violet-500/20">🔬</span>
-          Analisis LJK
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 sm:mt-2 font-semibold text-xs sm:text-sm max-w-2xl">
-          Pilih kunci ujian, foto kertas LJK siswa, lalu simpan nilai otomatis ke database.
-        </p>
-      </div>
+      <PageHeader
+        icon={<ScanLine className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-violet-500/10 dark:bg-violet-500/20 border-violet-500/20 text-violet-600 dark:text-violet-400"
+        title="Analisis LJK"
+        description="Pilih kunci ujian, foto kertas LJK siswa, lalu simpan nilai otomatis ke database."
+      />
 
       {/* ── Capability chips (Desktop Only agar layar HP bersih untuk Guru) ── */}
       <div className="hidden sm:flex flex-wrap gap-2">
@@ -890,9 +890,21 @@ export default function AnalisisPage() {
                             {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className={`text-xs font-black truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>{k.judul_ujian}</div>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={`text-xs font-black truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>
+                                {k.nama_mapel || k.judul_ujian}
+                              </span>
+                              {k.nama_kelas && (
+                                <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-black text-[9px] shrink-0">
+                                  {k.nama_kelas}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5">
+                              {k.judul_ujian}
+                            </div>
                             <div className="text-[9px] text-slate-400 mt-0.5 truncate">
-                              {k.nama_mapel} · {k.nama_guru}
+                              {k.nama_guru}
                               {k.semester ? ` · Smt ${String(k.semester).toUpperCase().includes('GENAP') || String(k.semester) === '2' ? 'Genap' : 'Ganjil'}` : ''}
                             </div>
                             <div className="flex gap-1 mt-1 flex-wrap">
@@ -920,8 +932,13 @@ export default function AnalisisPage() {
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                     Kunci Aktif
                   </div>
-                  <div className="font-black text-sm text-slate-900 dark:text-white truncate">{selectedKunci.judul_ujian}</div>
-                  <div className="text-[10px] text-slate-400">{selectedKunci.data_json?.length} butir · {selectedKunci.nama_mapel}</div>
+                  <div className="font-black text-sm text-slate-900 dark:text-white truncate">
+                    {selectedKunci.nama_mapel || selectedKunci.judul_ujian}
+                    {selectedKunci.nama_kelas ? ` · ${selectedKunci.nama_kelas}` : ''}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    {selectedKunci.judul_ujian} · {selectedKunci.data_json?.length} butir
+                  </div>
                 </div>
                 <button onClick={() => { setSelectedKunci(null); setScanItems([]); setIsKunciCollapsed(false); }}
                   className="w-8 h-8 rounded-xl bg-indigo-500/10 hover:bg-rose-500/20 flex items-center justify-center text-indigo-400 hover:text-rose-500 transition-all active:scale-95"
@@ -1094,12 +1111,12 @@ export default function AnalisisPage() {
 
           {/* Empty state */}
           {scanItems.length === 0 ? (
-            <div className="bg-white dark:bg-[#0a0e1a]/40 border border-dashed border-slate-200 dark:border-white/[0.05] rounded-[2rem] py-20 flex flex-col items-center gap-4">
-              <div className="text-6xl opacity-20 grayscale">🔬</div>
-              <p className="text-[11px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest text-center max-w-xs">
+            <div className="bg-white dark:bg-[#0a0e1a]/40 border border-dashed border-slate-200 dark:border-white/[0.05] rounded-[2rem] py-12 sm:py-20 px-6 flex flex-col items-center gap-3 sm:gap-4">
+              <div className="text-5xl sm:text-6xl opacity-20 grayscale">🔬</div>
+              <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center max-w-xs leading-relaxed">
                 {selectedKunci
                   ? 'Unggah foto LJK ke area di atas untuk memulai analisis'
-                  : 'Pilih kunci ujian di panel kiri terlebih dahulu'}
+                  : 'Pilih kunci ujian pada Langkah 1 terlebih dahulu'}
               </p>
             </div>
           ) : (

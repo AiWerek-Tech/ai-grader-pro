@@ -120,11 +120,10 @@ export function KunciDetailModal({
             <h3
               id="detail-kunci-title"
               className="text-base sm:text-xl font-black text-slate-900 dark:text-white truncate mt-0.5">
-              {kunci.judul_ujian}
+              {getMapelLabel(kunci.id_mapel)} · {getKelasLabel(kunci.id_kelas)}
             </h3>
             <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              {getMapelLabel(kunci.id_mapel)} · Kelas {getKelasLabel(kunci.id_kelas)} · Oleh{' '}
-              {kunci.nama_guru || kunci.id_guru} · {formatTanggalSingkat(kunci.timestamp)}
+              {kunci.judul_ujian} · Oleh {kunci.nama_guru || kunci.id_guru} · {formatTanggalSingkat(kunci.timestamp)}
             </p>
           </div>
           <button
@@ -338,7 +337,7 @@ export function KunciIrtModal({ kunci, irtStats, loading, onClose }: IrtModalPro
                 Analisis Butir Soal (IRT / CTT)
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                {kunci.judul_ujian}
+                {kunci.nama_mapel || kunci.id_mapel} {kunci.nama_kelas ? `· ${kunci.nama_kelas}` : ''} — {kunci.judul_ujian}
               </p>
             </div>
           </div>
@@ -515,12 +514,12 @@ export function KunciDeleteModal({ kunci, deleting, onCancel, onConfirm }: Delet
             </h3>
             {hasilCount > 0 ? (
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                Kunci <strong className="text-slate-900 dark:text-white">{kunci.judul_ujian}</strong> sudah memiliki{' '}
+                Kunci <strong className="text-slate-900 dark:text-white">{kunci.nama_mapel || kunci.id_mapel} ({kunci.judul_ujian})</strong> sudah memiliki{' '}
                 <strong className="text-rose-500">{hasilCount} hasil scan siswa</strong> di database. Sistem menolak penghapusan agar nilai siswa dan analisis butir tidak rusak. Hapus hasil terkait di menu Hasil terlebih dahulu bila perlu.
               </p>
             ) : (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                Kunci <strong className="text-slate-800 dark:text-slate-200">{kunci.judul_ujian}</strong> ({kunci.id_kunci}) akan dihapus permanen.
+                Kunci <strong className="text-slate-800 dark:text-slate-200">{kunci.nama_mapel || kunci.id_mapel} ({kunci.judul_ujian})</strong> [{kunci.id_kunci}] akan dihapus permanen.
               </p>
             )}
           </div>

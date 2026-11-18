@@ -4,6 +4,8 @@ import { runSystemDoctorAction, healSystemAction } from '@/lib/actions/doctor';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { Stethoscope, ShieldAlert, CheckCircle2, AlertTriangle, XCircle, Activity, Zap } from 'lucide-react';
 
 export default function DoctorPage() {
@@ -68,39 +70,31 @@ export default function DoctorPage() {
   const totalCount = diagnostics.length;
 
   if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-6">
-      <div className="relative">
-        <div className="absolute inset-0 bg-rose-500/20 blur-xl rounded-full" />
-        <Activity className="w-16 h-16 text-rose-500 animate-pulse relative z-10" />
-      </div>
-      <div>
-        <div className="text-slate-900 dark:text-slate-400 font-black text-lg tracking-tight">Menghubungkan ke Ruang Server</div>
-        <div className="text-slate-500 text-xs font-bold mt-1">Mengumpulkan matrix kesehatan sistem...</div>
-      </div>
-    </div>
+    <DashboardLoadingState
+      title="Menghubungkan ke Ruang Server..."
+      subtitle="Mengumpulkan matrix kesehatan struktur database sistem"
+      accentClass="border-t-rose-500"
+    />
   );
 
   return (
-    <div className="p-6 sm:p-10 max-w-[1600px] mx-auto space-y-10 fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-4">
-            <span className="p-3 bg-rose-500/10 dark:bg-rose-500/20 rounded-[1.5rem] shadow-inner border border-rose-500/10 dark:border-rose-500/20">
-              <Stethoscope className="w-7 h-7 text-rose-500" />
-            </span>
-            System Doctor
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-3 font-semibold text-sm max-w-xl">Deteksi anomali pada arsitektur database, cari *orphan data*, perbaiki relasi kelas, dan jalankan pemulihan otomatis.</p>
-        </div>
-        <button 
-          onClick={handleHeal}
-          disabled={healing}
-          className="w-full md:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-3 active:scale-95"
-        >
-          {healing ? <Activity className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          {healing ? 'Pembedahan Aktif...' : 'Jalankan Bedah Laser (Auto-Heal)'}
-        </button>
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in">
+      <PageHeader
+        icon={<Stethoscope className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-rose-500/10 dark:bg-rose-500/20 border-rose-500/20 text-rose-600 dark:text-rose-400"
+        title="System Doctor"
+        description="Deteksi anomali pada arsitektur database, cari orphan data, perbaiki relasi kelas, dan jalankan pemulihan otomatis."
+        actions={
+          <button 
+            onClick={handleHeal}
+            disabled={healing}
+            className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-7 py-3.5 font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 active:scale-95"
+          >
+            {healing ? <Activity className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {healing ? 'Pembedahan Aktif...' : 'Jalankan Auto-Heal'}
+          </button>
+        }
+      />
 
       {error && (
         <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-500 p-5 rounded-2xl font-bold flex items-center gap-4 shadow-sm">

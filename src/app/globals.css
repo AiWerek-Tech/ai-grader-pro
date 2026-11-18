@@ -202,10 +202,28 @@ h1, h2, h3, h4, h5, h6 {
   overscroll-behavior-y: contain;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .pb-safe {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
 }
 
 .pt-safe {
   padding-top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
+}
+
+/* Unified Keyboard & Accessibility Focus Ring */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.5);
+  outline-offset: 2px;
 }

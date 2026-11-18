@@ -27,7 +27,7 @@ function PrintLogo({
   const activeUrl = !useFallback && primaryUrl ? primaryUrl : defaultSrc;
 
   if (hideAll || !activeUrl) {
-    return <div className="w-[68px] h-[68px]" />;
+    return <div className="w-[64px] h-[64px]" />;
   }
 
   return (
@@ -43,7 +43,7 @@ function PrintLogo({
           setHideAll(true);
         }
       }}
-      className="max-w-[68px] max-h-[68px] w-auto h-auto object-contain select-none"
+      className="max-w-[64px] max-h-[64px] w-auto h-auto object-contain select-none"
     />
   );
 }
@@ -117,9 +117,11 @@ export default function HasilPrintSheet({
           settings.alamat_sekolah ||
           'Jl. Wamena – Kurima, Kampung Sogokmo, Kec. Asotipo, Kab. Jayawijaya';
         const namaKepsek =
+          settings[`${jenjang}_kepala_nama`] ||
           settings[`${jenjang}_kepala_sekolah`] ||
           settings.nama_kepsek ||
-          '___________________________';
+          '';
+        const nipKepsek = settings[`${jenjang}_kepala_nip`] || '';
 
         const firstRow = group.rows[0];
         const kInfo = selectedKunciObj || firstRow?.kInfo;
@@ -142,18 +144,18 @@ export default function HasilPrintSheet({
         const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
         const minScore = scores.length > 0 ? Math.min(...scores) : 0;
         const tuntasCount = sortedRows.filter((r) => (Number(r.skor) || 0) >= (Number(r.kkm_referensi) || 70)).length;
-        const remedialCount = sortedRows.length - tuntasCount;
+        const tidakTuntasCount = sortedRows.length - tuntasCount;
         const ketuntasanPct =
           sortedRows.length > 0 ? Math.round((tuntasCount / sortedRows.length) * 100) : 0;
 
         return (
           <div
             key={`${group.kelasName}-${groupIdx}`}
-            className="hasil-print-page bg-white text-black max-w-[210mm] mx-auto px-6 py-4 print:break-after-page last:print:break-after-auto"
+            className="hasil-print-page bg-white text-black w-full max-w-[190mm] mx-auto py-1 print:break-after-page last:print:break-after-auto"
           >
             {/* 1. KOP SURAT RESMI SEKOLAH */}
-            <div className="border-b-[3px] border-double border-black pb-2.5 mb-3 flex items-center justify-between gap-4">
-              <div className="w-[68px] h-[68px] flex items-center justify-center shrink-0">
+            <div className="border-b-[3px] border-double border-black pb-2.5 mb-3.5 flex items-center justify-between gap-4">
+              <div className="w-[64px] h-[64px] flex items-center justify-center shrink-0">
                 <PrintLogo
                   src={logoKiri}
                   defaultSrc={withBasePath('/logo/logo_advent.png')}
@@ -168,13 +170,13 @@ export default function HasilPrintSheet({
                 <div className="text-[13px] font-black uppercase tracking-[0.04em] text-black mt-0.5">
                   {sekolahBaris1}
                 </div>
-                <div className="text-[18px] font-black uppercase tracking-[0.04em] text-black leading-tight">
+                <div className="text-[17px] font-black uppercase tracking-[0.04em] text-black leading-tight">
                   {sekolahBaris2}
                 </div>
                 <div className="text-[8.5px] italic text-slate-700 mt-0.5">{alamat}</div>
               </div>
 
-              <div className="w-[68px] h-[68px] flex items-center justify-center shrink-0">
+              <div className="w-[64px] h-[64px] flex items-center justify-center shrink-0">
                 <PrintLogo
                   src={logoKanan}
                   defaultSrc={withBasePath('/logo/tut_wuri.png')}
@@ -185,65 +187,71 @@ export default function HasilPrintSheet({
 
             {/* 2. JUDUL LAPORAN & IDENTITAS KELAS/ASESMEN */}
             <div className="text-center mb-3">
-              <h2 className="text-sm font-black uppercase tracking-[0.14em] underline underline-offset-4">
+              <h2 className="text-[14px] font-black uppercase tracking-[0.14em] underline underline-offset-4">
                 DAFTAR NILAI HASIL ASESMEN SISWA
               </h2>
-              <p className="text-[10px] font-bold uppercase text-slate-700 mt-1">
-                {judulUjian}
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700 mt-1">
+                {namaMapel && namaMapel !== '—' ? `${namaMapel} — ${judulUjian}` : judulUjian}
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-[10px] border border-black rounded p-2.5 mb-3 bg-slate-50/40">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[9.5px] border border-black rounded px-3.5 py-2.5 mb-3.5 bg-slate-50/70">
               <div className="space-y-1">
-                <div className="flex">
-                  <span className="w-28 font-bold text-slate-700">Mata Pelajaran</span>
-                  <span className="font-black">: {namaMapel}</span>
+                <div className="grid grid-cols-[92px_8px_1fr] items-start">
+                  <span className="font-bold text-slate-700">Mata Pelajaran</span>
+                  <span className="font-bold text-center">:</span>
+                  <span className="font-black text-black">{namaMapel}</span>
                 </div>
-                <div className="flex">
-                  <span className="w-28 font-bold text-slate-700">Kelas</span>
-                  <span className="font-black">: {group.kelasName}</span>
+                <div className="grid grid-cols-[92px_8px_1fr] items-start">
+                  <span className="font-bold text-slate-700">Kelas</span>
+                  <span className="font-bold text-center">:</span>
+                  <span className="font-black text-black">{group.kelasName}</span>
                 </div>
-                <div className="flex">
-                  <span className="w-28 font-bold text-slate-700">Guru Pengampu</span>
-                  <span className="font-semibold">: {namaGuru}</span>
+                <div className="grid grid-cols-[92px_8px_1fr] items-start">
+                  <span className="font-bold text-slate-700">Guru Pengampu</span>
+                  <span className="font-bold text-center">:</span>
+                  <span className="font-semibold text-black">{namaGuru}</span>
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="flex">
-                  <span className="w-32 font-bold text-slate-700">Tahun Ajaran / Smt</span>
-                  <span className="font-black">
-                    : {tahunAjaran} ({semStr === 'GENAP' ? 'Genap' : 'Ganjil'})
+                <div className="grid grid-cols-[112px_8px_1fr] items-start">
+                  <span className="font-bold text-slate-700">Tahun Ajaran / Smt</span>
+                  <span className="font-bold text-center">:</span>
+                  <span className="font-black text-black">
+                    {tahunAjaran} ({semStr === 'GENAP' ? 'Genap' : 'Ganjil'})
                   </span>
                 </div>
-                <div className="flex">
-                  <span className="w-32 font-bold text-slate-700">KKM / Ketuntasan</span>
-                  <span className="font-black">
-                    : {kkmVal} ({ketuntasanPct}% Tuntas — {tuntasCount}/{sortedRows.length} Siswa)
+                <div className="grid grid-cols-[112px_8px_1fr] items-start">
+                  <span className="font-bold text-slate-700">KKM / Ketuntasan</span>
+                  <span className="font-bold text-center">:</span>
+                  <span className="font-black text-black">
+                    {kkmVal} ({ketuntasanPct}% Tuntas — {tuntasCount}/{sortedRows.length} Siswa)
                   </span>
                 </div>
-                <div className="flex">
-                  <span className="w-32 font-bold text-slate-700">Rata-Rata / Rentang</span>
-                  <span className="font-black">
-                    : {avgScore} (Tertinggi: {maxScore} • Terendah: {minScore})
+                <div className="grid grid-cols-[112px_8px_1fr] items-start">
+                  <span className="font-bold text-slate-700">Rata-Rata / Nilai</span>
+                  <span className="font-bold text-center">:</span>
+                  <span className="font-black text-black">
+                    {avgScore} (Tertinggi: {maxScore} · Terendah: {minScore})
                   </span>
                 </div>
               </div>
             </div>
 
             {/* 3. TABEL NILAI SISWA */}
-            <table className="w-full border-collapse border border-black text-[10px] mb-4">
-              <thead>
-                <tr className="bg-slate-200/80 text-black font-black uppercase text-[9px]">
-                  <th className="border border-black py-1.5 px-2 text-center w-8">No</th>
-                  <th className="border border-black py-1.5 px-2 text-center w-20">NIS</th>
-                  <th className="border border-black py-1.5 px-2.5 text-left">Nama Lengkap Siswa</th>
-                  <th className="border border-black py-1.5 px-2 text-center w-20">Kelas</th>
-                  <th className="border border-black py-1.5 px-1.5 text-center w-10">Benar</th>
-                  <th className="border border-black py-1.5 px-1.5 text-center w-10">Salah</th>
-                  <th className="border border-black py-1.5 px-1.5 text-center w-10">Kosong</th>
-                  <th className="border border-black py-1.5 px-2 text-center w-14">Nilai</th>
-                  <th className="border border-black py-1.5 px-2 text-center w-14">Predikat</th>
-                  <th className="border border-black py-1.5 px-2 text-center w-24">Keterangan</th>
+            <table className="w-full table-fixed border-collapse border border-black text-[9.5px] mb-5">
+              <thead className="table-header-group">
+                <tr className="bg-slate-200 text-black font-black uppercase text-[8.5px]">
+                  <th className="border border-black py-2 px-1 text-center w-[5%]">No</th>
+                  <th className="border border-black py-2 px-1.5 text-center w-[9%]">NIS</th>
+                  <th className="border border-black py-2 px-2.5 text-left w-[31%]">Nama Lengkap Siswa</th>
+                  <th className="border border-black py-2 px-1.5 text-center w-[11%]">Kelas</th>
+                  <th className="border border-black py-2 px-1 text-center w-[6%]">Benar</th>
+                  <th className="border border-black py-2 px-1 text-center w-[6%]">Salah</th>
+                  <th className="border border-black py-2 px-1 text-center w-[6.5%]">Kosong</th>
+                  <th className="border border-black py-2 px-1 text-center w-[6.5%]">Nilai</th>
+                  <th className="border border-black py-2 px-1 text-center w-[7%]">Predikat</th>
+                  <th className="border border-black py-2 px-1.5 text-center w-[12%]">Keterangan</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,48 +263,54 @@ export default function HasilPrintSheet({
                     skorNum >= 90 ? 'A' : skorNum >= 80 ? 'B' : skorNum >= kkmNum ? 'C' : 'D';
 
                   return (
-                    <tr key={h.id_hasil || idx} className="even:bg-slate-50/60">
-                      <td className="border border-black py-1 px-2 text-center font-bold">{idx + 1}</td>
-                      <td className="border border-black py-1 px-2 text-center font-mono">
+                    <tr key={h.id_hasil || idx} className="even:bg-slate-50/70 break-inside-avoid">
+                      <td className="border border-black py-1.5 px-1 text-center font-bold">
+                        {idx + 1}
+                      </td>
+                      <td className="border border-black py-1.5 px-1.5 text-center font-mono whitespace-nowrap">
                         {h.sInfo?.nis || '—'}
                       </td>
-                      <td className="border border-black py-1 px-2.5 font-bold uppercase">
+                      <td className="border border-black py-1.5 px-2.5 font-bold uppercase text-left leading-snug">
                         {h.sInfo?.nama || h.id_siswa}
                       </td>
-                      <td className="border border-black py-1 px-2 text-center">
+                      <td className="border border-black py-1.5 px-1.5 text-center whitespace-nowrap">
                         {h.kelasLabel || '—'}
                       </td>
-                      <td className="border border-black py-1 px-1.5 text-center">
+                      <td className="border border-black py-1.5 px-1 text-center">
                         {h.det?.benar ?? 0}
                       </td>
-                      <td className="border border-black py-1 px-1.5 text-center">
+                      <td className="border border-black py-1.5 px-1 text-center">
                         {h.det?.salah ?? 0}
                       </td>
-                      <td className="border border-black py-1 px-1.5 text-center">
+                      <td className="border border-black py-1.5 px-1 text-center">
                         {h.det?.tidak_dijawab ?? 0}
                       </td>
-                      <td className="border border-black py-1 px-2 text-center font-black text-[11px]">
+                      <td className="border border-black py-1.5 px-1 text-center font-black text-[10.5px]">
                         {skorNum}
                       </td>
-                      <td className="border border-black py-1 px-2 text-center font-bold">
+                      <td className="border border-black py-1.5 px-1 text-center font-bold">
                         {predikat}
                       </td>
-                      <td className="border border-black py-1 px-2 text-center font-bold text-[9px]">
-                        {lulus ? 'TUNTAS' : 'REMEDIAL'}
+                      <td
+                        className={`border border-black py-1.5 px-1.5 text-center font-black text-[8.5px] whitespace-nowrap ${
+                          lulus ? 'text-emerald-800' : 'text-rose-700'
+                        }`}
+                      >
+                        {lulus ? 'TUNTAS' : 'TIDAK TUNTAS'}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
-                <tr className="bg-slate-100 font-black text-[9.5px]">
-                  <td colSpan={7} className="border border-black py-1.5 px-2.5 text-right uppercase">
-                    Rata-Rata Kelas ({sortedRows.length} Siswa) • Tuntas: {tuntasCount} • Remedial: {remedialCount}
+                <tr className="bg-slate-100 font-black text-[9px] break-inside-avoid">
+                  <td colSpan={7} className="border border-black py-2 px-2.5 text-right uppercase tracking-wide">
+                    Rata-Rata Kelas ({sortedRows.length} Siswa) • Tuntas: {tuntasCount} • Tidak Tuntas: {tidakTuntasCount}
                   </td>
-                  <td className="border border-black py-1.5 px-2 text-center text-[11px]">
+                  <td className="border border-black py-2 px-1 text-center text-[10.5px]">
                     {avgScore}
                   </td>
-                  <td colSpan={2} className="border border-black py-1.5 px-2 text-center">
+                  <td colSpan={2} className="border border-black py-2 px-2 text-center whitespace-nowrap">
                     {ketuntasanPct}% Tuntas
                   </td>
                 </tr>
@@ -304,18 +318,29 @@ export default function HasilPrintSheet({
             </table>
 
             {/* 4. BLOK TANDA TANGAN PENGESAHAN */}
-            <div className="grid grid-cols-2 gap-8 text-[10px] mt-5 pt-2 break-inside-avoid">
+            <div className="grid grid-cols-2 gap-10 text-[10px] mt-6 pt-2 break-inside-avoid">
               <div className="text-center">
                 <p>Mengetahui,</p>
                 <p className="font-bold">Kepala {sekolahBaris2}</p>
-                <div className="h-14" />
-                <p className="font-black underline">{namaKepsek}</p>
+                <div className="h-16" />
+                {namaKepsek ? (
+                  <>
+                    <p className="font-black underline underline-offset-2">{namaKepsek}</p>
+                    {nipKepsek && (
+                      <p className="text-[9px] font-mono text-slate-700 mt-0.5">
+                        NIP/NRG. {nipKepsek}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="font-bold text-slate-600">( ........................................ )</p>
+                )}
               </div>
               <div className="text-center">
                 <p>Wamena, {printDate}</p>
                 <p className="font-bold">Guru Mata Pelajaran</p>
-                <div className="h-14" />
-                <p className="font-black underline">{namaGuru}</p>
+                <div className="h-16" />
+                <p className="font-black underline underline-offset-2">{namaGuru}</p>
               </div>
             </div>
           </div>

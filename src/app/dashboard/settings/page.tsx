@@ -4,6 +4,8 @@ import { getSettingsAction, saveSettingsAction, backupDatabaseAction, restoreDat
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import Image from 'next/image';
 import { 
   Settings2, School, GraduationCap, BrainCircuit, DatabaseZap, 
@@ -154,35 +156,23 @@ export default function SettingsPage() {
 
   // ─── Render Loading ───
   if (loading) return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center space-y-6">
-      <div className="relative">
-        <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full" />
-        <Settings2 className="w-16 h-16 text-indigo-500 animate-[spin_3s_linear_infinite] relative z-10" />
-      </div>
-      <div>
-        <p className="text-slate-900 dark:text-white font-black text-lg tracking-tight">Menghubungkan ke Pusat Konfigurasi</p>
-        <p className="text-slate-500 font-medium text-xs mt-1 animate-pulse">Sinkronisasi data dari server...</p>
-      </div>
-    </div>
+    <DashboardLoadingState
+      title="Menghubungkan ke Pusat Konfigurasi..."
+      subtitle="Sinkronisasi pengaturan sekolah, akademik, dan Gemini AI dari server"
+      accentClass="border-t-indigo-500"
+    />
   );
 
   return (
-    <div className="p-6 sm:p-10 max-w-[1600px] mx-auto space-y-10 fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in">
       
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-4">
-            <span className="p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-[1.5rem] shadow-inner border border-indigo-500/10 dark:border-indigo-500/20">
-              <Settings2 className="w-7 h-7 text-indigo-500" />
-            </span>
-            Konfigurasi Sistem
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-3 font-semibold text-sm max-w-xl">
-            Pusat kendali aplikasi. Sesuaikan identitas instansi, kalender akademik, integrasi engine kecerdasan buatan (AI), dan manajemen database.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Settings2 className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+        title="Konfigurasi Sistem"
+        description="Pusat kendali aplikasi. Sesuaikan identitas instansi, kalender akademik, integrasi engine kecerdasan buatan (AI), dan manajemen database."
+      />
 
       {/* ── Navigation Tabs ── */}
       <div className="flex flex-wrap gap-2 p-2 bg-white dark:bg-[#0a0e1a]/90 lg:dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[1.5rem] w-full sm:w-fit shadow-sm transition-colors">

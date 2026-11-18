@@ -1,15 +1,17 @@
 'use client';
 
-import { getTugasAction, saveTugasAction, saveTugasBatchAction, deleteTugasAction } from '@/lib/actions/tugas';
+import { getTugasAction, saveTugasBatchAction, deleteTugasAction } from '@/lib/actions/tugas';
 import { getGuruList } from '@/lib/actions/admin';
 import { getMasterData } from '@/lib/actions/master';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { transformDriveLink } from '@/lib/utils';
 import Image from 'next/image';
 import {
   Search, SlidersHorizontal, LayoutGrid, List, Download,
-  Plus, RefreshCw, ChevronDown, X, Trash2, BookOpen, School, Users
+  Plus, RefreshCw, ChevronDown, X, Trash2, BookOpen, School, Users, ClipboardList
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -200,58 +202,56 @@ export default function TugasMengajarPage() {
 
   // ─── Loading ────────────────────────────────────────────────────────────
   if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4">
-      <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-      <div className="text-slate-500 dark:text-slate-400 font-bold animate-pulse tracking-tight">Menyusun Struktur Penugasan...</div>
-    </div>
+    <DashboardLoadingState
+      title="Menyusun Struktur Penugasan..."
+      subtitle="Memuat relasi guru pengajar, mata pelajaran, dan rombel"
+      accentClass="border-t-indigo-500"
+    />
   );
 
   // ────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 sm:p-8 lg:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-6 sm:space-y-8 fade-in">
 
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6">
-        <div>
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">
-            <span className="p-2.5 sm:p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl sm:rounded-[1.5rem] text-indigo-500 text-xl sm:text-2xl shadow-inner border border-indigo-500/10 dark:border-indigo-500/20">📋</span>
-            Tugas Mengajar
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1.5 sm:mt-2 font-semibold text-xs sm:text-sm max-w-xl">
-            Atur relasi siapa mengajar apa di kelas mana. Guru hanya dapat mengelola LJK sesuai penugasan ini.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          <button
-            onClick={() => fetchData(true)}
-            disabled={refreshing}
-            className="w-10 h-10 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-all disabled:opacity-50 shadow-sm"
-            title="Refresh data"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:border-indigo-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm"
-          >
-            <Download className="w-3.5 h-3.5" /> Export
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
-          >
-            <Plus className="w-4 h-4" /> Tambah Penugasan
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<ClipboardList className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+        title="Tugas Mengajar"
+        description="Atur relasi siapa mengajar apa di kelas mana. Guru hanya dapat mengelola LJK sesuai penugasan ini."
+        actions={
+          <>
+            <button
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="w-10 h-10 bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.1] rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-all disabled:opacity-50 shadow-sm"
+              title="Refresh data"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={exportCSV}
+              className="flex items-center gap-2 bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.1] text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:border-indigo-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+            >
+              <Plus className="w-4 h-4" /> Tambah Penugasan
+            </button>
+          </>
+        }
+      />
 
       {/* ── Stats Bar ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: 'Total Guru', value: stats.guruCount, icon: <Users className="w-4 h-4" />, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/10' },
           { label: 'Mata Pelajaran', value: stats.mapelCount, icon: <BookOpen className="w-4 h-4" />, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10' },
           { label: 'Kelas Aktif', value: stats.kelasCount, icon: <School className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
-          { label: 'Total Penugasan', value: stats.totalRows, icon: <span className="text-sm">📋</span>, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
+          { label: 'Total Penugasan', value: stats.totalRows, icon: <ClipboardList className="w-4 h-4" />, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
         ].map(s => (
           <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-5 flex items-center gap-4 shadow-sm lg:backdrop-blur-sm">
             <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} flex-shrink-0`}>

@@ -10,12 +10,14 @@ import { normalizeTipe, normalizeAIAnswer, formatAnswerForDisplay, answersMatch 
 import { createWorkbook, downloadWorkbook } from '@/lib/utils/excel';
 import HasilPrintSheet from '@/components/hasil/HasilPrintSheet';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
   Search, FileDown, RefreshCw, X, ChevronDown, ArrowUpDown,
   ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Eye, Pencil,
-  CheckCircle2, AlertCircle, Loader2, Target, BarChart3,
+  CheckCircle2, AlertCircle, Loader2, Target, BarChart3, Award,
   TrendingUp, TrendingDown, Users, ShieldAlert, Trash2, FileSpreadsheet, Printer, Save, Sparkles
 } from 'lucide-react';
 
@@ -128,6 +130,7 @@ export default function HasilPage() {
     if (q) list = list.filter(h =>
       h.sInfo?.nama?.toLowerCase().includes(q) ||
       String(h.sInfo?.nis).includes(q) ||
+      h.kInfo?.nama_mapel?.toLowerCase().includes(q) ||
       h.kInfo?.judul_ujian?.toLowerCase().includes(q) ||
       h.kelasLabel?.toLowerCase().includes(q)
     );
@@ -145,7 +148,10 @@ export default function HasilPage() {
       let va: any, vb: any;
       if (sortField === 'nama') { va = a.sInfo?.nama || ''; vb = b.sInfo?.nama || ''; }
       else if (sortField === 'skor') { va = Number(a.skor) || 0; vb = Number(b.skor) || 0; }
-      else if (sortField === 'ujian') { va = a.kInfo?.judul_ujian || ''; vb = b.kInfo?.judul_ujian || ''; }
+      else if (sortField === 'ujian') {
+        va = `${a.kInfo?.nama_mapel || ''} ${a.kInfo?.judul_ujian || ''}`.trim();
+        vb = `${b.kInfo?.nama_mapel || ''} ${b.kInfo?.judul_ujian || ''}`.trim();
+      }
       else { va = new Date(a.timestamp || 0).getTime(); vb = new Date(b.timestamp || 0).getTime(); }
       const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
       return sortDir === 'asc' ? cmp : -cmp;
@@ -451,7 +457,7 @@ export default function HasilPage() {
           skor: skorNum,
           kkm: kkmNum,
           predikat,
-          status: h.is_lulus ? 'TUNTAS' : 'REMEDIAL',
+          status: h.is_lulus ? 'TUNTAS' : 'TIDAK TUNTAS',
           benar: h.det?.benar || 0,
           salah: h.det?.salah || 0,
           kosong: h.det?.tidak_dijawab || 0,
@@ -536,10 +542,10 @@ export default function HasilPage() {
         addedSerap.font = { bold: true };
       }
 
-      // 3. SHEET 3: DAFTAR REMEDIAL & PENGAYAAN
-      const ws3 = wb.addWorksheet('Remedial & Pengayaan');
+      // 3. SHEET 3: DAFTAR KETUNTASAN & PENGAYAAN
+      const ws3 = wb.addWorksheet('Ketuntasan & Pengayaan');
       ws3.columns = [
-        { header: 'Program Tindak Lanjut', key: 'program', width: 24 },
+        { header: 'Status Ketuntasan', key: 'program', width: 24 },
         { header: 'NIS', key: 'nis', width: 15 },
         { header: 'Nama Siswa', key: 'nama', width: 30 },
         { header: 'Kelas', key: 'kelas', width: 14 },
@@ -556,7 +562,7 @@ export default function HasilPage() {
         const selisih = skorNum - kkmNum;
         const isLulus = skorNum >= kkmNum;
         ws3.addRow({
-          program: isLulus ? 'PENGAYAAN (TUNTAS)' : 'REMEDIAL (BELUM TUNTAS)',
+          program: isLulus ? 'TUNTAS' : 'TIDAK TUNTAS',
           nis: h.sInfo?.nis || '—',
           nama: h.sInfo?.nama || h.id_siswa,
           kelas: h.kelasLabel || '—',
@@ -567,7 +573,7 @@ export default function HasilPage() {
             ? skorNum >= 90
               ? 'Tutor Sebaya / Materi Tantangan Lanjutan'
               : 'Pendalaman Materi Pengayaan'
-            : 'Bimbingan Khusus & Ujian Perbaikan (Remedial)',
+            : 'Bimbingan Khusus & Pendalaman Materi',
         });
       });
 
@@ -619,76 +625,80 @@ export default function HasilPage() {
   };
 
   if (loading) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4">
-      <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-      <div className="text-slate-500 dark:text-slate-400 font-bold animate-pulse tracking-tight">Menghitung Skor & Akurasi...</div>
-    </div>
+    <DashboardLoadingState
+      title="Menghitung Skor & Akurasi..."
+      subtitle="Memuat rekap hasil asesmen dan analitik butir soal"
+      accentClass="border-t-amber-500"
+    />
   );
 
   return (
-    <div className="p-3.5 sm:p-10 max-w-[1600px] mx-auto space-y-5 sm:space-y-8 fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto space-y-5 sm:space-y-7 fade-in">
 
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6 print:hidden">
-        <div>
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter flex items-center gap-3 sm:gap-4">
-            <span className="p-2.5 sm:p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-2xl sm:rounded-[1.5rem] text-amber-500 text-xl sm:text-2xl shadow-inner border border-amber-500/10 dark:border-amber-500/20">🏆</span>
-            Hasil & Skor
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1.5 sm:mt-2 font-semibold text-xs sm:text-sm max-w-xl">
-            Monitor nilai real-time, filter per kelas, koreksi jawaban per butir soal, dan unduh laporan Excel 3-Sheet.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <button
-            type="button"
-            onClick={handlePrintPdfRekap}
-            title="Cetak PDF Daftar Nilai Siswa Per Kelas Ber-Kop Sekolah (A4)"
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
-          >
-            <Printer className="w-4 h-4" /> Cetak PDF Nilai Kelas
-          </button>
-          <button onClick={handleExportExcel}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/25 active:scale-95">
-            <FileSpreadsheet className="w-4 h-4" /> Excel (.xlsx)
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowItemAnalysis((v) => !v)}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider border transition-all active:scale-95 ${
-              showItemAnalysis
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-purple-600 dark:text-purple-400'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" /> <span className="hidden sm:inline">Analisis Butir</span>
-          </button>
-          <button onClick={handleExport}
-            className="flex items-center justify-center gap-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-600 dark:text-amber-400 hover:text-white border border-amber-500/25 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:scale-95">
-            <FileDown className="w-4 h-4" /> CSV
-          </button>
-          <button onClick={() => fetchData(true)} disabled={refreshing}
-            className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl flex items-center justify-center text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-all disabled:opacity-50 shadow-sm active:scale-95">
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Award className="w-6 h-6 sm:w-7 sm:h-7" />}
+        iconBgClass="bg-amber-500/10 dark:bg-amber-500/20 border-amber-500/20 text-amber-600 dark:text-amber-400"
+        title="Hasil & Skor"
+        description="Monitor nilai real-time, filter per kelas, koreksi jawaban per butir soal, dan unduh laporan Excel."
+        actions={
+          <div className="w-full lg:w-auto grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrintPdfRekap}
+              title="Cetak PDF Daftar Nilai Siswa Per Kelas Ber-Kop Sekolah (A4)"
+              className="h-11 sm:h-auto flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-indigo-500/20 active:scale-95 whitespace-nowrap"
+            >
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>PDF Nilai Kelas</span>
+            </button>
+            <button onClick={handleExportExcel}
+              className="h-11 sm:h-auto flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 whitespace-nowrap">
+              <FileSpreadsheet className="w-4 h-4 shrink-0" />
+              <span>Excel (.xlsx)</span>
+            </button>
+            <div className="col-span-2 grid grid-cols-[1fr_auto_auto] sm:flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowItemAnalysis((v) => !v)}
+                className={`h-10 sm:h-auto flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-3 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider border transition-all active:scale-95 whitespace-nowrap ${
+                  showItemAnalysis
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20'
+                    : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.1] text-purple-600 dark:text-purple-400 hover:border-purple-300'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 shrink-0" />
+                <span>Analisis Butir</span>
+              </button>
+              <button onClick={handleExport}
+                className="h-10 sm:h-auto flex items-center justify-center gap-1.5 bg-white dark:bg-white/[0.04] hover:bg-amber-50 dark:hover:bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-slate-200 dark:border-white/[0.1] hover:border-amber-300 px-3.5 py-2 sm:py-3 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all active:scale-95 whitespace-nowrap">
+                <FileDown className="w-4 h-4 shrink-0" />
+                <span>CSV</span>
+              </button>
+              <button onClick={() => fetchData(true)} disabled={refreshing} aria-label="Segarkan data"
+                className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.1] rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-all disabled:opacity-50 shadow-sm active:scale-95 shrink-0">
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+        }
+      />
 
       {/* ── Stats Bar (Ringkas 3 kolom di HP agar tidak kewalahan scroll) ── */}
       <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 print:hidden">
         {[
-          { label: 'Total Scan', value: stats.total, icon: <Users className="w-4 h-4" />, color: 'text-slate-700 dark:text-slate-300', bg: 'bg-slate-500/10' },
-          { label: 'Siswa Lulus', value: `${stats.persenLulus}%`, icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+          { label: 'Total Scan', value: stats.total, icon: <Users className="w-4 h-4" />, color: 'text-slate-800 dark:text-slate-200', bg: 'bg-slate-500/10' },
+          { label: 'Ketuntasan', value: `${stats.persenLulus}%`, icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
           { label: 'Rata Skor', value: stats.rataRata, icon: <Target className="w-4 h-4" />, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/10' },
           { label: 'Tertinggi', value: stats.tertinggi, icon: <TrendingUp className="w-4 h-4" />, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-500/10' },
           { label: 'Terendah', value: stats.terendah, icon: <TrendingDown className="w-4 h-4" />, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
-          { label: 'Review', value: stats.needReview, icon: <ShieldAlert className="w-4 h-4" />, color: stats.needReview > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-600', bg: stats.needReview > 0 ? 'bg-amber-500/10' : 'bg-slate-500/10' },
+          { label: 'Review AI', value: stats.needReview, icon: <ShieldAlert className="w-4 h-4" />, color: stats.needReview > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400', bg: stats.needReview > 0 ? 'bg-amber-500/10' : 'bg-slate-500/10' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm lg:backdrop-blur-sm">
+          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 shadow-sm lg:backdrop-blur-sm">
             <div className={`hidden sm:flex w-9 h-9 ${s.bg} rounded-xl items-center justify-center ${s.color} flex-shrink-0`}>{s.icon}</div>
             <div className="min-w-0">
               <div className={`text-lg sm:text-xl font-black leading-tight ${s.color}`}>{s.value}</div>
-              <div className="text-[8px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider leading-tight truncate">{s.label}</div>
+              <div className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider leading-tight truncate mt-0.5">{s.label}</div>
             </div>
           </div>
         ))}
@@ -717,9 +727,13 @@ export default function HasilPage() {
 
           <div className="relative">
             <select value={filterKunci} onChange={e => setFilterKunci(e.target.value)}
-              className={`w-full sm:w-auto appearance-none bg-white dark:bg-white/[0.03] border rounded-xl pl-3 sm:pl-4 pr-8 py-2.5 sm:py-3 text-xs sm:text-sm font-bold focus:outline-none transition-all cursor-pointer shadow-sm sm:max-w-[200px] ${filterKunci !== 'ALL' ? 'border-amber-500/50 text-amber-600 dark:text-amber-400' : 'border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}>
-              <option value="ALL">Semua Ujian</option>
-              {kunci.map(k => <option key={k.id_kunci} value={k.id_kunci}>{k.judul_ujian}</option>)}
+              className={`w-full sm:w-auto appearance-none bg-white dark:bg-white/[0.03] border rounded-xl pl-3 sm:pl-4 pr-8 py-2.5 sm:py-3 text-xs sm:text-sm font-bold focus:outline-none transition-all cursor-pointer shadow-sm sm:max-w-[240px] ${filterKunci !== 'ALL' ? 'border-amber-500/50 text-amber-600 dark:text-amber-400' : 'border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}>
+              <option value="ALL">Semua Mapel / Ujian</option>
+              {kunci.map(k => (
+                <option key={k.id_kunci} value={k.id_kunci}>
+                  {k.nama_mapel ? `${k.nama_mapel}${k.nama_kelas ? ` (${k.nama_kelas})` : ''} — ${k.judul_ujian}` : k.judul_ujian}
+                </option>
+              ))}
             </select>
             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           </div>
@@ -740,16 +754,16 @@ export default function HasilPage() {
         </div>
 
         {/* Filter Status pills */}
-        <div className="flex gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto py-0.5">
+        <div className="flex gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar py-0.5">
           {[
             { val: 'ALL', label: 'Semua' },
-            { val: 'LULUS', label: '✓ Lulus' },
-            { val: 'TIDAK_LULUS', label: '✕ Tidak Lulus' },
+            { val: 'LULUS', label: '✓ Tuntas' },
+            { val: 'TIDAK_LULUS', label: '✕ Tidak Tuntas' },
             { val: 'REVIEW', label: '⚠ Review' },
             { val: 'OVERRIDE', label: '✎ Override' },
           ].map(s => (
             <button key={s.val} onClick={() => setFilterStatus(s.val as any)}
-              className={`shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border active:scale-95 ${filterStatus === s.val ? 'bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20' : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:border-amber-300'}`}>
+              className={`shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border active:scale-95 ${filterStatus === s.val ? 'bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20' : 'bg-white dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.1] text-slate-700 dark:text-slate-300 hover:border-amber-300'}`}>
               {s.label}
             </button>
           ))}
@@ -857,13 +871,16 @@ export default function HasilPage() {
                       <span className="text-[9px] text-slate-400 font-mono">· {tgl}</span>
                     </div>
                     <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">{h.sInfo?.nama || h.id_siswa}</h4>
-                    <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                      {h.kInfo?.judul_ujian || h.id_kunci} · <span className="text-slate-500">{h.kInfo?.nama_mapel}</span>
+                    <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate mt-0.5">
+                      {h.kInfo?.nama_mapel || h.id_kunci}
+                      {h.kInfo?.judul_ujian && (
+                        <span className="font-medium text-slate-500 dark:text-slate-400"> · {h.kInfo.judul_ujian}</span>
+                      )}
                     </div>
                   </div>
-                  <div className={`px-3 py-1.5 rounded-2xl text-right shrink-0 border ${lulus ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
+                  <div className={`px-3 py-1.5 rounded-2xl text-right shrink-0 border ${lulus ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400'}`}>
                     <div className="text-lg font-black leading-none">{skorNum}</div>
-                    <div className="text-[10px] font-black uppercase tracking-wider mt-0.5">{lulus ? 'LULUS' : `<${kkmNum}`}</div>
+                    <div className="text-[10px] font-black uppercase tracking-wider mt-0.5">{lulus ? 'TUNTAS' : 'TIDAK TUNTAS'}</div>
                   </div>
                 </div>
 
@@ -908,7 +925,7 @@ export default function HasilPage() {
         {/* Table with internal scroll (Desktop/Tablet) */}
         <div className="hidden sm:block overflow-x-auto overflow-y-auto max-h-[540px] touch-scroll">
           <table className="w-full text-left text-sm min-w-[720px]">
-            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0d1117] text-[9px] uppercase font-black tracking-widest text-slate-500 border-b border-slate-200 dark:border-white/[0.05]">
+            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0d1117] text-[10px] uppercase font-extrabold tracking-wider text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/[0.06]">
               <tr>
                 <th className="px-5 py-4 w-8 text-center">#</th>
                 <th className="px-5 py-4 cursor-pointer hover:text-slate-800 dark:hover:text-white" onClick={() => toggleSort('timestamp')}>
@@ -918,7 +935,7 @@ export default function HasilPage() {
                   <div className="flex items-center gap-1.5">Siswa <SortIcon field="nama" /></div>
                 </th>
                 <th className="px-5 py-4 cursor-pointer hover:text-slate-800 dark:hover:text-white" onClick={() => toggleSort('ujian')}>
-                  <div className="flex items-center gap-1.5">Ujian <SortIcon field="ujian" /></div>
+                  <div className="flex items-center gap-1.5">Mapel &amp; Ujian <SortIcon field="ujian" /></div>
                 </th>
                 <th className="px-5 py-4 cursor-pointer hover:text-slate-800 dark:hover:text-white" onClick={() => toggleSort('skor')}>
                   <div className="flex items-center gap-1.5">Skor <SortIcon field="skor" /></div>
@@ -937,67 +954,71 @@ export default function HasilPage() {
 
                 return (
                   <tr key={h.id_hasil} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors group">
-                    <td className="px-5 py-4 text-center text-[10px] font-black text-slate-400 dark:text-slate-600">{globalIdx}</td>
+                    <td className="px-5 py-4 text-center text-[11px] font-black text-slate-600 dark:text-slate-400">{globalIdx}</td>
                     <td className="px-5 py-4">
-                      <div className="text-[10px] text-slate-500 dark:text-slate-500 font-mono whitespace-nowrap">{tgl}</div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap">{tgl}</div>
                     </td>
                     <td className="px-5 py-4">
                       <div className="font-black text-sm text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{h.sInfo?.nama || h.id_siswa}</div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">{h.sInfo?.nis || '—'} · <span className="font-sans font-bold text-indigo-500">{h.sInfo?.nama_kelas || h.sInfo?.id_kelas || '—'}</span></div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{h.sInfo?.nis || '—'} · <span className="font-sans font-bold text-indigo-600 dark:text-indigo-400">{h.sInfo?.nama_kelas || h.sInfo?.id_kelas || '—'}</span></div>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="max-w-[180px] truncate text-[11px] font-black text-indigo-600 dark:text-indigo-400" title={h.kInfo?.judul_ujian}>{h.kInfo?.judul_ujian || h.id_kunci}</div>
-                      <div className="text-[9px] text-slate-400 mt-0.5">{h.kInfo?.nama_mapel}</div>
+                      <div className="max-w-[200px] truncate text-xs font-black text-indigo-600 dark:text-indigo-400" title={h.kInfo?.nama_mapel || h.kInfo?.judul_ujian}>
+                        {h.kInfo?.nama_mapel || h.id_kunci}
+                      </div>
+                      <div className="max-w-[200px] truncate text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" title={h.kInfo?.judul_ujian}>
+                        {h.kInfo?.judul_ujian || h.id_kunci}
+                      </div>
                     </td>
-                    <td className="px-5 py-4 min-w-[120px]">
+                    <td className="px-5 py-4 min-w-[130px]">
                       <SkorBar skor={Number(h.skor) || 0} kkm={h.kkm_referensi || 70} />
-                      <div className="text-[9px] text-slate-400 mt-1 font-mono">KKM {h.kkm_referensi}</div>
+                      <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 mt-1 font-mono">KKM {h.kkm_referensi}</div>
                     </td>
                     <td className="px-5 py-4 text-center">
                       <div className="flex justify-center gap-1.5">
-                        <div className="flex flex-col items-center px-2 py-1 bg-emerald-500/10 rounded-lg">
-                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{h.det?.benar || 0}</span>
-                          <span className="text-[7px] text-slate-500 uppercase font-black">B</span>
+                        <div className="flex flex-col items-center px-2.5 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/15">
+                          <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">{h.det?.benar || 0}</span>
+                          <span className="text-[9px] text-emerald-700/80 dark:text-emerald-400/80 uppercase font-black">B</span>
                         </div>
-                        <div className="flex flex-col items-center px-2 py-1 bg-rose-500/10 rounded-lg">
-                          <span className="text-xs font-black text-rose-600 dark:text-rose-400">{h.det?.salah || 0}</span>
-                          <span className="text-[7px] text-slate-500 uppercase font-black">S</span>
+                        <div className="flex flex-col items-center px-2.5 py-1 bg-rose-500/10 rounded-lg border border-rose-500/15">
+                          <span className="text-xs font-black text-rose-700 dark:text-rose-400">{h.det?.salah || 0}</span>
+                          <span className="text-[9px] text-rose-700/80 dark:text-rose-400/80 uppercase font-black">S</span>
                         </div>
-                        <div className="flex flex-col items-center px-2 py-1 bg-slate-100 dark:bg-white/5 rounded-lg">
-                          <span className="text-xs font-black text-slate-500">{h.det?.tidak_dijawab || 0}</span>
-                          <span className="text-[7px] text-slate-500 uppercase font-black">K</span>
+                        <div className="flex flex-col items-center px-2.5 py-1 bg-slate-100 dark:bg-white/5 rounded-lg border border-slate-200/70 dark:border-white/10">
+                          <span className="text-xs font-black text-slate-600 dark:text-slate-300">{h.det?.tidak_dijawab || 0}</span>
+                          <span className="text-[9px] text-slate-600 dark:text-slate-400 uppercase font-black">K</span>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-center">
                       {h.is_override ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          <Pencil className="w-2.5 h-2.5" /> Override
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+                          <Pencil className="w-3 h-3" /> Override
                         </span>
                       ) : h.det?.need_review ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 animate-pulse">
-                          <AlertCircle className="w-2.5 h-2.5" /> Review
-                          {confidencePct != null && <span className="opacity-70">· {confidencePct}%</span>}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/25">
+                          <AlertCircle className="w-3 h-3" /> Review
+                          {confidencePct != null && <span className="opacity-80">· {confidencePct}%</span>}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> Valid
-                          {confidencePct != null && <span className="opacity-70">· {confidencePct}%</span>}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/25">
+                          <CheckCircle2 className="w-3 h-3" /> Valid
+                          {confidencePct != null && <span className="opacity-80">· {confidencePct}%</span>}
                         </span>
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-1.5">
                         <button onClick={() => setDetailHasil(h)} title="Lihat Detail"
-                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-amber-500/20 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center transition-all">
+                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-amber-500/20 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 flex items-center justify-center transition-all border border-slate-200/70 dark:border-white/5">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={() => { setOverrideTarget(h); setOverrideScore(String(h.skor)); setOverrideReason(''); }} title="Override Skor"
-                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center transition-all">
+                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-indigo-500/20 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center transition-all border border-slate-200/70 dark:border-white/5">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={() => handleDeleteHasil(h)} disabled={saving} title="Hapus Hasil Scan"
-                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-all disabled:opacity-40">
+                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-rose-500/20 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-all disabled:opacity-40 border border-slate-200/70 dark:border-white/5">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1007,8 +1028,10 @@ export default function HasilPage() {
               }) : (
                 <tr>
                   <td colSpan={8} className="px-6 py-20 text-center">
-                    <div className="text-5xl mb-4 grayscale opacity-20">🏆</div>
-                    <p className="text-[11px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4 text-amber-500">
+                      <Award className="w-8 h-8" />
+                    </div>
+                    <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                       {activeFilters > 0 ? 'Tidak ada hasil sesuai filter.' : 'Belum ada hasil scan yang terdata.'}
                     </p>
                     {activeFilters > 0 && (
@@ -1103,8 +1126,8 @@ export default function HasilPage() {
                 {[
                   { label: 'NIS', val: detailHasil.sInfo?.nis || '—' },
                   { label: 'Kelas', val: detailHasil.sInfo?.nama_kelas || detailHasil.sInfo?.id_kelas || '—' },
-                  { label: 'Ujian', val: detailHasil.kInfo?.judul_ujian || detailHasil.id_kunci },
                   { label: 'Mapel', val: detailHasil.kInfo?.nama_mapel || '—' },
+                  { label: 'Ujian', val: detailHasil.kInfo?.judul_ujian || detailHasil.id_kunci },
                   { label: 'Confidence', val: detailHasil.det?.confidence_score != null ? `${(detailHasil.det.confidence_score * 100).toFixed(0)}%` : '—' },
                   { label: 'Status', val: detailHasil.is_override ? 'Manual Override' : detailHasil.det?.need_review ? 'Need Review' : 'AI Validated' },
                   { label: 'Waktu Scan', val: detailHasil.timestamp ? new Date(detailHasil.timestamp).toLocaleString('id-ID') : '—' },
@@ -1607,7 +1630,10 @@ export default function HasilPage() {
                 <Pencil className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500" />
               </div>
               <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight mb-1">Override Skor Manual</h3>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-5 uppercase tracking-widest">{overrideTarget.sInfo?.nama} · {overrideTarget.kInfo?.judul_ujian}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-5 uppercase tracking-widest">
+                {overrideTarget.sInfo?.nama} · {overrideTarget.kInfo?.nama_mapel || overrideTarget.kInfo?.judul_ujian}
+                {overrideTarget.kInfo?.nama_mapel && overrideTarget.kInfo?.judul_ujian ? ` (${overrideTarget.kInfo.judul_ujian})` : ''}
+              </p>
 
               <div className="space-y-4">
                 <div>
@@ -1655,7 +1681,7 @@ export default function HasilPage() {
         title="Hapus Hasil Penilaian?"
         description={
           deleteTarget
-            ? `Anda yakin ingin menghapus hasil pemeriksaan milik "${deleteTarget.sInfo?.nama || deleteTarget.id_siswa}" (${deleteTarget.kInfo?.judul_ujian || deleteTarget.id_kunci})? Tindakan ini tidak dapat dibatalkan.`
+            ? `Anda yakin ingin menghapus hasil pemeriksaan milik "${deleteTarget.sInfo?.nama || deleteTarget.id_siswa}" (${deleteTarget.kInfo?.nama_mapel || deleteTarget.kInfo?.judul_ujian || deleteTarget.id_kunci}${deleteTarget.kInfo?.nama_mapel && deleteTarget.kInfo?.judul_ujian ? ` — ${deleteTarget.kInfo.judul_ujian}` : ''})? Tindakan ini tidak dapat dibatalkan.`
             : ''
         }
         confirmText="Ya, Hapus Hasil"
@@ -1669,10 +1695,12 @@ export default function HasilPage() {
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
-          @page { size: A4 portrait; margin: 10mm; }
+          @page { size: A4 portrait; margin: 12mm; }
           html, body {
             background: white !important;
             color: black !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           #hasil-print-root {
             display: block !important;

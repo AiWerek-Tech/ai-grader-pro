@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { getAdminDashboardStatsAction, getSystemLogsAction } from "@/lib/actions/admin";
+import { getHasilAction } from "@/lib/actions/hasil";
+import { getKunciListAction } from "@/lib/actions/kunci";
+import { getSiswaAction } from "@/lib/actions/siswa";
 import { getCurrentUser } from "@/lib/session-server";
 import { BrandLogo } from "@/components/BrandLogo";
 import { APP_VERSION } from "@/lib/app-version";
@@ -10,10 +13,15 @@ import {
 } from 'lucide-react';
 
 export default async function Dashboard() {
-  const [statsRes, logsRes, user] = await Promise.all([
+  const user = await getCurrentUser();
+  const isGuru = user?.role === 'GURU';
+
+  const [statsRes, logsRes, hasilRes, siswaRes, kunciRes] = await Promise.all([
     getAdminDashboardStatsAction(),
-    getSystemLogsAction(5),
-    getCurrentUser()
+    isGuru ? Promise.resolve({ success: true, data: [] }) : getSystemLogsAction(5),
+    isGuru ? getHasilAction(undefined, 'ALL') : Promise.resolve({ success: true, data: [] }),
+    isGuru ? getSiswaAction() : Promise.resolve({ success: true, data: [] }),
+    isGuru ? getKunciListAction(undefined, 'ALL') : Promise.resolve({ success: true, data: [] }),
   ]);
 
   const stats = statsRes.success && statsRes.data ? statsRes.data : { 
@@ -22,7 +30,29 @@ export default async function Dashboard() {
   };
   const logs = logsRes.success && logsRes.data ? logsRes.data : [];
 
-  const isGuru = user?.role === 'GURU';
+  const recentAssessments = (() => {
+    if (!isGuru || !hasilRes.success || !Array.isArray(hasilRes.data)) return [];
+    const siswaMap = new Map<string, any>(
+      (siswaRes.success && Array.isArray(siswaRes.data) ? siswaRes.data : []).map((s: any) => [String(s.id_siswa), s])
+    );
+    const kunciMap = new Map<string, any>(
+      (kunciRes.success && Array.isArray(kunciRes.data) ? kunciRes.data : []).map((k: any) => [String(k.id_kunci), k])
+    );
+    return hasilRes.data.slice(0, 5).map((h: any) => {
+      const s = siswaMap.get(String(h.id_siswa));
+      const k = kunciMap.get(String(h.id_kunci));
+      return {
+        id: h.id_hasil || `${h.id_kunci}-${h.id_siswa}`,
+        siswaNama: s?.nama || h.id_siswa || 'Siswa',
+        kelasNama: k?.nama_kelas || s?.nama_kelas || '',
+        mapelNama: k?.nama_mapel || '',
+        ujianJudul: k?.judul_ujian || h.id_kunci || 'Asesmen',
+        skor: Number(h.skor ?? 0),
+        isLulus: Boolean(h.is_lulus),
+        timestamp: h.timestamp,
+      };
+    });
+  })();
 
   const statsData = [
     { label: 'Terproses', val: stats.counters.totalScan, icon: <Scan className="w-6 h-6" />, color: 'indigo', desc: isGuru ? 'Scan LJK Saya' : 'Scan LJK Selesai', bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/20' },
@@ -40,10 +70,10 @@ export default async function Dashboard() {
 
   // Quick Access items based on role
   const quickAccessItems = isGuru ? [
-    { label: 'Buat LJK', icon: <Key className="w-7 h-7" />, href: '/dashboard/kunci', color: 'indigo', hover: 'hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-300 dark:hover:border-indigo-500/30 text-indigo-500' },
-    { label: 'Cetak LJK', icon: <Printer className="w-7 h-7" />, href: '/dashboard/ljk', color: 'amber', hover: 'hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/30 text-amber-500' },
-    { label: 'Scan AI', icon: <ScanLine className="w-7 h-7" />, href: '/dashboard/analisis', color: 'emerald', hover: 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-500/30 text-emerald-500' },
-    { label: 'Hasil', icon: <Award className="w-7 h-7" />, href: '/dashboard/hasil', color: 'rose', hover: 'hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:border-rose-300 dark:hover:border-rose-500/30 text-rose-500' },
+    { label: 'Buat Kunci', icon: <Key className="w-6 h-6 sm:w-7 sm:h-7" />, href: '/dashboard/kunci', color: 'indigo', hover: 'hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-300 dark:hover:border-indigo-500/30 text-indigo-500' },
+    { label: 'Cetak LJK', icon: <Printer className="w-6 h-6 sm:w-7 sm:h-7" />, href: '/dashboard/ljk', color: 'amber', hover: 'hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/30 text-amber-500' },
+    { label: 'Scan AI', icon: <ScanLine className="w-6 h-6 sm:w-7 sm:h-7" />, href: '/dashboard/analisis', color: 'emerald', hover: 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-500/30 text-emerald-500' },
+    { label: 'Hasil', icon: <Award className="w-6 h-6 sm:w-7 sm:h-7" />, href: '/dashboard/hasil', color: 'rose', hover: 'hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:border-rose-300 dark:hover:border-rose-500/30 text-rose-500' },
   ] : [
     { label: 'Doctor', icon: <Stethoscope className="w-7 h-7" />, href: '/dashboard/doctor', color: 'rose', hover: 'hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:border-rose-300 dark:hover:border-rose-500/30 text-rose-500' },
     { label: 'Settings', icon: <Settings className="w-7 h-7" />, href: '/dashboard/settings', color: 'emerald', hover: 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-500/30 text-emerald-500' },
@@ -124,10 +154,32 @@ export default async function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10">
+      {/* ── AKES CEPAT KHUSUS MOBILE (Langsung di atas tanpa perlu scroll ke bawah) ── */}
+      <div className="lg:hidden bg-white dark:bg-[#0a0e1a]/75 border border-slate-200 dark:border-white/[0.05] p-4 rounded-2xl shadow-sm">
+        <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.22em] mb-3 flex items-center gap-2">
+          <span className="w-3 h-[1px] bg-slate-300 dark:bg-slate-700" />
+          Akses Cepat
+        </h4>
+        <div className="grid grid-cols-4 gap-2">
+          {quickAccessItems.map((link, idx) => (
+            <Link
+              key={idx}
+              href={link.href}
+              className="flex flex-col items-center justify-center py-3 px-1.5 bg-slate-50 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.06] rounded-xl active:scale-95 transition-all min-w-0"
+            >
+              <div className={`mb-1.5 ${link.color}`}>{link.icon}</div>
+              <div className="text-[10px] font-extrabold text-slate-700 dark:text-slate-200 tracking-tight truncate w-full text-center">
+                {link.label}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-10">
         
-        {/* ── LEFT COLUMN (Distribusi & Logs) ── */}
-        <div className="lg:col-span-2 space-y-8 sm:space-y-10 min-w-0">
+        {/* ── LEFT COLUMN (Distribusi & Logs/Riwayat Penilaian) ── */}
+        <div className="lg:col-span-2 space-y-6 sm:space-y-10 min-w-0">
           
           {/* Distribusi */}
           <div className="space-y-5">
@@ -166,43 +218,92 @@ export default async function Dashboard() {
             </div>
           </div>
 
-          {/* Aktivitas Sistem */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] rounded-[2.5rem] overflow-hidden flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
-            <div className="p-6 sm:p-8 border-b border-slate-100 dark:border-white/[0.03] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 dark:bg-white/[0.01] transition-colors">
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-3 transition-colors">
-                <span className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-sm dark:shadow-inner flex-shrink-0 transition-colors">
-                  <Activity className="w-5 h-5" />
+          {/* Aktivitas Sistem (Admin) / Riwayat Penilaian Terbaru (Guru) */}
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] rounded-3xl sm:rounded-[2.5rem] overflow-hidden flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
+            <div className="p-4 sm:p-8 border-b border-slate-100 dark:border-white/[0.03] flex items-center justify-between gap-3 bg-slate-50 dark:bg-white/[0.01] transition-colors">
+              <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2.5 sm:gap-3 min-w-0 transition-colors">
+                <span className="p-2 sm:p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-sm dark:shadow-inner flex-shrink-0 transition-colors">
+                  <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
                 </span>
-                {isGuru ? 'Riwayat Penilaian' : 'Aktivitas Sistem'}
+                <span className="truncate">{isGuru ? 'Riwayat Penilaian' : 'Aktivitas Sistem'}</span>
               </h3>
-              <Link href={isGuru ? "/dashboard/hasil" : "/dashboard/logs"} className="text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 uppercase tracking-widest transition-colors flex-shrink-0 flex items-center gap-2 bg-slate-100 dark:bg-white/5 py-2 px-4 rounded-full hover:bg-slate-200 dark:hover:bg-white/10">
-                Lihat Selengkapnya <span className="opacity-70">→</span>
+              <Link href={isGuru ? "/dashboard/hasil" : "/dashboard/logs"} className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 uppercase tracking-wider transition-colors flex-shrink-0 flex items-center gap-1 bg-indigo-50 dark:bg-white/5 py-1.5 px-3 sm:py-2 sm:px-4 rounded-full hover:bg-indigo-100 dark:hover:bg-white/10">
+                <span>Semua</span> <span aria-hidden="true">→</span>
               </Link>
             </div>
             
-            <div className="p-4 sm:p-6 space-y-2 relative">
-              {logs.length > 0 ? logs.map((log: any, i: number) => (
-                <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors border border-transparent hover:border-slate-100 dark:hover:border-white/[0.03] group min-w-0">
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      log.level === 'ERROR' ? 'bg-rose-600 shadow-[0_0_12px_rgba(244,63,94,0.4)]' : 
-                      log.level === 'WARN' ? 'bg-amber-600 shadow-[0_0_12px_rgba(245,158,11,0.3)]' : 'bg-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                    }`} />
-                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-[0.15em] w-20 truncate transition-colors">{log.action}</span>
+            <div className="p-3 sm:p-6 space-y-2 relative">
+              {isGuru ? (
+                recentAssessments.length > 0 ? recentAssessments.map((item) => (
+                  <Link
+                    key={item.id}
+                    href="/dashboard/hasil"
+                    className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors border border-transparent hover:border-slate-100 dark:hover:border-white/[0.03] group min-w-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          {item.siswaNama}
+                        </span>
+                        {item.kelasNama && (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-[9px] font-black text-slate-500 dark:text-slate-400 shrink-0">
+                            {item.kelasNama}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold truncate mt-0.5">
+                        {item.mapelNama ? (
+                          <>
+                            <span className="text-indigo-600 dark:text-indigo-400 font-bold">{item.mapelNama}</span>
+                            <span className="text-slate-400"> · {item.ujianJudul}</span>
+                          </>
+                        ) : (
+                          item.ujianJudul
+                        )}
+                      </div>
+                      {item.timestamp && (
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          {new Date(item.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                    </div>
+                    <div className={`px-2.5 py-1 rounded-xl text-center shrink-0 border ${item.isLulus ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400'}`}>
+                      <div className="text-sm font-black tabular-nums leading-none">{item.skor}</div>
+                      <div className="text-[8px] font-black uppercase mt-0.5">{item.isLulus ? 'Tuntas' : 'Remedial'}</div>
+                    </div>
+                  </Link>
+                )) : (
+                  <div className="py-12 text-center flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-3">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Belum ada LJK yang dinilai.</div>
                   </div>
-                  
-                  <div className="flex-1 min-w-0 ml-5 sm:ml-0">
-                    <div className="text-[13px] font-semibold text-slate-800 dark:text-slate-300 group-hover:text-indigo-950 dark:group-hover:text-white transition-colors truncate">{log.message}</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-500 font-medium mt-1 truncate transition-colors">{new Date(log.timestamp).toLocaleString('id-ID')} · {log.userId}</div>
+                )
+              ) : (
+                logs.length > 0 ? logs.map((log: any, i: number) => (
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5 p-3.5 sm:p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors border border-transparent hover:border-slate-100 dark:hover:border-white/[0.03] group min-w-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                        log.level === 'ERROR' ? 'bg-rose-600 shadow-[0_0_12px_rgba(244,63,94,0.4)]' : 
+                        log.level === 'WARN' ? 'bg-amber-600 shadow-[0_0_12px_rgba(245,158,11,0.3)]' : 'bg-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                      }`} />
+                      <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-[0.15em] w-24 truncate transition-colors">{log.action}</span>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0 ml-5 sm:ml-0">
+                      <div className="text-[13px] font-semibold text-slate-800 dark:text-slate-300 group-hover:text-indigo-950 dark:group-hover:text-white transition-colors truncate">{log.message}</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-500 font-medium mt-1 truncate transition-colors">{new Date(log.timestamp).toLocaleString('id-ID')} · {log.userId}</div>
+                    </div>
                   </div>
-                </div>
-              )) : (
-                <div className="py-16 text-center flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4 transition-colors">
-                     <Terminal className="w-8 h-8" />
+                )) : (
+                  <div className="py-12 text-center flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-3 transition-colors">
+                       <Terminal className="w-6 h-6" />
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-[0.25em] transition-colors">Belum ada aktivitas terekam.</div>
                   </div>
-                  <div className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-[0.25em] transition-colors">Belum ada aktivitas terekam.</div>
-                </div>
+                )
               )}
             </div>
           </div>
@@ -247,8 +348,8 @@ export default async function Dashboard() {
             </div>
           </div>
 
-          {/* Quick Access */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] flex-1 flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
+          {/* Quick Access (Desktop Only — di Mobile sudah ditampilkan tepat di bawah Stat Cards) */}
+          <div className="hidden lg:flex bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] flex-1 flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
             <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-[0.25em] mb-4 sm:mb-6 flex items-center gap-3 transition-colors">
               <span className="w-4 h-[1px] bg-slate-300 dark:bg-slate-700 transition-colors" />
               Akses Cepat
