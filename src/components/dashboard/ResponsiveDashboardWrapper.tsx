@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { LogoutButton } from '@/app/dashboard/LogoutButton';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { transformDriveLink } from '@/lib/utils';
-import Image from 'next/image';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { withBasePath } from '@/lib/base-path';
@@ -15,7 +14,7 @@ import { APP_VERSION, ANDROID_APK_RELEASE } from '@/lib/app-version';
 import {
   Menu, X, LayoutDashboard, Key, ScanLine, Award,
   ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download,
-  Users, GraduationCap, BookOpen, ClipboardList, Printer,
+  Users, GraduationCap, IdCard, BookOpen, ClipboardList, Printer,
   ScrollText, Settings, Stethoscope, User
 } from 'lucide-react';
 
@@ -23,6 +22,7 @@ const NAV_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> 
   '/dashboard': LayoutDashboard,
   '/dashboard/guru': Users,
   '/dashboard/siswa': GraduationCap,
+  '/dashboard/kartu-peserta': IdCard,
   '/dashboard/kelas-mapel': BookOpen,
   '/dashboard/tugas-mengajar': ClipboardList,
   '/dashboard/kunci': Key,
@@ -165,7 +165,13 @@ export default function ResponsiveDashboardWrapper({
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 via-indigo-600 to-cyan-400 p-[1.5px] overflow-hidden flex-shrink-0">
                 <div className="w-full h-full rounded-[10px] bg-white dark:bg-[#09051f] flex items-center justify-center text-slate-900 dark:text-white text-sm font-black overflow-hidden">
                   {user.profile_url ? (
-                    <Image src={transformDriveLink(user.profile_url)} alt={user.nama} width={40} height={40} className="w-full h-full object-cover" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={transformDriveLink(user.profile_url)}
+                      alt={user.nama}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     user.nama.charAt(0).toUpperCase()
                   )}
@@ -520,7 +526,7 @@ export default function ResponsiveDashboardWrapper({
                   className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
                 >
                   <Download className="w-4 h-4 shrink-0" />
-                  <span>Download APK Android v{ANDROID_APK_RELEASE.version}</span>
+                  <span>Download APK Android v{ANDROID_APK_RELEASE.version} ({ANDROID_APK_RELEASE.sizeLabel})</span>
                 </a>
                 <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5">
                   <Smartphone className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />

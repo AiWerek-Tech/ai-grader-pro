@@ -92,12 +92,12 @@ const WORKFLOW_STEPS = [
 ];
 
 const ANDROID_HIGHLIGHTS = [
-  "Kamera scan 1-klik & multi-upload galeri",
-  "Terhubung otomatis ke app.wmvaa.id/ai-grader",
-  "Scan QR akses LAN & cetak A4 langsung dari HP",
-  "Ekspor .xlsx langsung ke folder Downloads",
-  "Android 7.0+ (API 24) & layar tetap menyala",
-  "Halaman offline informatif saat sinyal terputus",
+  "Kamera scan 1-klik, multi-upload galeri & dokumen",
+  "Scan QR akses LAN dilengkapi tombol lampu senter (flash)",
+  "Ekspor .xlsx/.csv/.pdf langsung Buka & Bagikan",
+  "Dukungan penuh Android 7.0–14+ (rilis ringan 3.26 MB)",
+  "Cek pembaruan otomatis & buka langsung dari tautan web",
+  "Pemulihan offline informatif & akses draft cache lokal",
 ];
 
 const IMPORTANT_INFOS = [

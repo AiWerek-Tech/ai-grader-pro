@@ -63,19 +63,14 @@ export function PwaOfflineBridge() {
     };
 
     // 3. Bridge unduhan blob: (Excel/CSV/Kartu Login) untuk Android Kotlin WebView
-    const handleAnchorClick = (event: MouseEvent) => {
+    const triggerNativeBlobDownload = (anchor: HTMLAnchorElement) => {
       const nativeBridge = window.WMVAANative;
-      if (!nativeBridge || typeof nativeBridge.saveBase64File !== 'function') return;
+      if (!nativeBridge || typeof nativeBridge.saveBase64File !== 'function') return false;
 
-      const target = event.target as HTMLElement | null;
-      const anchor = target?.closest?.('a') as HTMLAnchorElement | null;
-      if (!anchor) return;
+      const href = anchor.getAttribute('href') || anchor.href || '';
+      if (!href.startsWith('blob:')) return false;
 
-      const href = anchor.getAttribute('href') || '';
-      if (!href.startsWith('blob:')) return;
-
-      event.preventDefault();
-      const fileName = anchor.getAttribute('download') || `wmvaa-export-${Date.now()}.bin`;
+      const fileName = anchor.getAttribute('download') || anchor.download || `wmvaa-export-${Date.now()}.bin`;
 
       fetch(href)
         .then((res) => res.blob())
@@ -91,6 +86,24 @@ export function PwaOfflineBridge() {
           reader.readAsDataURL(blob);
         })
         .catch(() => {});
+      return true;
+    };
+
+    const handleAnchorClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest?.('a') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (triggerNativeBlobDownload(anchor)) {
+        event.preventDefault();
+      }
+    };
+
+    const origAnchorClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (!this.isConnected && triggerNativeBlobDownload(this)) {
+        return;
+      }
+      return origAnchorClick.apply(this);
     };
 
     document.addEventListener('click', handleAnchorClick, true);
@@ -155,6 +168,7 @@ export function PwaOfflineBridge() {
     syncSwipeState(null);
 
     return () => {
+      HTMLAnchorElement.prototype.click = origAnchorClick;
       document.removeEventListener('click', handleAnchorClick, true);
       document.removeEventListener('touchstart', handleTouchStart, true);
       window.removeEventListener('scroll', handleScroll);
