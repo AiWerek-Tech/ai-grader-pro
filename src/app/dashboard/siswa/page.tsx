@@ -350,7 +350,7 @@ export default function SiswaPage() {
           { label: 'Unit SMA', value: stats.smaCount, icon: <GraduationCap className="w-4 h-4" />, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10' },
           { label: 'Belum Ada Kelas', value: stats.noKelas, icon: <School className="w-4 h-4" />, color: stats.noKelas > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400', bg: stats.noKelas > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-3 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm backdrop-blur-sm">
+          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-3 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm lg:backdrop-blur-sm">
             <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} flex-shrink-0`}>{s.icon}</div>
             <div>
               <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -414,7 +414,7 @@ export default function SiswaPage() {
       </div>
 
       {/* ── Main Table/Card + Toolbar ── */}
-      <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
 
         {/* Toolbar */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-white/[0.05] bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between gap-3 flex-wrap">
@@ -740,7 +740,7 @@ export default function SiswaPage() {
           MODAL: Tambah Siswa
       ════════════════════════════════════════════════════════ */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setShowAddModal(false); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-600/10 blur-[70px] rounded-full -mr-20 -mt-20 pointer-events-none" />
@@ -791,7 +791,7 @@ export default function SiswaPage() {
           MODAL: Edit Siswa
       ════════════════════════════════════════════════════════ */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setShowEditModal(null); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-600/10 blur-[70px] rounded-full -mr-20 -mt-20 pointer-events-none" />
@@ -851,7 +851,7 @@ export default function SiswaPage() {
           MODAL: Import Excel
       ════════════════════════════════════════════════════════ */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[110] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget && !importing) { setShowImportModal(false); setSelectedFile(null); } }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-60 h-60 bg-emerald-600/5 blur-[80px] rounded-full -mr-30 -mt-30 pointer-events-none" />
@@ -955,7 +955,7 @@ export default function SiswaPage() {
           MODAL: Konfirmasi Hapus
       ════════════════════════════════════════════════════════ */}
       {confirmModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[120] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-40 h-40 bg-rose-600/8 blur-[60px] rounded-full -ml-20 -mt-20 pointer-events-none" />
             <div className="relative z-10">

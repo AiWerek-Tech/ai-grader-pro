@@ -91,7 +91,7 @@ export function KunciDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/75 lg:backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200 print:hidden"
+      className="fixed inset-0 z-[100] bg-black/75 lg:backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200 print:hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -318,7 +318,7 @@ export function KunciIrtModal({ kunci, irtStats, loading, onClose }: IrtModalPro
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/75 lg:backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200 print:hidden"
+      className="fixed inset-0 z-[100] bg-black/75 lg:backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200 print:hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -497,7 +497,7 @@ export function KunciDeleteModal({ kunci, deleting, onCancel, onConfirm }: Delet
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/75 lg:backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 print:hidden"
+      className="fixed inset-0 z-[100] bg-black/75 lg:backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 print:hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget && !deleting) onCancel();
       }}

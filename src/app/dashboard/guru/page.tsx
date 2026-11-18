@@ -459,15 +459,15 @@ export default function GuruPage() {
 
       {/* Stats Cards Quick Look */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl backdrop-blur-md shadow-sm dark:shadow-none">
+        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
           <div className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-2">Total Guru</div>
           <div className="text-3xl font-black text-slate-900 dark:text-white">{data.filter(g => g.role === 'GURU').length}</div>
         </div>
-        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl backdrop-blur-md shadow-sm dark:shadow-none">
+        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
           <div className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-2">Total Admin</div>
           <div className="text-3xl font-black text-amber-700 dark:text-amber-500">{data.filter(g => g.role === 'ADMIN').length}</div>
         </div>
-        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl backdrop-blur-md shadow-sm dark:shadow-none">
+        <div className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-300 dark:border-white/[0.03] p-6 rounded-3xl lg:backdrop-blur-md shadow-sm dark:shadow-none">
           <div className="text-[10px] font-black text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-2">Status Aktif</div>
           <div className="text-3xl font-black text-emerald-700 dark:text-emerald-500">{data.filter(g => g.status === 'Aktif').length}</div>
         </div>
@@ -518,7 +518,7 @@ export default function GuruPage() {
       )}
 
       {/* Data Table */}
-      <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-sm dark:shadow-2xl relative">
+      <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-sm dark:shadow-2xl relative">
         <div className="p-8 border-b border-slate-100 dark:border-white/[0.05] flex justify-between items-center bg-slate-50/50 dark:bg-white/[0.02]">
            <div className="flex items-center gap-4">
               <button 
@@ -582,12 +582,12 @@ export default function GuruPage() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black tracking-widest uppercase border ${guru.role === 'ADMIN' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20'}`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${guru.role === 'ADMIN' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20'}`}>
                       {guru.role}
                     </span>
                     <button
                       onClick={() => setConfirmModal({ type: 'STATUS', id: guru.id, name: guru.nama })}
-                      className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase border ${guru.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${guru.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}
                     >
                       {guru.status}
                     </button>
@@ -595,16 +595,16 @@ export default function GuruPage() {
                 </div>
 
                 <div className="grid grid-cols-4 gap-1.5 pt-1">
-                  <button onClick={() => setShowEditModal(guru)} className="py-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
+                  <button onClick={() => setShowEditModal(guru)} className="py-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
                     ✏️ Edit
                   </button>
-                  <button onClick={() => { setShowPasswordModal(guru); setNewPassInput(plainPass); }} className="py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[9px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
+                  <button onClick={() => { setShowPasswordModal(guru); setNewPassInput(plainPass); }} className="py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
                     🔑 Pass
                   </button>
-                  <button onClick={() => downloadWelcomeCard(guru)} className="py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
+                  <button onClick={() => downloadWelcomeCard(guru)} className="py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
                     <Contact2 className="w-3.5 h-3.5" /> Kartu
                   </button>
-                  <button onClick={() => setConfirmModal({ type: 'DELETE', id: guru.id, name: guru.nama })} className="py-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[9px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
+                  <button onClick={() => setConfirmModal({ type: 'DELETE', id: guru.id, name: guru.nama })} className="py-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
                     🗑️ Hapus
                   </button>
                 </div>
@@ -803,7 +803,7 @@ export default function GuruPage() {
                  </div>
               </div>
            </div>
-           <div className="text-[10px] font-black uppercase tracking-widest border border-white/30 px-4 py-2 rounded-xl backdrop-blur-sm">
+           <div className="text-[10px] font-black uppercase tracking-widest border border-white/30 px-4 py-2 rounded-xl lg:backdrop-blur-sm">
               Status: Optimized
            </div>
         </div>
@@ -847,7 +847,7 @@ export default function GuruPage() {
 
       {/* Modal Tambah Guru */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 lg:backdrop-blur-sm z-[100] flex items-center justify-center p-6">
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-md rounded-[3rem] p-8 sm:p-12 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-600/10 blur-[80px] rounded-full -mr-20 -mt-20" />
             
@@ -894,7 +894,7 @@ export default function GuruPage() {
 
       {/* Modal Import Guru Modern */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm z-[110] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 lg:backdrop-blur-sm z-[110] flex items-center justify-center p-6">
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-2xl rounded-[3.5rem] p-10 sm:p-14 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[100px] rounded-full -mr-32 -mt-32" />
             
@@ -986,7 +986,7 @@ export default function GuruPage() {
 
       {/* Modal Edit Akun Lengkap (Nama, Username, Role, Password) */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 lg:backdrop-blur-sm z-[100] flex items-center justify-center p-6">
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-md rounded-[3rem] p-8 sm:p-10 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-600/10 blur-[80px] rounded-full -mr-20 -mt-20" />
             
@@ -1027,7 +1027,7 @@ export default function GuruPage() {
 
       {/* Modal Kelola & Reset Password Cepat */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm z-[120] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 lg:backdrop-blur-sm z-[120] flex items-center justify-center p-6">
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-md rounded-[3rem] p-8 sm:p-10 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 blur-[80px] rounded-full -mr-20 -mt-20" />
             
@@ -1125,7 +1125,7 @@ export default function GuruPage() {
 
       {/* Modal Profile / Foto Profil Modern */}
       {showProfileModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm z-[120] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 lg:backdrop-blur-sm z-[120] flex items-center justify-center p-6">
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-md rounded-[3rem] p-10 shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/10 blur-[80px] rounded-full -mr-24 -mt-24" />
             
@@ -1178,7 +1178,7 @@ export default function GuruPage() {
 
       {/* Confirmation Modal */}
       {confirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm z-[110] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 lg:backdrop-blur-sm z-[110] flex items-center justify-center p-6">
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden text-center">
             <div className={`w-20 h-20 rounded-3xl mx-auto mb-8 flex items-center justify-center text-3xl shadow-inner ${confirmModal.type === 'DELETE' || confirmModal.type === 'BULK_DELETE' ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500'}`}>
               {confirmModal.type === 'DELETE' || confirmModal.type === 'BULK_DELETE' ? <Trash2 className="w-10 h-10" /> : confirmModal.type === 'STATUS' ? <Activity className="w-10 h-10" /> : <KeyRound className="w-10 h-10" />}

@@ -253,7 +253,7 @@ export default function TugasMengajarPage() {
           { label: 'Kelas Aktif', value: stats.kelasCount, icon: <School className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
           { label: 'Total Penugasan', value: stats.totalRows, icon: <span className="text-sm">📋</span>, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-5 flex items-center gap-4 shadow-sm backdrop-blur-sm">
+          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-5 flex items-center gap-4 shadow-sm lg:backdrop-blur-sm">
             <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} flex-shrink-0`}>
               {s.icon}
             </div>
@@ -386,7 +386,7 @@ export default function TugasMengajarPage() {
       {/* ── Grid / List View ── */}
       {filteredEntries.length === 0 ? (
         /* Empty state */
-        <div className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/5 rounded-[3rem] p-20 text-center backdrop-blur-xl shadow-sm">
+        <div className="bg-white dark:bg-[#0a0e1a]/60 border border-slate-200 dark:border-white/5 rounded-[3rem] p-20 text-center lg:backdrop-blur-xl shadow-sm">
           {hasActiveFilters ? (
             <>
               <div className="text-6xl mb-6 grayscale opacity-20">🔍</div>
@@ -553,7 +553,7 @@ export default function TugasMengajarPage() {
       ═══════════════════════════════════════════════════════════════════ */}
       {showAddModal && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto"
           onClick={e => { if (e.target === e.currentTarget) handleCloseModal(); }}
         >
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden my-8">
@@ -688,7 +688,7 @@ export default function TugasMengajarPage() {
           MODAL: Konfirmasi Hapus
       ═══════════════════════════════════════════════════════════════════ */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[110] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-40 h-40 bg-rose-600/8 blur-[60px] rounded-full -ml-20 -mt-20 pointer-events-none" />
             <div className="relative z-10">

@@ -684,7 +684,7 @@ export default function HasilPage() {
           { label: 'Terendah', value: stats.terendah, icon: <TrendingDown className="w-4 h-4" />, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
           { label: 'Review', value: stats.needReview, icon: <ShieldAlert className="w-4 h-4" />, color: stats.needReview > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-600', bg: stats.needReview > 0 ? 'bg-amber-500/10' : 'bg-slate-500/10' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm backdrop-blur-sm">
+          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm lg:backdrop-blur-sm">
             <div className={`hidden sm:flex w-9 h-9 ${s.bg} rounded-xl items-center justify-center ${s.color} flex-shrink-0`}>{s.icon}</div>
             <div className="min-w-0">
               <div className={`text-lg sm:text-xl font-black leading-tight ${s.color}`}>{s.value}</div>
@@ -816,7 +816,7 @@ export default function HasilPage() {
       )}
 
       {/* ── Table ── */}
-      <div className="print:hidden bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
+      <div className="print:hidden bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
 
         {/* Toolbar */}
         <div className="px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-white/[0.05] bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between flex-wrap gap-2">
@@ -1070,7 +1070,7 @@ export default function HasilPage() {
           MODAL: Detail Hasil
       ════════════════════════════════════════════ */}
       {detailHasil && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+        <div className="fixed inset-0 bg-black/75 lg:backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
           onClick={e => { if (e.target === e.currentTarget) setDetailHasil(null); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-2xl rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden my-0 sm:my-8 max-h-[92dvh] sm:max-h-[90vh] flex flex-col">
             {/* Header */}
@@ -1598,7 +1598,7 @@ export default function HasilPage() {
           MODAL: Override Skor
       ════════════════════════════════════════════ */}
       {overrideTarget && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+        <div className="fixed inset-0 bg-black/75 lg:backdrop-blur-md z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
           onClick={e => { if (e.target === e.currentTarget && !saving) setOverrideTarget(null); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden my-0 sm:my-8 max-h-[92vh] sm:max-h-[90vh] flex flex-col">
             <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-600/8 blur-[60px] rounded-full -mr-20 -mt-20 pointer-events-none" />

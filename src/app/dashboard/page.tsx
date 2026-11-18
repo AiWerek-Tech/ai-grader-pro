@@ -77,7 +77,7 @@ export default async function Dashboard() {
           </p>
         </div>
         <div className="flex-shrink-0 relative z-10">
-          <div className="px-4 py-2.5 sm:px-5 sm:py-3 bg-white dark:bg-[#09051f] border border-purple-200/70 dark:border-purple-500/20 rounded-2xl sm:rounded-[1rem] flex items-center gap-3 backdrop-blur-xl shadow-lg shadow-purple-500/10 transition-colors">
+          <div className="px-4 py-2.5 sm:px-5 sm:py-3 bg-white dark:bg-[#09051f] border border-purple-200/70 dark:border-purple-500/20 rounded-2xl sm:rounded-[1rem] flex items-center gap-3 lg:backdrop-blur-xl shadow-lg shadow-purple-500/10 transition-colors">
              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
                <BrandLogo variant="symbol" className="w-full h-full" />
              </div>
@@ -96,7 +96,7 @@ export default async function Dashboard() {
         {statsData.map((item, i) => (
           <div 
             key={i} 
-            className="group relative bg-white dark:bg-[#0a0e1a]/80 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] hover:bg-slate-50 dark:hover:bg-[#0a0e1a] transition-all duration-300 shadow-sm dark:shadow-inner min-w-0"
+            className="group relative bg-white dark:bg-[#0a0e1a]/80 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] hover:bg-slate-50 dark:hover:bg-[#0a0e1a] transition-all duration-300 shadow-sm dark:shadow-inner min-w-0"
           >
             {/* Hover Glow */}
             <div className={`absolute inset-0 rounded-2xl sm:rounded-[2rem] opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-transparent ${statsGlowToClass[item.color]} blur-xl pointer-events-none`} />
@@ -143,7 +143,7 @@ export default async function Dashboard() {
               { unit: 'SMP', stats: stats.jenjang.smp, color: 'indigo', text: 'text-indigo-700 dark:text-indigo-400', dot: 'bg-indigo-500 relative after:absolute after:inset-0 after:bg-indigo-500 after:animate-ping after:opacity-50 after:rounded-full', glow: 'from-indigo-100/50 dark:from-indigo-900/40', hoverBorder: 'hover:border-indigo-300 dark:hover:border-indigo-500/20' },
               { unit: 'SMA', stats: stats.jenjang.sma, color: 'violet', text: 'text-violet-700 dark:text-violet-400', dot: 'bg-violet-500 relative after:absolute after:inset-0 after:bg-violet-500 after:animate-ping after:opacity-50 after:rounded-full', glow: 'from-violet-100/50 dark:from-violet-900/40', hoverBorder: 'hover:border-violet-300 dark:hover:border-violet-500/20' }
               ].map((unit, i) => (
-              <div key={i} className={`bg-gradient-to-br ${unit.glow} to-white dark:to-[#0a0e1a]/80 backdrop-blur-md border border-slate-200 dark:border-white/[0.03] p-7 rounded-[2rem] relative overflow-hidden group ${unit.hoverBorder} transition-all shadow-sm dark:shadow-none min-w-0`}>
+              <div key={i} className={`bg-gradient-to-br ${unit.glow} to-white dark:to-[#0a0e1a]/80 lg:backdrop-blur-md border border-slate-200 dark:border-white/[0.03] p-7 rounded-[2rem] relative overflow-hidden group ${unit.hoverBorder} transition-all shadow-sm dark:shadow-none min-w-0`}>
                   <div className="relative z-10 flex flex-col justify-between h-full">
                     <div className={`text-[11px] font-black ${unit.text} uppercase tracking-[0.2em] mb-6 flex items-center gap-2.5 transition-colors`}>
                       <span className={`w-2 h-2 rounded-full ${unit.dot} shadow-[0_0_10px_rgba(0,0,0,0.1)] dark:shadow-[0_0_10px_currentColor]`} />
@@ -167,7 +167,7 @@ export default async function Dashboard() {
           </div>
 
           {/* Aktivitas Sistem */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] rounded-[2.5rem] overflow-hidden flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] rounded-[2.5rem] overflow-hidden flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
             <div className="p-6 sm:p-8 border-b border-slate-100 dark:border-white/[0.03] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 dark:bg-white/[0.01] transition-colors">
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-3 transition-colors">
                 <span className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-sm dark:shadow-inner flex-shrink-0 transition-colors">
@@ -221,7 +221,7 @@ export default async function Dashboard() {
             </div>
             
             <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full border border-white/25 mb-4 sm:mb-6 shadow-sm">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 lg:backdrop-blur-md rounded-full border border-white/25 mb-4 sm:mb-6 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse" />
                 <span className="text-[9px] font-black text-white tracking-[0.2em] uppercase drop-shadow-sm">{isGuru ? 'Teacher Panel' : `Enterprise v${APP_VERSION}`}</span>
               </div>
@@ -239,7 +239,7 @@ export default async function Dashboard() {
                   'Zero-Template Dynamic Scan'
                 ].map((feature, idx) => (
                   <div key={idx} className="flex items-center gap-2.5 sm:gap-3 opacity-95 hover:opacity-100 transition-opacity">
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-cyan-400/25 backdrop-blur-md flex items-center justify-center text-[9px] sm:text-[10px] text-cyan-200 flex-shrink-0 shadow-sm border border-cyan-300/30">✓</div>
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-cyan-400/25 lg:backdrop-blur-md flex items-center justify-center text-[9px] sm:text-[10px] text-cyan-200 flex-shrink-0 shadow-sm border border-cyan-300/30">✓</div>
                     <span className="text-[10px] sm:text-[11px] font-bold text-white uppercase tracking-wider truncate drop-shadow-sm">{feature}</span>
                   </div>
                 ))}
@@ -248,7 +248,7 @@ export default async function Dashboard() {
           </div>
 
           {/* Quick Access */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] flex-1 flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.03] p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] flex-1 flex flex-col min-w-0 shadow-sm dark:shadow-none transition-colors">
             <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-[0.25em] mb-4 sm:mb-6 flex items-center gap-3 transition-colors">
               <span className="w-4 h-[1px] bg-slate-300 dark:bg-slate-700 transition-colors" />
               Akses Cepat

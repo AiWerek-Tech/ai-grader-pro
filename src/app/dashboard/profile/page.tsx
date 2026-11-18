@@ -114,7 +114,7 @@ export default function ProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
         {/* Profile Card Sidebar */}
-        <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[3rem] p-6 sm:p-10 shadow-sm dark:shadow-2xl relative overflow-hidden transition-colors flex flex-col items-center text-center">
+        <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[3rem] p-6 sm:p-10 shadow-sm dark:shadow-2xl relative overflow-hidden transition-colors flex flex-col items-center text-center">
            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-[50px] rounded-full -mr-16 -mt-16" />
            
            <div className="relative mb-6 sm:mb-8">
@@ -150,7 +150,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Edit Form Main */}
-        <div className="lg:col-span-2 bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[3rem] p-6 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-colors">
+        <div className="lg:col-span-2 bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[3rem] p-6 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-colors">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full -mr-32 -mt-32" />
           
           <form onSubmit={handleSubmit} className="space-y-8 sm:space-y-10 relative z-10">

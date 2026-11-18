@@ -208,7 +208,7 @@ export default function SettingsPage() {
 
       {/* ── CONTENT: TAB BRANDING ── */}
       {activeTab === 'branding' && (
-        <div className="bg-white dark:bg-[#0a0e1a]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[2.5rem] p-8 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-500 animate-in slide-in-from-bottom-4">
+        <div className="bg-white dark:bg-[#0a0e1a]/80 lg:backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[2.5rem] p-8 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-500 animate-in slide-in-from-bottom-4">
           <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
           
           <form onSubmit={handleSubmit} onChange={handleFormChange} className="space-y-12 relative z-10">
@@ -359,7 +359,7 @@ export default function SettingsPage() {
 
       {/* ── CONTENT: TAB ACADEMIC ── */}
       {activeTab === 'academic' && (
-        <div className="bg-white dark:bg-[#0a0e1a]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[2.5rem] p-8 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-500 animate-in slide-in-from-bottom-4">
+        <div className="bg-white dark:bg-[#0a0e1a]/80 lg:backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[2.5rem] p-8 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-500 animate-in slide-in-from-bottom-4">
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
           
           <form onSubmit={handleSubmit} className="space-y-12 relative z-10">
@@ -448,7 +448,7 @@ export default function SettingsPage() {
 
       {/* ── CONTENT: TAB AI ── */}
       {activeTab === 'ai' && (
-        <div className="bg-white dark:bg-[#0a0e1a]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[2.5rem] p-8 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-500 animate-in slide-in-from-bottom-4">
+        <div className="bg-white dark:bg-[#0a0e1a]/80 lg:backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[2.5rem] p-8 sm:p-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-500 animate-in slide-in-from-bottom-4">
           <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 blur-[120px] rounded-full -mr-32 -mt-32 pointer-events-none" />
           
           <form onSubmit={handleSubmit} className="space-y-12 relative z-10">
@@ -677,7 +677,7 @@ export default function SettingsPage() {
 
       {/* ── CONTENT: TAB BACKUP / RECOVERY ── */}
       {activeTab === 'backup' && (
-        <div className="bg-white dark:bg-[#0a0e1a]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[3rem] p-12 sm:p-20 text-center space-y-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all animate-in slide-in-from-bottom-4">
+        <div className="bg-white dark:bg-[#0a0e1a]/80 lg:backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-[3rem] p-12 sm:p-20 text-center space-y-12 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all animate-in slide-in-from-bottom-4">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-rose-500/5 blur-[120px] rounded-full -mt-64 pointer-events-none" />
           
           <div className="max-w-xl mx-auto relative z-10">

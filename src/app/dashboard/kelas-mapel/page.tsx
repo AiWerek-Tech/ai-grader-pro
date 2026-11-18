@@ -401,7 +401,7 @@ export default function KelasMapelPage() {
           { label: 'Jenjang SMA', value: stats.smaCount, icon: <GraduationCap className="w-4 h-4" />, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-500/10' },
           { label: 'Total Siswa', value: stats.totalSiswa, icon: <Users className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-5 flex items-center gap-4 shadow-sm backdrop-blur-sm">
+          <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-5 flex items-center gap-4 shadow-sm lg:backdrop-blur-sm">
             <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} flex-shrink-0`}>{s.icon}</div>
             <div>
               <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -448,7 +448,7 @@ export default function KelasMapelPage() {
           </div>
 
           {/* Kelas table */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm dark:shadow-2xl">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm dark:shadow-2xl">
             <div className="bg-slate-50 dark:bg-white/[0.03] border-b border-slate-200 dark:border-white/[0.05] grid grid-cols-[56px_1fr_48px_108px] sm:grid-cols-[80px_1fr_80px_124px] gap-0 text-[9px] uppercase font-black tracking-widest text-slate-500">
               <div className="px-3 sm:px-5 py-3.5">Jenjang</div>
               <button onClick={() => toggleKelasSort('nama_kelas')} className="px-2 sm:px-4 py-3.5 flex items-center gap-1.5 hover:text-slate-800 dark:hover:text-white transition-colors text-left">
@@ -465,7 +465,7 @@ export default function KelasMapelPage() {
                 {filteredKelas.map(k => (
                   <div key={k.id_kelas} className="grid grid-cols-[56px_1fr_48px_108px] sm:grid-cols-[80px_1fr_80px_124px] gap-0 items-center hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors group">
                     <div className="px-3 sm:px-5 py-3.5 sm:py-4 flex-shrink-0">
-                      <span className={`px-1.5 sm:px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-black tracking-widest ${String(k.jenjang).toUpperCase() === 'SMA'
+                      <span className={`px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider ${String(k.jenjang).toUpperCase() === 'SMA'
                         ? 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20'
                         : 'bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-400 border border-fuchsia-500/20'}`}>
                         {k.jenjang}
@@ -477,7 +477,7 @@ export default function KelasMapelPage() {
                         {(() => {
                           const fInfo = getFaseKurikulumMerdeka(k.nama_kelas, k.jenjang);
                           return (
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${fInfo.color}`} title={fInfo.desc}>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${fInfo.color}`} title={fInfo.desc}>
                               {fInfo.fase}
                             </span>
                           );
@@ -569,7 +569,7 @@ export default function KelasMapelPage() {
           </div>
 
           {/* Mapel table */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm dark:shadow-2xl">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm dark:shadow-2xl">
             <div className="bg-slate-50 dark:bg-white/[0.03] border-b border-slate-200 dark:border-white/[0.05] grid grid-cols-[1fr_90px_60px] gap-0 text-[9px] uppercase font-black tracking-widest text-slate-500">
               <button onClick={() => toggleMapelSort('nama_mapel')} className="px-5 py-3.5 flex items-center gap-1.5 hover:text-slate-800 dark:hover:text-white transition-colors text-left">
                 Mata Pelajaran <SortIcon field="nama_mapel" cur={mapelSortField} dir={mapelSortDir} />
@@ -665,7 +665,7 @@ export default function KelasMapelPage() {
           MODAL: Rombel Manager
       ═══════════════════════════════════════════════════════════════════ */}
       {rombelKelas && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto"
           onClick={e => { if (e.target === e.currentTarget) closeRombel(); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden my-8">
 
@@ -832,7 +832,7 @@ export default function KelasMapelPage() {
           MODAL: Add / Edit Kelas or Mapel
       ═══════════════════════════════════════════════════════════════════ */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[110] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
             <div className={`absolute top-0 right-0 w-40 h-40 blur-[70px] rounded-full -mr-20 -mt-20 pointer-events-none ${isKelasModal ? 'bg-indigo-600/10' : 'bg-emerald-600/10'}`} />
@@ -887,7 +887,7 @@ export default function KelasMapelPage() {
           MODAL: Konfirmasi Hapus
       ═══════════════════════════════════════════════════════════════════ */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[120] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-40 h-40 bg-rose-600/8 blur-[60px] rounded-full -ml-20 -mt-20 pointer-events-none" />
             <div className="relative z-10">
@@ -914,7 +914,7 @@ export default function KelasMapelPage() {
           MODAL: Wizard Kenaikan Kelas & Tahun Ajaran Baru
       ═══════════════════════════════════════════════════════════════════ */}
       {showPromoteWizard && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[120] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget && !wizardRunning) setShowPromoteWizard(false); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-lg rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="flex items-center justify-between mb-5">
@@ -994,7 +994,7 @@ export default function KelasMapelPage() {
           MODAL: Siapkan Data Awal TA 2026/2027 (Full Kurikulum Merdeka)
       ═══════════════════════════════════════════════════════════════════ */}
       {showInit2026Modal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/70 lg:backdrop-blur-sm z-[120] flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget && !wizardRunning) setShowInit2026Modal(false); }}>
           <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 w-full max-w-lg rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="flex items-center justify-between mb-5">

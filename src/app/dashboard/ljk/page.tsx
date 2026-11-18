@@ -444,7 +444,7 @@ export default function CetakLJKPage() {
             { label: 'Lembar Siap Cetak', value: totalSheetsToPrint, icon: <CheckSquare className="w-4 h-4" />, color: totalSheetsToPrint > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500', bg: totalSheetsToPrint > 0 ? 'bg-emerald-500/10' : 'bg-slate-500/10' },
             { label: 'Jumlah Soal Aktif', value: selectedKunci ? selectedKunci.data_json?.length || 0 : 0, icon: <ClipboardList className="w-4 h-4" />, color: selectedKunci ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500', bg: selectedKunci ? 'bg-amber-500/10' : 'bg-slate-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 sm:gap-4 shadow-sm backdrop-blur-sm">
+            <div key={s.label} className="bg-white dark:bg-[#0a0e1a]/40 border border-slate-200 dark:border-white/[0.05] rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 sm:gap-4 shadow-sm lg:backdrop-blur-sm">
               <div className={`w-9 h-9 sm:w-10 sm:h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} flex-shrink-0`}>{s.icon}</div>
               <div>
                 <div className={`text-xl sm:text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -460,7 +460,7 @@ export default function CetakLJKPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* ──── KOLOM KIRI: Pilih Ujian ──── */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm flex flex-col">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm flex flex-col">
             <div className="px-5 sm:px-6 py-5 border-b border-slate-100 dark:border-white/[0.05] bg-slate-50/50 dark:bg-white/[0.02]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
@@ -565,7 +565,7 @@ export default function CetakLJKPage() {
           </div>
 
           {/* ──── KOLOM KANAN: Pilih Siswa ──── */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm flex flex-col">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm flex flex-col">
             <div className="px-5 sm:px-6 py-5 border-b border-slate-100 dark:border-white/[0.05] bg-slate-50/50 dark:bg-white/[0.02]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
@@ -638,7 +638,7 @@ export default function CetakLJKPage() {
         ══════════════════════════════════════════════════════════════════ */}
         <div
           ref={previewSectionRef}
-          className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm"
+          className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm"
         >
           {/* Toolbar Kontrol Pratinjau & Cetak */}
           <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-white/[0.06] bg-slate-50/70 dark:bg-white/[0.02] flex flex-wrap items-center justify-between gap-4">

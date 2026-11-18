@@ -19,6 +19,7 @@ import {
   FileCheck, Camera, FolderOpen, ChevronDown, ChevronUp, Sparkles, Zap
 } from 'lucide-react';
 import { SmartLJKScannerModal } from '@/components/scan/SmartLJKScannerModal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ScanStatus = 'pending' | 'scanning' | 'done' | 'error' | 'saved';
@@ -254,6 +255,7 @@ export default function AnalisisPage() {
   const [scanning, setScanning]   = useState(false);
   const [saving, setSaving]       = useState(false);
   const [showSmartScanner, setShowSmartScanner] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [autoScanOnAdd, setAutoScanOnAdd] = useState(true);
   
   // Scan progress tracking
@@ -824,7 +826,7 @@ export default function AnalisisPage() {
         <div className="space-y-4">
 
           {/* Pilih Kunci */}
-          <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
             <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 dark:border-white/[0.04] bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between">
               <h2 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black">Langkah 1</span>
@@ -1036,12 +1038,7 @@ export default function AnalisisPage() {
 
             {scanItems.length > 0 && (
               <button
-                onClick={() => {
-                  if (!confirm('Reset semua foto dan hasil scan? Tindakan ini tidak dapat dibatalkan.')) return;
-                  scanItems.forEach(i => URL.revokeObjectURL(i.previewUrl));
-                  setScanItems([]);
-                  setScanProgress({ current: 0, total: 0 });
-                }}
+                onClick={() => setShowResetConfirm(true)}
                 disabled={scanning || saving}
                 className="w-full flex items-center justify-center gap-2 bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.08] text-slate-500 dark:text-slate-400 px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:border-rose-400 hover:text-rose-500 transition-all disabled:opacity-30">
                 <Trash2 className="w-4 h-4" /> Reset Semua
@@ -1106,7 +1103,7 @@ export default function AnalisisPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
               {/* Queue header */}
               <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-slate-100 dark:border-white/[0.04] bg-slate-50/50 dark:bg-white/[0.02] flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -1336,12 +1333,7 @@ export default function AnalisisPage() {
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!confirm('Reset semua foto dan hasil scan? Tindakan ini tidak dapat dibatalkan.')) return;
-                    scanItems.forEach(i => URL.revokeObjectURL(i.previewUrl));
-                    setScanItems([]);
-                    setScanProgress({ current: 0, total: 0 });
-                  }}
+                  onClick={() => setShowResetConfirm(true)}
                   disabled={scanning || saving}
                   className="py-3 px-4 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 hover:text-rose-500 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-30"
                 >
@@ -1372,7 +1364,7 @@ export default function AnalisisPage() {
 
         return (
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+            className="fixed inset-0 bg-black/80 lg:backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
             onClick={() => setDetailItem(null)}
           >
             <div
@@ -1917,7 +1909,7 @@ export default function AnalisisPage() {
 
       {/* ═══════ MOBILE FLOATING ACTION DOCK (Kenyamanan Satu Tangan di HP, Sembunyi Saat Modal Buka) ═══════ */}
       {selectedKunci && !detailItem && !showSmartScanner && (
-        <div className="lg:hidden fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] inset-x-3 z-30 bg-slate-900/95 dark:bg-[#0d1117]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2 shadow-2xl flex items-center gap-2">
+        <div className="lg:hidden fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] inset-x-3 z-30 bg-slate-900 dark:bg-[#0d1117] border border-white/15 rounded-2xl p-2 shadow-2xl flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowSmartScanner(true)}
@@ -1960,6 +1952,21 @@ export default function AnalisisPage() {
         onCaptureFiles={(files, autoStart) => addFiles(files, autoStart ?? true)}
         kunciTitle={selectedKunci?.judul_ujian}
         totalSoal={selectedKunci?.data_json?.length || 40}
+      />
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset Semua Foto & Hasil Scan?"
+        description={`Semua ${scanItems.length} lembar scan beserta hasil pembacaan AI di antrean akan dihapus dari layar. Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Reset Semua"
+        variant="danger"
+        onConfirm={() => {
+          scanItems.forEach(i => URL.revokeObjectURL(i.previewUrl));
+          setScanItems([]);
+          setScanProgress({ current: 0, total: 0 });
+          setShowResetConfirm(false);
+        }}
+        onCancel={() => setShowResetConfirm(false)}
       />
     </div>
   );

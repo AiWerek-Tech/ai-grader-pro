@@ -27,7 +27,7 @@ export default async function LogsPage() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-3xl sm:rounded-[3rem] overflow-hidden shadow-sm dark:shadow-2xl relative transition-colors">
+      <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-3xl sm:rounded-[3rem] overflow-hidden shadow-sm dark:shadow-2xl relative transition-colors">
         {/* ── Mobile Native Card View (Hanya tampil di layar HP <640px) ── */}
         <div className="sm:hidden divide-y divide-slate-100 dark:divide-white/[0.05]">
           {logs.length > 0 ? logs.map((log: any, i: number) => (
