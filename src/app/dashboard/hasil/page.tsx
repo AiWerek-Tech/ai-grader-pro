@@ -9,6 +9,7 @@ import { TIPE_SOAL_AKM, TIPE_COLOR, formatJawaban, getTipeDistribusi } from '@/l
 import { normalizeTipe, normalizeAIAnswer, formatAnswerForDisplay, answersMatch } from '@/lib/ai/grader-engine';
 import { createWorkbook, downloadWorkbook } from '@/lib/utils/excel';
 import HasilPrintSheet from '@/components/hasil/HasilPrintSheet';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
@@ -58,6 +59,7 @@ export default function HasilPage() {
 
   // ─── Modals ───────────────────────────────────────────────────────────────
   const [detailHasil, setDetailHasil] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [overrideTarget, setOverrideTarget] = useState<any | null>(null);
   const [overrideScore, setOverrideScore] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
@@ -384,15 +386,20 @@ export default function HasilPage() {
     finally { setSaving(false); }
   };
 
-  const handleDeleteHasil = async (h: any) => {
-    const nama = h.sInfo?.nama || h.id_siswa;
-    if (!confirm(`Hapus hasil pemeriksaan milik "${nama}" (${h.kInfo?.judul_ujian || h.id_kunci})?`)) return;
+  const handleDeleteHasil = (h: any) => {
+    setDeleteTarget(h);
+  };
+
+  const executeDeleteHasil = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
     setSaving(true);
     try {
-      const res = await deleteHasilAction(h.id_hasil);
+      const res = await deleteHasilAction(target.id_hasil);
       if (res.success) {
         toast.success(res.message);
-        if (detailHasil?.id_hasil === h.id_hasil) setDetailHasil(null);
+        if (detailHasil?.id_hasil === target.id_hasil) setDetailHasil(null);
+        setDeleteTarget(null);
         fetchData(true);
       } else toast.error(res.message);
     } catch (e: any) { toast.error(e.message); }
@@ -856,7 +863,7 @@ export default function HasilPage() {
                   </div>
                   <div className={`px-3 py-1.5 rounded-2xl text-right shrink-0 border ${lulus ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'}`}>
                     <div className="text-lg font-black leading-none">{skorNum}</div>
-                    <div className="text-[8px] font-black uppercase tracking-widest mt-0.5">{lulus ? 'LULUS' : `<${kkmNum}`}</div>
+                    <div className="text-[10px] font-black uppercase tracking-wider mt-0.5">{lulus ? 'LULUS' : `<${kkmNum}`}</div>
                   </div>
                 </div>
 
@@ -1641,6 +1648,21 @@ export default function HasilPage() {
         filterKelas={filterKelas}
         filterKunci={filterKunci}
         selectedKunciObj={selectedKunciObj}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title="Hapus Hasil Penilaian?"
+        description={
+          deleteTarget
+            ? `Anda yakin ingin menghapus hasil pemeriksaan milik "${deleteTarget.sInfo?.nama || deleteTarget.id_siswa}" (${deleteTarget.kInfo?.judul_ujian || deleteTarget.id_kunci})? Tindakan ini tidak dapat dibatalkan.`
+            : ''
+        }
+        confirmText="Ya, Hapus Hasil"
+        variant="danger"
+        loading={saving}
+        onConfirm={executeDeleteHasil}
+        onCancel={() => setDeleteTarget(null)}
       />
 
       <style

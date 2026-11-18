@@ -436,8 +436,8 @@ export default function TugasMengajarPage() {
                 </div>
 
                 {/* Card body */}
-                <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[1.75rem] overflow-hidden shadow-sm dark:shadow-xl">
-                  <div className="bg-slate-50 dark:bg-white/[0.02] px-5 py-2.5 text-[9px] uppercase font-black tracking-widest text-slate-500 border-b border-slate-200 dark:border-white/[0.05] flex justify-between">
+                <div className="bg-white dark:bg-[#0a0e1a]/90 lg:dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[1.75rem] overflow-hidden shadow-sm dark:shadow-xl">
+                  <div className="bg-slate-50 dark:bg-white/[0.02] px-5 py-2.5 text-[10px] uppercase font-black tracking-widest text-slate-500 border-b border-slate-200 dark:border-white/[0.05] flex justify-between">
                     <span>Mapel / Kelas</span><span>Aksi</span>
                   </div>
                   <div className="divide-y divide-slate-100 dark:divide-white/[0.02]">
@@ -449,17 +449,17 @@ export default function TugasMengajarPage() {
                         </div>
                         <div className="space-y-1.5">
                           {mg.kelas.map(kls => (
-                            <div key={kls.id_tugas} className="flex items-center justify-between group/row">
-                              <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-500">
-                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700 flex-shrink-0" />
+                            <div key={kls.id_tugas} className="flex items-center justify-between group/row py-0.5">
+                              <div className="inline-flex items-center gap-1.5 text-xs sm:text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 flex-shrink-0" />
                                 {kls.nama_kelas}
                               </div>
                               <button
                                 onClick={() => setConfirmDelete({ id: kls.id_tugas, label: `${mg.nama_mapel} – ${kls.nama_kelas} (${group.nama})` })}
-                                className="w-6 h-6 rounded-md hover:bg-rose-500/20 text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 flex items-center justify-center transition-all opacity-0 group-hover/row:opacity-100 text-xs"
+                                className="w-8 h-8 sm:w-6 sm:h-6 rounded-lg sm:rounded-md bg-rose-500/10 sm:bg-transparent hover:bg-rose-500/20 text-rose-500 sm:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 flex items-center justify-center transition-all opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 text-xs active:scale-95"
                                 title="Hapus"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
                               </button>
                             </div>
                           ))}
@@ -474,45 +474,77 @@ export default function TugasMengajarPage() {
         </div>
       ) : (
         /* ── LIST VIEW ── */
-        <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm dark:shadow-2xl">
-          <div className="bg-slate-50 dark:bg-white/[0.03] px-8 py-4 text-[9px] uppercase font-black tracking-widest text-slate-500 border-b border-slate-200 dark:border-white/[0.05] grid grid-cols-[2fr_1fr_1fr_auto] gap-4 items-center">
-            <span>Guru Pengajar</span>
-            <span>Mata Pelajaran</span>
-            <span>Kelas</span>
-            <span>Aksi</span>
-          </div>
-          {filteredEntries.map(([, group]) =>
-            Object.entries(group.mapels).map(([, mg]) =>
-              mg.kelas.map((kls, ki) => (
-                <div key={kls.id_tugas} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-4 items-center px-8 py-4 border-b border-slate-100 dark:border-white/[0.02] hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors group/row last:border-0">
-                  {/* Guru — only show on first kelas of this guru-mapel combo */}
-                  <div className="flex items-center gap-3">
-                    {ki === 0 ? (
-                      <>
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 flex items-center justify-center text-xs font-black text-indigo-600 dark:text-indigo-400 overflow-hidden flex-shrink-0">
-                          {group.profile_url ? (
-                            <Image src={transformDriveLink(group.profile_url)} alt={group.nama} width={32} height={32} className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = 'none')} />
-                          ) : group.nama.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-sm font-black text-slate-900 dark:text-white">{group.nama}</span>
-                      </>
-                    ) : (
-                      <span className="w-8 h-8 flex-shrink-0" /> // spacer
-                    )}
+        <div className="bg-white dark:bg-[#0a0e1a]/90 lg:dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[2rem] overflow-hidden shadow-sm dark:shadow-2xl">
+          {/* Mobile List View */}
+          <div className="sm:hidden divide-y divide-slate-100 dark:divide-white/[0.04]">
+            {filteredEntries.map(([, group]) =>
+              Object.entries(group.mapels).map(([, mg]) =>
+                mg.kelas.map(kls => (
+                  <div key={kls.id_tugas} className="p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-black text-slate-900 dark:text-white truncate">{group.nama}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">{mg.nama_mapel}</span>
+                        <span className="text-slate-400">·</span>
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">{kls.nama_kelas}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setConfirmDelete({ id: kls.id_tugas, label: `${mg.nama_mapel} – ${kls.nama_kelas} (${group.nama})` })}
+                      className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0 active:scale-95"
+                      title="Hapus"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{mg.nama_mapel}</div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">{kls.nama_kelas}</div>
-                  <button
-                    onClick={() => setConfirmDelete({ id: kls.id_tugas, label: `${mg.nama_mapel} – ${kls.nama_kelas}` })}
-                    className="w-7 h-7 rounded-lg hover:bg-rose-500/20 text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 flex items-center justify-center transition-all opacity-0 group-hover/row:opacity-100"
-                    title="Hapus"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
-            )
-          )}
+                ))
+              )
+            )}
+          </div>
+
+          {/* Desktop/Tablet List View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="bg-slate-50 dark:bg-white/[0.03] px-8 py-4 text-[10px] uppercase font-black tracking-widest text-slate-500 border-b border-slate-200 dark:border-white/[0.05] grid grid-cols-[2fr_1fr_1fr_auto] gap-4 items-center">
+                <span>Guru Pengajar</span>
+                <span>Mata Pelajaran</span>
+                <span>Kelas</span>
+                <span>Aksi</span>
+              </div>
+              {filteredEntries.map(([, group]) =>
+                Object.entries(group.mapels).map(([, mg]) =>
+                  mg.kelas.map((kls, ki) => (
+                    <div key={kls.id_tugas} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-4 items-center px-8 py-4 border-b border-slate-100 dark:border-white/[0.02] hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors group/row last:border-0">
+                      {/* Guru — only show on first kelas of this guru-mapel combo */}
+                      <div className="flex items-center gap-3">
+                        {ki === 0 ? (
+                          <>
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 flex items-center justify-center text-xs font-black text-indigo-600 dark:text-indigo-400 overflow-hidden flex-shrink-0">
+                              {group.profile_url ? (
+                                <Image src={transformDriveLink(group.profile_url)} alt={group.nama} width={32} height={32} className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = 'none')} />
+                              ) : group.nama.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-black text-slate-900 dark:text-white">{group.nama}</span>
+                          </>
+                        ) : (
+                          <span className="w-8 h-8 flex-shrink-0" /> // spacer
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{mg.nama_mapel}</div>
+                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">{kls.nama_kelas}</div>
+                      <button
+                        onClick={() => setConfirmDelete({ id: kls.id_tugas, label: `${mg.nama_mapel} – ${kls.nama_kelas}` })}
+                        className="w-8 h-8 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 flex items-center justify-center transition-all opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 active:scale-95"
+                        title="Hapus"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))
+                )
+              )}
+            </div>
+          </div>
         </div>
       )}
 

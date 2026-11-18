@@ -3,12 +3,14 @@
 import { runSystemDoctorAction, healSystemAction } from '@/lib/actions/doctor';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Stethoscope, ShieldAlert, CheckCircle2, AlertTriangle, XCircle, Activity, Zap } from 'lucide-react';
 
 export default function DoctorPage() {
   const [diagnostics, setDiagnostics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [healing, setHealing] = useState(false);
+  const [showHealConfirm, setShowHealConfirm] = useState(false);
   const [error, setError] = useState('');
 
   const fetchDiagnostics = async () => {
@@ -31,13 +33,17 @@ export default function DoctorPage() {
     fetchDiagnostics();
   }, []);
 
-  const handleHeal = async () => {
-    if (!confirm('Jalankan Auto-Heal? Sistem akan mencoba memulihkan struktur database yang rusak secara otomatis.')) return;
+  const handleHeal = () => {
+    setShowHealConfirm(true);
+  };
+
+  const executeHeal = async () => {
     setHealing(true);
     try {
       const res = await healSystemAction();
       if (res.success) toast.success(res.message);
       else toast.error(res.message);
+      setShowHealConfirm(false);
       fetchDiagnostics();
     } catch (e: any) {
       toast.error('Error: ' + e.message);
@@ -103,8 +109,8 @@ export default function DoctorPage() {
       )}
 
       {/* Ringkasan Kesehatan */}
-      <div className="bg-white dark:bg-[#0a0e1a]/80 backdrop-blur-2xl border border-slate-200 dark:border-white/[0.05] rounded-[3rem] p-12 flex flex-col sm:flex-row items-center gap-10 sm:gap-12 relative overflow-hidden shadow-sm dark:shadow-2xl transition-colors">
-        <div className={`absolute top-0 right-0 w-64 h-64 ${healthyCount === totalCount ? 'bg-emerald-500/10' : 'bg-amber-500/10'} blur-[100px] rounded-full -mr-32 -mt-32`} />
+      <div className="bg-white dark:bg-[#0a0e1a]/90 lg:dark:bg-[#0a0e1a]/80 lg:backdrop-blur-2xl border border-slate-200 dark:border-white/[0.05] rounded-3xl sm:rounded-[3rem] p-6 sm:p-10 lg:p-12 flex flex-col sm:flex-row items-center gap-6 sm:gap-10 lg:gap-12 relative overflow-hidden shadow-sm dark:shadow-2xl transition-colors">
+        <div className={`hidden lg:block absolute top-0 right-0 w-64 h-64 ${healthyCount === totalCount ? 'bg-emerald-500/10' : 'bg-amber-500/10'} blur-[100px] rounded-full -mr-32 -mt-32`} />
         
         <div className={`w-32 h-32 rounded-[2.5rem] flex-shrink-0 flex items-center justify-center shadow-inner relative z-10 ${healthyCount === totalCount ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-500' : 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-500'}`}>
           {healthyCount === totalCount ? <CheckCircle2 className="w-16 h-16" /> : <ShieldAlert className="w-16 h-16" />}
@@ -125,7 +131,7 @@ export default function DoctorPage() {
       {/* Kartu Diagnostik */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {diagnostics.map((d, i) => (
-          <div key={i} className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-md border border-slate-200 dark:border-white/[0.05] rounded-[2rem] p-8 hover:bg-slate-50 dark:hover:bg-[#0d1326] transition-all group relative overflow-hidden shadow-sm dark:shadow-none min-h-[200px] flex flex-col justify-between">
+          <div key={i} className="bg-white dark:bg-[#0a0e1a]/90 lg:dark:bg-[#0a0e1a]/60 lg:backdrop-blur-md border border-slate-200 dark:border-white/[0.05] rounded-[2rem] p-6 sm:p-8 hover:bg-slate-50 dark:hover:bg-[#0d1326] transition-all group relative overflow-hidden shadow-sm dark:shadow-none min-h-[180px] sm:min-h-[200px] flex flex-col justify-between">
             <div className="flex items-start justify-between mb-6 relative z-10">
               <div className="flex items-center gap-4">
                 <div className="group-hover:scale-110 transition-transform">{statusIcon(d.status)}</div>
@@ -146,6 +152,17 @@ export default function DoctorPage() {
           </div>
         ))}
       </div>
+
+      <ConfirmDialog
+        isOpen={showHealConfirm}
+        title="Jalankan Auto-Heal Database?"
+        description="Sistem akan memeriksa dan memulihkan struktur sheet Google Spreadsheet yang tidak sinkron secara otomatis."
+        confirmText="Ya, Jalankan Auto-Heal"
+        variant="warning"
+        loading={healing}
+        onConfirm={executeHeal}
+        onCancel={() => setShowHealConfirm(false)}
+      />
     </div>
   );
 }

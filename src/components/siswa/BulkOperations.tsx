@@ -54,53 +54,63 @@ export default function BulkOperations({
 
   return (
     <>
-      {/* Floating Action Bar */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/[0.08] rounded-2xl shadow-2xl p-4 flex items-center gap-4 max-w-2xl w-[calc(100%-2rem)]">
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center">
-            <CheckSquare className="w-5 h-5 text-emerald-500" />
-          </div>
-          <div>
-            <div className="text-sm font-black text-slate-900 dark:text-white">
-              {selectedCount} Siswa Terpilih
+      {/* Floating Action Bar (Aman di atas Bottom Nav Mobile) */}
+      <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/[0.1] rounded-2xl shadow-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 max-w-2xl w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)]">
+        <div className="flex items-center justify-between sm:justify-start gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0">
+              <CheckSquare className="w-5 h-5 text-emerald-500" />
             </div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400">
-              {selectedSiswa.filter(s => siswa.find(k => k.id_siswa === s.id_siswa)).length} data valid
+            <div className="min-w-0">
+              <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                {selectedCount} Siswa Terpilih
+              </div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                {selectedSiswa.filter(s => siswa.find(k => k.id_siswa === s.id_siswa)).length} data valid
+              </div>
             </div>
           </div>
+          <button
+            onClick={onClearSelection}
+            className="sm:hidden p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+            title="Batal Pilih"
+            aria-label="Batal Pilih"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="h-8 w-px bg-slate-200 dark:bg-white/[0.08]" />
+        <div className="hidden sm:block h-8 w-px bg-slate-200 dark:bg-white/[0.08]" />
 
         {/* Bulk Actions */}
-        <div className="flex items-center gap-2 flex-1 justify-end">
+        <div className="grid grid-cols-3 sm:flex items-center gap-2 flex-1 sm:justify-end">
           <button
             onClick={onBulkEdit}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+            className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
           >
-            <Edit3 className="w-4 h-4" />
-            Edit
+            <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Edit</span>
           </button>
 
           <button
             onClick={() => onBulkExport('excel')}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+            className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
           >
-            <FileSpreadsheet className="w-4 h-4" />
-            Excel
+            <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Excel</span>
           </button>
 
           <button
             onClick={() => setShowConfirmModal('delete')}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+            className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
           >
-            <Trash2 className="w-4 h-4" />
-            Hapus
+            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Hapus</span>
           </button>
 
           <button
             onClick={onClearSelection}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+            className="hidden sm:flex p-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
             title="Clear Selection"
           >
             <X className="w-5 h-5" />
@@ -110,7 +120,7 @@ export default function BulkOperations({
 
       {/* Delete Confirmation Modal */}
       {showConfirmModal === 'delete' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[140] p-4">
           <div className="bg-white dark:bg-[#0a0e1a] rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
             <div className="w-16 h-16 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-rose-500" />

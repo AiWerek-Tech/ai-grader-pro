@@ -3,6 +3,7 @@
 import { getSettingsAction, saveSettingsAction, backupDatabaseAction, restoreDatabaseAction, checkAIStatusAction } from '@/lib/actions/settings';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Image from 'next/image';
 import { 
   Settings2, School, GraduationCap, BrainCircuit, DatabaseZap, 
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [activeJenjangTab, setActiveJenjangTab] = useState<'SMA'|'SMP'>('SMA');
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [customModelInput, setCustomModelInput] = useState('');
+  const [pendingRestore, setPendingRestore] = useState<{ fileName: string; data: any } | null>(null);
 
   const handleFormChange = (e: React.FormEvent<HTMLFormElement>) => {
     const target = e.target as HTMLInputElement;
@@ -183,7 +185,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <div className="flex flex-wrap gap-2 p-2 bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[1.5rem] w-fit shadow-sm transition-colors">
+      <div className="flex flex-wrap gap-2 p-2 bg-white dark:bg-[#0a0e1a]/90 lg:dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-2xl sm:rounded-[1.5rem] w-full sm:w-fit shadow-sm transition-colors">
         {[
           { id: 'branding', label: 'Identitas Sekolah', icon: <School className="w-4 h-4" /> },
           { id: 'academic', label: 'Info Akademik', icon: <GraduationCap className="w-4 h-4" /> },
@@ -193,7 +195,7 @@ export default function SettingsPage() {
           <button 
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)} 
-            className={`flex items-center gap-2 px-6 sm:px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-7 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all duration-300 ${
               activeTab === tab.id 
               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 ring-1 ring-indigo-500/50' 
               : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-white/[0.02] hover:text-slate-900 dark:hover:text-white'
@@ -715,15 +717,15 @@ export default function SettingsPage() {
                </div>
                <input type="file" accept=".json" className="hidden" onChange={async (e) => {
                   const file = e.target.files?.[0];
+                  e.target.value = '';
                   if (!file) return;
-                  if (file.type !== 'application/json') { toast.error('Hanya format file .json yang diterima!'); return; }
-                  if (!confirm(`TINDAKAN SANGAT BERBAHAYA!\nAnda yakin ingin menghapus seluruh data siswa, kelas, guru, mapel, & hasil ujian yang sedang LIVE, lalu menggantinya dengan isi dari file [${file.name}]?`)) return;
+                  if (file.type !== 'application/json' && !file.name.endsWith('.json')) { toast.error('Hanya format file .json yang diterima!'); return; }
                   
                   const reader = new FileReader();
                   reader.onload = async (event) => {
                      try {
                         const data = JSON.parse(event.target?.result as string);
-                        handleRestore(data);
+                        setPendingRestore({ fileName: file.name, data });
                      } catch { toast.error('Gagal memproses file! JSON corrupt.'); }
                   };
                   reader.readAsText(file);
@@ -732,6 +734,26 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingRestore)}
+        title="Restore Database Live?"
+        description={
+          pendingRestore
+            ? `TINDAKAN BERBAHAYA!\nSeluruh data siswa, kelas, guru, mapel, dan hasil ujian yang sedang LIVE akan ditimpa oleh isi file [${pendingRestore.fileName}].`
+            : ''
+        }
+        confirmText="Ya, Timpa & Restore"
+        variant="danger"
+        loading={saving}
+        onConfirm={async () => {
+          if (!pendingRestore) return;
+          const payload = pendingRestore.data;
+          setPendingRestore(null);
+          await handleRestore(payload);
+        }}
+        onCancel={() => setPendingRestore(null)}
+      />
     </div>
   );
 }
