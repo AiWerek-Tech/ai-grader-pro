@@ -46,7 +46,7 @@ function SchoolLogo({
   const activeUrl = !useFallback && primaryUrl ? primaryUrl : defaultSrc;
 
   if (hideAll || !activeUrl) {
-    return <div className="w-[74px] h-[74px]" />;
+    return <div className="w-[70px] h-[70px]" />;
   }
 
   return (
@@ -62,7 +62,7 @@ function SchoolLogo({
           setHideAll(true);
         }
       }}
-      className="max-w-[76px] max-h-[76px] w-auto h-auto object-contain select-none"
+      className="max-w-[70px] max-h-[70px] w-auto h-auto object-contain select-none"
     />
   );
 }
@@ -90,7 +90,10 @@ function MachineQuestionBlock({
   const headerW = question.headerWidth || 40;
   const isCompact = density === 'compact' || density === 'ultra';
   const hasRowHeaders = Array.isArray(question.rowHeaders) && question.rowHeaders.length > 0;
-  const showTypeHint = question.type && question.type !== 'single_choice';
+  const showTypeHint =
+    question.type &&
+    question.type !== 'single_choice' &&
+    question.type !== 'single_choice_4';
 
   return (
     <div
@@ -106,8 +109,8 @@ function MachineQuestionBlock({
       <div
         className={`absolute left-0 top-0 bottom-0 flex ${
           hasRowHeaders
-            ? ' flex-col items-start justify-start pl-2 pt-2'
-            : ' items-center justify-end pr-1.5 gap-1'
+            ? 'flex-col items-start justify-start pl-1.5 pt-2'
+            : 'items-center justify-start pl-1 pr-1 gap-1'
         }`}
         style={{ width: toPercent(headerW, question.w) }}
       >
@@ -125,22 +128,26 @@ function MachineQuestionBlock({
         )}
       </div>
 
-      {/* Soal Isian Singkat (Kotak Karakter Presisi) */}
+      {/* Soal Isian Singkat (Area Kosong Terbuka / Open Write-in Box) */}
       {question.type === 'short_answer' ? (
-        <>
-          {question.textBoxes?.map((box: any) => (
-            <div
-              key={`${question.no}-${box.index}`}
-              className="absolute border-[1.4px] border-black rounded-[2px] bg-white"
-              style={{
-                left: toPercent(box.x - question.x, question.w),
-                top: toPercent(box.y - question.y, question.h),
-                width: toPercent(box.w, question.w),
-                height: toPercent(box.h, question.h),
-              }}
-            />
-          ))}
-        </>
+        question.answerBox ? (
+          <div
+            data-scan-question={question.no}
+            data-scan-type="short_answer"
+            className="absolute border-[1.4px] border-black rounded-[3px] bg-white flex items-end px-2 pb-[3px]"
+            style={{
+              left: toPercent(question.answerBox.x - question.x, question.w),
+              top: toPercent(question.answerBox.y - question.y, question.h),
+              width: toPercent(question.answerBox.w, question.w),
+              height: toPercent(question.answerBox.h, question.h),
+            }}
+          >
+            <div className="w-full border-b border-dotted border-slate-400" />
+            {showSensorGrid && (
+              <div className="print:hidden absolute inset-[8%] border border-dashed border-sky-500 bg-sky-500/15 pointer-events-none" />
+            )}
+          </div>
+        ) : null
       ) : (
         <>
           {question.colHeaders?.map((header: any) => (
@@ -270,7 +277,6 @@ export function LJKSheet({
       tipe: options || 'single_choice',
       poin: 1,
       opsi: getMachineQuestionOptions({ no: index + 1, tipe: options || 'single_choice' }),
-      panjang_jawaban: 10,
     }));
   }, [options, questionConfig, totalSoal]);
 
@@ -301,7 +307,6 @@ export function LJKSheet({
       ? 'smp'
       : 'sma';
 
-  // Pengaturan Kop Sekolah dengan fallback ke logo resmi lokal
   const logoKiri = settings[`${jenjang}_logo_kiri_url`] || settings.logo_kiri_url || '/logo/logo_advent.png';
   const logoKanan = settings[`${jenjang}_logo_kanan_url`] || settings.logo_kanan_url || '/logo/tut_wuri.png';
   const namaYayasan = settings.nama_yayasan || 'YAYASAN PENDIDIKAN ADVENT PAPUA';
@@ -318,6 +323,12 @@ export function LJKSheet({
     'Jl. Wamena – Kurima, Kampung Sogokmo, Kec. Asotipo, Kab. Jayawijaya';
   const tahunAjaran = settings.tahun_ajaran || '2026/2027';
   const semester = (settings.semester || 'GANJIL').toUpperCase();
+
+  // Hindari duplikasi kata semester jika judul ujian sudah mencantumkan Semester Ganjil/Genap
+  const titleAlreadyHasSemester = /SEMESTER\s+(GANJIL|GENAP|1|2|I|II)/i.test(title || '');
+  const bannerSubtitle = titleAlreadyHasSemester
+    ? `${title} • TA ${tahunAjaran}`
+    : `${title} • TA ${tahunAjaran} (${semester})`;
 
   const essayQuestions = questions.filter(
     (question: any) =>
@@ -341,7 +352,16 @@ export function LJKSheet({
     return Array.from({ length: cols - 1 }, (_, idx) => ((idx + 1) / cols) * 100);
   }, [machineLayout.columns]);
 
-  const essayLineCount = essayQuestions.length <= 1 ? 5 : essayQuestions.length === 2 ? 3 : 2;
+  // Hitung jumlah garis tulis per soal esai secara adaptif agar pas dengan tinggi essayArea
+  const integratedEssayLines = useMemo(() => {
+    if (!machineLayout.essayArea || essayQuestions.length === 0) return 2;
+    const perQuestionUnits = (machineLayout.essayArea.h - 30) / essayQuestions.length;
+    if (perQuestionUnits >= 95) return 4;
+    if (perQuestionUnits >= 66) return 3;
+    if (perQuestionUnits >= 44) return 2;
+    return 1;
+  }, [machineLayout.essayArea, essayQuestions.length]);
+
   const secondPageLineCount =
     essayQuestions.length <= 2 ? 12 : essayQuestions.length <= 4 ? 8 : essayQuestions.length <= 6 ? 6 : 4;
 
@@ -355,416 +375,368 @@ export function LJKSheet({
           <FidMarker pos="bottom-left" />
           <FidMarker pos="bottom-right" />
 
-          {/* ── 1. KOP SURAT SEKOLAH (y: 16..122, x: 44..956) ── */}
-        <div style={boxStyle(44, 16, 912, 106)} className="border-b-[2px] border-black">
-          <div className="h-full px-2 flex items-center justify-between gap-3">
-            <div className="w-[74px] h-[74px] flex items-center justify-center shrink-0">
-              <SchoolLogo
-                src={logoKiri}
-                defaultSrc={withBasePath("/logo/logo_advent.png")}
-                alt="Logo Yayasan"
-              />
-            </div>
+          {/* ── 1. KOP SURAT SEKOLAH (y: 14..112, x: 44..956) ── */}
+          <div style={boxStyle(44, 14, 912, 98)} className="border-b-[2px] border-black">
+            <div className="h-full px-2 flex items-center justify-between gap-3">
+              <div className="w-[70px] h-[70px] flex items-center justify-center shrink-0">
+                <SchoolLogo
+                  src={logoKiri}
+                  defaultSrc={withBasePath('/logo/logo_advent.png')}
+                  alt="Logo Yayasan"
+                />
+              </div>
 
-            <div className="flex-1 text-center flex flex-col items-center justify-center min-w-0">
-              <div className="text-[8.5px] font-bold uppercase tracking-[0.16em] text-slate-800 leading-none truncate max-w-full">
-                {namaYayasan}
+              <div className="flex-1 text-center flex flex-col items-center justify-center min-w-0">
+                <div className="text-[8.2px] font-bold uppercase tracking-[0.16em] text-slate-800 leading-none truncate max-w-full">
+                  {namaYayasan}
+                </div>
+                <div className="mt-1 text-[12.5px] font-black uppercase tracking-[0.05em] text-black leading-none truncate max-w-full">
+                  {sekolahBaris1}
+                </div>
+                <div className="mt-1 text-[18px] font-black uppercase tracking-[0.04em] text-black leading-none truncate max-w-full">
+                  {sekolahBaris2}
+                </div>
+                <div className="mt-1 text-[7.5px] font-medium italic text-slate-700 leading-tight truncate max-w-[640px]">
+                  {alamat}
+                </div>
               </div>
-              <div className="mt-1 text-[13px] font-black uppercase tracking-[0.05em] text-black leading-none truncate max-w-full">
-                {sekolahBaris1}
-              </div>
-              <div className="mt-1 text-[18.5px] font-black uppercase tracking-[0.04em] text-black leading-none truncate max-w-full">
-                {sekolahBaris2}
-              </div>
-              <div className="mt-1 text-[7.8px] font-medium italic text-slate-700 leading-tight truncate max-w-[640px]">
-                {alamat}
-              </div>
-            </div>
 
-            <div className="w-[74px] h-[74px] flex items-center justify-center shrink-0">
-              <SchoolLogo
-                src={logoKanan}
-                defaultSrc={withBasePath("/logo/tut_wuri.png")}
-                alt="Logo Sekolah"
-              />
+              <div className="w-[70px] h-[70px] flex items-center justify-center shrink-0">
+                <SchoolLogo
+                  src={logoKanan}
+                  defaultSrc={withBasePath('/logo/tut_wuri.png')}
+                  alt="Logo Sekolah"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* ── 2. BANNER DUA BARIS LJK (y: 128..174) ── */}
-        <div
-          style={boxStyle(44, 128, 912, 46)}
-          className="border-[1.5px] border-black bg-slate-900 text-white rounded-md px-4 flex flex-col items-center justify-center text-center gap-1"
-        >
-          <div className="text-[11px] font-black uppercase tracking-[0.2em] leading-none">
-            LEMBAR JAWABAN KOMPUTER (LJK)
-          </div>
-          <div className="text-[8.8px] font-bold uppercase tracking-[0.1em] text-slate-200 leading-none truncate max-w-full">
-            {title} &nbsp;•&nbsp; TA {tahunAjaran} ({semester})
-          </div>
-        </div>
-
-        {/* ── 3. KOTAK IDENTITAS PESERTA LENGKAP (y: 180..338, x: 44..628) ── */}
-        <div
-          style={boxStyle(44, 180, 584, 158)}
-          className="border-[1.5px] border-black rounded-md bg-white px-4 py-2.5 flex flex-col justify-between"
-        >
-          <div className="space-y-1.5 text-[9.5px]">
-            <div className="flex items-center gap-2 py-1 border-b border-dotted border-slate-400">
-              <span className="font-bold w-[112px] shrink-0 tracking-wide text-[8.5px] text-slate-700">
-                NAMA PESERTA
-              </span>
-              <span className="font-bold">:</span>
-              <span className="flex-1 font-black text-[11px] uppercase tracking-wide truncate min-h-[15px]">
-                {isBlankSheet ? '' : siswa?.nama || ''}
-              </span>
+          {/* ── 2. BANNER DUA BARIS LJK (y: 118..160) ── */}
+          <div
+            style={boxStyle(44, 118, 912, 42)}
+            className="border-[1.5px] border-black bg-slate-900 text-white rounded-md px-4 flex flex-col items-center justify-center text-center gap-0.5"
+          >
+            <div className="text-[10.5px] font-black uppercase tracking-[0.2em] leading-none">
+              LEMBAR JAWABAN KOMPUTER (LJK)
             </div>
+            <div className="text-[8.5px] font-bold uppercase tracking-[0.08em] text-slate-200 leading-none truncate max-w-full">
+              {bannerSubtitle}
+            </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4 py-1 border-b border-dotted border-slate-400">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-bold w-[112px] shrink-0 tracking-wide text-[8.5px] text-slate-700">
-                  NIS / NO. PESERTA
+          {/* ── 3A. KOTAK IDENTITAS PESERTA (y: 166..304, x: 44..568) ── */}
+          <div
+            style={boxStyle(44, 166, 524, 138)}
+            className="border-[1.5px] border-black rounded-md bg-white px-3.5 py-2 flex flex-col justify-between"
+          >
+            <div className="space-y-1 text-[9px]">
+              <div className="flex items-center gap-2 py-0.5 border-b border-dotted border-slate-400">
+                <span className="font-bold w-[102px] shrink-0 tracking-wide text-[8px] text-slate-700">
+                  NAMA PESERTA
                 </span>
                 <span className="font-bold">:</span>
-                <span className="flex-1 font-black font-mono text-[10.5px] tracking-wider truncate min-h-[14px]">
-                  {isBlankSheet ? '' : siswa?.nis || ''}
+                <span className="flex-1 font-black text-[10.5px] uppercase tracking-wide truncate min-h-[14px]">
+                  {isBlankSheet ? '' : siswa?.nama || ''}
                 </span>
               </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-bold shrink-0 tracking-wide text-[8.5px] text-slate-700">
-                  KELAS
+
+              <div className="grid grid-cols-12 gap-2 py-0.5 border-b border-dotted border-slate-400">
+                <div className="col-span-7 flex items-center gap-2 min-w-0">
+                  <span className="font-bold w-[102px] shrink-0 tracking-wide text-[8px] text-slate-700">
+                    NIS / NO. PESERTA
+                  </span>
+                  <span className="font-bold">:</span>
+                  <span className="flex-1 font-black font-mono text-[10px] tracking-wider truncate min-h-[13px]">
+                    {isBlankSheet ? '' : siswa?.nis || ''}
+                  </span>
+                </div>
+                <div className="col-span-5 flex items-center gap-1.5 min-w-0">
+                  <span className="font-bold shrink-0 tracking-wide text-[8px] text-slate-700">
+                    KELAS :
+                  </span>
+                  <span className="flex-1 font-black text-[9.5px] uppercase tracking-wide truncate min-h-[13px]">
+                    {isBlankSheet && siswa?.kelas === 'CONTOH' ? '' : siswa?.kelas || ''}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 py-0.5 border-b border-dotted border-slate-400">
+                <span className="font-bold w-[102px] shrink-0 tracking-wide text-[8px] text-slate-700">
+                  MATA PELAJARAN
                 </span>
                 <span className="font-bold">:</span>
-                <span className="flex-1 font-black text-[10px] uppercase tracking-wide truncate min-h-[14px]">
-                  {isBlankSheet && siswa?.kelas === 'CONTOH' ? '' : siswa?.kelas || ''}
+                <span className="flex-1 font-black text-[9.5px] uppercase tracking-wide truncate min-h-[13px]">
+                  {mapel}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 py-1 border-b border-dotted border-slate-400">
-              <span className="font-bold w-[112px] shrink-0 tracking-wide text-[8.5px] text-slate-700">
-                MATA PELAJARAN
-              </span>
-              <span className="font-bold">:</span>
-              <span className="flex-1 font-black text-[10px] uppercase tracking-wide truncate min-h-[14px]">
-                {mapel}
-              </span>
-            </div>
-          </div>
-
-          {/* Baris Tanggal & Tanda Tangan Peserta */}
-          <div className="grid grid-cols-2 gap-5 pt-1.5 text-[8.2px]">
-            <div className="flex items-end gap-1.5">
-              <span className="font-bold text-slate-700 shrink-0">TANGGAL :</span>
-              <span className="flex-1 border-b border-black font-bold text-[8.8px] pb-[1px] min-h-[13px] truncate">
-                {examDate || ''}
-              </span>
-            </div>
-            <div className="flex items-end gap-1.5">
-              <span className="font-bold text-slate-700 shrink-0">TANDA TANGAN :</span>
-              <span className="flex-1 border-b border-black min-h-[13px]" />
-            </div>
-          </div>
-        </div>
-
-        {/* ── 4. PANDUAN VISUAL SINGKAT (y: 180..338, x: 640..956) ── */}
-        <div
-          style={boxStyle(640, 180, 316, 158)}
-          className="border-[1.5px] border-black rounded-md px-3 py-2 bg-slate-50/70 flex flex-col justify-between"
-        >
-          <div className="font-black uppercase text-[7.8px] tracking-[0.14em] text-center border-b border-slate-300 pb-1 text-slate-800">
-            CARA PENGISIAN JAWABAN
-          </div>
-
-          {/* Contoh Visual Cara Menandai */}
-          <div className="grid grid-cols-3 gap-1.5 text-center text-[6.8px] font-bold my-auto py-0.5">
-            <div className="border border-slate-300 rounded bg-white py-1.5 px-1 flex flex-col items-center justify-center">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="w-3 h-3 rounded-full border-[1.5px] border-black bg-black inline-block" />
-                <span className="w-3 h-3 rounded-full border-[1.5px] border-black bg-white inline-flex items-center justify-center text-[8.5px] font-black leading-none">
-                  ×
+            {/* Baris Tanggal & Tanda Tangan Peserta */}
+            <div className="grid grid-cols-2 gap-4 pt-1 text-[8px]">
+              <div className="flex items-end gap-1.5">
+                <span className="font-bold text-slate-700 shrink-0">TANGGAL :</span>
+                <span className="flex-1 border-b border-black font-bold text-[8.5px] pb-[1px] min-h-[12px] truncate">
+                  {examDate || ''}
                 </span>
               </div>
-              <span className="text-black font-black tracking-wide">BENAR</span>
-            </div>
-            <div className="border border-slate-300 rounded bg-white py-1.5 px-1 flex flex-col items-center justify-center">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="w-3 h-3 rounded-full border-[1.5px] border-black bg-white inline-flex items-center justify-center text-[7px] leading-none">
-                  ✓
-                </span>
-                <span className="w-3 h-3 rounded-full border-[1.5px] border-black bg-slate-300 inline-block" />
+              <div className="flex items-end gap-1.5">
+                <span className="font-bold text-slate-700 shrink-0">TANDA TANGAN :</span>
+                <span className="flex-1 border-b border-black min-h-[12px]" />
               </div>
-              <span className="text-slate-600 font-black tracking-wide">SALAH</span>
-            </div>
-            <div className="border border-slate-300 rounded bg-white py-1.5 px-1 flex flex-col items-center justify-center">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="w-3 h-3 rounded-full border-[1.5px] border-black bg-white inline-flex items-center justify-center text-[8.5px] font-black leading-none">
-                  =
-                </span>
-              </div>
-              <span className="text-slate-600 font-black tracking-wide">BATAL</span>
             </div>
           </div>
 
-          <div className="text-[7px] text-slate-700 leading-[1.3] border-t border-slate-300 pt-1 space-y-0.5">
-            <div>• Gunakan <b>pensil 2B</b> atau <b>pena hitam</b> (jangan keluar garis).</div>
-            <div>• <b>Bulatan (○)</b>: 1 pilihan &nbsp;|&nbsp; <b>Kotak (□)</b>: Boleh &gt;1 pilihan.</div>
+          {/* ── 3B. PETUNJUK PENGISIAN & KODE KUNCI (y: 166..304, x: 576..806) ── */}
+          <div
+            style={boxStyle(576, 166, 230, 138)}
+            className="border-[1.5px] border-black rounded-md px-2.5 py-1.5 bg-slate-50/70 flex flex-col justify-between"
+          >
+            <div className="font-black uppercase text-[7.2px] tracking-[0.12em] text-center border-b border-slate-300 pb-0.5 text-slate-800">
+              CARA PENGISIAN JAWABAN
+            </div>
+
+            <div className="grid grid-cols-3 gap-1 text-center text-[6.4px] font-bold my-auto py-0.5">
+              <div className="border border-slate-300 rounded bg-white py-1 px-0.5 flex flex-col items-center justify-center">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-[1.4px] border-black bg-black inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full border-[1.4px] border-black bg-white inline-flex items-center justify-center text-[7.5px] font-black leading-none">
+                    ×
+                  </span>
+                </div>
+                <span className="text-black font-black">BENAR</span>
+              </div>
+              <div className="border border-slate-300 rounded bg-white py-1 px-0.5 flex flex-col items-center justify-center">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-[1.4px] border-black bg-white inline-flex items-center justify-center text-[6.5px] leading-none">
+                    ✓
+                  </span>
+                  <span className="w-2.5 h-2.5 rounded-full border-[1.4px] border-black bg-slate-300 inline-block" />
+                </div>
+                <span className="text-slate-600 font-black">SALAH</span>
+              </div>
+              <div className="border border-slate-300 rounded bg-white py-1 px-0.5 flex flex-col items-center justify-center">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-[1.4px] border-black bg-black text-white inline-flex items-center justify-center text-[7.5px] font-black leading-none">
+                    =
+                  </span>
+                </div>
+                <span className="text-slate-600 font-black">BATAL</span>
+              </div>
+            </div>
+
+            <div className="text-[6.4px] text-slate-700 leading-[1.25] border-t border-slate-300 pt-1 space-y-0.5">
+              <div>• <b>Pensil 2B / pena hitam</b> • ○: 1 opsi | □: &gt;1 opsi</div>
+              <div className="font-mono font-bold text-[6.2px] text-slate-500 truncate">
+                KODE: {idKunci || 'STD'} • HAL {pageIndex + 1}/{totalPages}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* ── 5. HEADER BAR LEMBAR JAWABAN (y: 346..376) ── */}
-        <div
-          style={boxStyle(44, 346, 912, 30)}
-          className="flex items-center justify-between border-[1.5px] border-b-0 border-black rounded-t-md px-4 bg-slate-100"
-        >
-          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-black">
-            LEMBAR JAWABAN
-          </span>
-          <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-700">
-            {essayQuestions.length > 0 && essayLayoutMode === 'separate_manual'
-              ? `${totalSoal - essayQuestions.length} OBJEKTIF · ${essayQuestions.length} URAIAN (LEMBAR TERPISAH)`
-              : essayQuestions.length > 0 && essayLayoutMode === 'second_page'
-                ? `HAL 1: ${totalSoal - essayQuestions.length} OBJEKTIF · HAL 2: ${essayQuestions.length} URAIAN`
-                : `${totalSoal} BUTIR SOAL`}
-          </span>
-        </div>
+          {/* ── 3C. QR CODE ANCHOR ATAS (y: 166..304, x: 814..956) ── */}
+          <div
+            style={boxStyle(814, 166, 142, 138)}
+            className="border-[1.5px] border-black rounded-md bg-white p-1.5 text-center flex flex-col items-center justify-between"
+          >
+            <div className="inline-block border border-black p-[2px] bg-white my-auto">
+              <QRCodeSVG value={qrPayload} size={80} level="M" />
+            </div>
+            <div className="text-[6.8px] text-black font-mono font-black leading-none truncate max-w-full pb-0.5">
+              {isBlankSheet ? 'BLANKO' : `NIS: ${siswa?.nis || '-'}`}
+            </div>
+          </div>
 
-        {/* ── 6. AREA JAWABAN UTAMA OMR / AI (y: 376..1248 — Adaptif Elastis) ── */}
-        <div
-          style={boxStyle(
-            machineLayout.objectiveArea.x,
-            machineLayout.objectiveArea.y,
-            machineLayout.objectiveArea.w,
-            machineLayout.objectiveArea.h
-          )}
-          className="border-[1.5px] border-black rounded-b-md bg-white overflow-hidden"
-        >
-          {/* Garis vertikal pembatas antar kolom */}
-          {columnDividers.map((leftPct, i) => (
-            <div
-              key={i}
-              className="absolute top-3 bottom-3 border-l border-dashed border-slate-200 pointer-events-none"
-              style={{ left: `${leftPct}%` }}
-            />
-          ))}
+          {/* ── 4. HEADER BAR LEMBAR JAWABAN (y: 310..338) ── */}
+          <div
+            style={boxStyle(44, 310, 912, 28)}
+            className="flex items-center justify-between border-[1.5px] border-b-0 border-black rounded-t-md px-4 bg-slate-100"
+          >
+            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-black">
+              LEMBAR JAWABAN
+            </span>
+            <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-700">
+              {essayQuestions.length > 0 && essayLayoutMode === 'separate_manual'
+                ? `${totalSoal - essayQuestions.length} OBJEKTIF/ISIAN · ${essayQuestions.length} URAIAN (LEMBAR TERPISAH)`
+                : essayQuestions.length > 0 && essayLayoutMode === 'second_page'
+                  ? `HAL 1: ${totalSoal - essayQuestions.length} OBJEKTIF/ISIAN · HAL 2: ${essayQuestions.length} URAIAN`
+                  : essayQuestions.length > 0
+                    ? `${totalSoal - essayQuestions.length} OBJEKTIF/ISIAN · ${essayQuestions.length} URAIAN (${totalSoal} SOAL)`
+                    : `${totalSoal} BUTIR SOAL`}
+            </span>
+          </div>
 
-          {machineLayout.questions.map((question) => (
-            <MachineQuestionBlock
-              key={question.no}
-              question={question}
-              areaX={machineLayout.objectiveArea.x}
-              areaY={machineLayout.objectiveArea.y}
-              areaW={machineLayout.objectiveArea.w}
-              areaH={machineLayout.objectiveArea.h}
-              density={machineLayout.density}
-              showSensorGrid={showSensorGrid}
-            />
-          ))}
-        </div>
-
-        {/* ── 7. AREA JAWABAN URAIAN / ESAI (Jika ada soal esai & mode integrated) ── */}
-        {machineLayout.essayArea && (
+          {/* ── 5. AREA JAWABAN UTAMA OMR / AI (y: 338..objectiveBottom — Seimbang & Presisi) ── */}
           <div
             style={boxStyle(
-              machineLayout.essayArea.x,
-              machineLayout.essayArea.y,
-              machineLayout.essayArea.w,
-              machineLayout.essayArea.h
+              machineLayout.objectiveArea.x,
+              machineLayout.objectiveArea.y,
+              machineLayout.objectiveArea.w,
+              machineLayout.objectiveArea.h
             )}
-            className="border-[1.5px] border-black px-3.5 py-2 rounded-md bg-white overflow-hidden flex flex-col justify-between"
+            className="border-[1.5px] border-black rounded-b-md bg-white overflow-hidden"
           >
-            <div className="flex items-center justify-between border-b border-black pb-1 mb-1">
-              <span className="text-[8.5px] font-black uppercase tracking-[0.14em]">
-                JAWABAN URAIAN / ESAI
-              </span>
-              <span className="text-[7px] font-bold text-slate-600 uppercase tracking-wider">
-                Tulis jawaban dengan jelas di dalam garis • Kolom kanan untuk skor guru
-              </span>
+            {/* Garis vertikal pembatas antar kolom */}
+            {columnDividers.map((leftPct, i) => (
+              <div
+                key={i}
+                className="absolute top-2.5 bottom-2.5 border-l border-dashed border-slate-200 pointer-events-none"
+                style={{ left: `${leftPct}%` }}
+              />
+            ))}
+
+            {machineLayout.questions.map((question) => (
+              <MachineQuestionBlock
+                key={question.no}
+                question={question}
+                areaX={machineLayout.objectiveArea.x}
+                areaY={machineLayout.objectiveArea.y}
+                areaW={machineLayout.objectiveArea.w}
+                areaH={machineLayout.objectiveArea.h}
+                density={machineLayout.density}
+                showSensorGrid={showSensorGrid}
+              />
+            ))}
+          </div>
+
+          {/* ── 6. AREA JAWABAN URAIAN / ESAI TERPADU (Proporsional & Anti-Terpotong) ── */}
+          {machineLayout.essayArea && (
+            <div
+              style={boxStyle(
+                machineLayout.essayArea.x,
+                machineLayout.essayArea.y,
+                machineLayout.essayArea.w,
+                machineLayout.essayArea.h
+              )}
+              className="border-[1.5px] border-black px-3.5 py-1.5 rounded-md bg-white overflow-hidden flex flex-col"
+            >
+              <div className="flex items-center justify-between border-b border-black pb-1 mb-1 shrink-0">
+                <span className="text-[8.5px] font-black uppercase tracking-[0.14em]">
+                  JAWABAN URAIAN / ESAI ({essayQuestions.length} SOAL)
+                </span>
+                <span className="text-[6.8px] font-bold text-slate-600 uppercase tracking-wider">
+                  Tulis jawaban dengan jelas di dalam kotak/garis • Kolom kanan untuk skor guru
+                </span>
+              </div>
+              <div className="flex-1 min-h-0 flex flex-col gap-1">
+                {essayQuestions.map((question: any) => (
+                  <div
+                    key={question.no}
+                    data-scan-question={question.no}
+                    data-scan-type="essay"
+                    className="flex-1 min-h-0 flex items-stretch gap-2.5 border border-slate-300/90 rounded px-2 py-1 bg-white"
+                  >
+                    <div className="px-2 py-0.5 rounded border border-black bg-slate-100 text-[8.5px] font-black shrink-0 self-start">
+                      {question.no}.
+                    </div>
+                    <div className="flex-1 min-h-0 flex flex-col justify-evenly">
+                      {Array.from({ length: integratedEssayLines }).map((_, lineIndex) => (
+                        <div
+                          key={lineIndex}
+                          className="w-full border-b border-dotted border-slate-400"
+                        />
+                      ))}
+                    </div>
+                    <div className="px-1.5 py-0.5 rounded border border-dashed border-slate-400 text-[6.8px] font-mono font-bold text-slate-600 shrink-0 self-start">
+                      Skor: ___/{question.poin || 8}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex-1 flex flex-col justify-around gap-1.5">
+          )}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          HALAMAN 2 (OPSIONAL): LEMBAR LAMPIRAN JAWABAN URAIAN / ESAI LUAS
+      ══════════════════════════════════════════════════════════════════ */}
+      {essayLayoutMode === 'second_page' && essayQuestions.length > 0 && (
+        <div className="w-[210mm] h-[297mm] bg-white text-black relative ljk-page box-border print:break-after-page last:print:break-after-auto shadow-2xl print:shadow-none shrink-0 mt-6 print:mt-0">
+          <div className="relative w-full h-full border-[2px] border-black overflow-hidden bg-white">
+            <FidMarker pos="top-left" />
+            <FidMarker pos="top-right" />
+            <FidMarker pos="bottom-left" />
+            <FidMarker pos="bottom-right" />
+
+            {/* Header Ringkas Lembar Lampiran Uraian + QR Code Atas (y: 20..144) */}
+            <div
+              style={boxStyle(44, 20, 912, 124)}
+              className="border-[1.5px] border-black rounded-md bg-slate-50 px-4 py-2.5 flex items-center justify-between gap-4"
+            >
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-600 truncate">
+                  {sekolahBaris1} — {sekolahBaris2}
+                </div>
+                <div className="text-[12.5px] font-black uppercase tracking-tight text-black truncate">
+                  LEMBAR JAWABAN URAIAN / ESAI — {title}
+                </div>
+                <div className="text-[8.8px] font-bold text-slate-700 flex flex-wrap items-center gap-2.5 pt-0.5">
+                  <span>
+                    NAMA: <b className="text-black uppercase">{isBlankSheet ? '________________________' : siswa?.nama || '-'}</b>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    NIS: <b className="text-black font-mono">{isBlankSheet ? '________' : siswa?.nis || '-'}</b>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    KELAS: <b className="text-black">{siswa?.kelas || '-'}</b>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    MAPEL: <b className="text-black">{mapel}</b>
+                  </span>
+                </div>
+                <div className="text-[7px] font-mono text-slate-500">
+                  KODE: {idKunci || 'STD'} • LAMPIRAN URAIAN ({essayQuestions.length} SOAL) • HAL {pageIndex + 1}/{totalPages}
+                </div>
+              </div>
+
+              <div className="border-[1.5px] border-black rounded bg-white px-3.5 py-2 text-center shrink-0">
+                <div className="text-[6.8px] font-black uppercase tracking-wider text-slate-500">TOTAL SKOR ESAI</div>
+                <div className="text-[13px] font-black text-black mt-1 font-mono">
+                  ____ / {essayQuestions.reduce((acc: number, q: any) => acc + (Number(q.poin) || 8), 0)}
+                </div>
+              </div>
+
+              <div className="border-[1.5px] border-black rounded bg-white p-1.5 text-center flex flex-col items-center justify-center shrink-0">
+                <div className="inline-block border border-black p-[2px] bg-white">
+                  <QRCodeSVG value={qrPayload} size={78} level="M" />
+                </div>
+                <div className="text-[6.2px] text-black font-mono font-bold leading-none mt-0.5">
+                  {isBlankSheet ? 'BLANKO-ESAI' : `${siswa?.nis || '-'}-ESAI`}
+                </div>
+              </div>
+            </div>
+
+            {/* Area Garis Jawaban Uraian Luas Penuh (y: 152..1380) */}
+            <div
+              style={boxStyle(44, 152, 912, 1228)}
+              className="border-[1.5px] border-black rounded-md bg-white p-4 flex flex-col justify-between gap-2.5 overflow-hidden"
+            >
               {essayQuestions.map((question: any) => (
-                <div key={question.no} className="flex items-start gap-2.5">
-                  <div className="px-2 py-0.5 rounded border border-black bg-slate-100 text-[8.5px] font-black shrink-0 mt-0.5">
-                    {question.no}.
+                <div
+                  key={question.no}
+                  className="flex-1 min-h-0 flex flex-col justify-between border border-slate-300 rounded-md p-3 bg-white"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-300 pb-1.5 mb-1.5 shrink-0">
+                    <span className="px-2.5 py-0.5 rounded bg-black text-white text-[9.5px] font-black">
+                      SOAL URAIAN NO. {question.no}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded border border-black bg-slate-100 text-[8.5px] font-mono font-black">
+                      SKOR GURU: _____ / {question.poin || 8} POIN
+                    </span>
                   </div>
-                  <div className="flex-1 flex flex-col gap-1">
-                    {Array.from({ length: essayLineCount }).map((_, lineIndex) => (
-                      <div
-                        key={lineIndex}
-                        className="w-full h-[14px] border-b border-dotted border-slate-400"
-                      />
+                  <div className="flex-1 min-h-0 flex flex-col justify-evenly">
+                    {Array.from({ length: secondPageLineCount }).map((_, lIdx) => (
+                      <div key={lIdx} className="w-full border-b border-dotted border-slate-400" />
                     ))}
-                  </div>
-                  <div className="px-1.5 py-0.5 rounded border border-dashed border-slate-400 text-[7px] font-mono font-bold text-slate-600 shrink-0 mt-0.5">
-                    Skor: ___/{question.poin || 8}
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
-
-        {/* ── 8. FOOTER MINIMALIS & PENGAWAS (y: 1264..1384, x: 44..790) ── */}
-        <div
-          style={boxStyle(44, 1264, 746, 120)}
-          className="border-[1.5px] border-black rounded-md bg-white px-4 py-2.5 flex items-center justify-between gap-4 text-[7.8px] text-slate-800"
-        >
-          {/* Ringkasan Identitas Lembar */}
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="font-black text-black uppercase text-[8.5px] truncate">
-              {isBlankSheet ? 'LEMBAR CADANGAN' : siswa?.nama || '-'}
-              {!isBlankSheet && siswa?.nis ? ` (${siswa.nis})` : ''}
-            </div>
-            <div className="text-slate-600 font-semibold truncate">
-              {siswa?.kelas || '-'} &nbsp;•&nbsp; {mapel}
-            </div>
-            <div className="text-[7px] font-mono text-slate-500 pt-0.5">
-              KODE: {idKunci || 'STD'} &nbsp;•&nbsp; HAL {pageIndex + 1}/{totalPages}
-            </div>
-          </div>
-
-          {/* Kehadiran Peserta */}
-          <div className="border-l border-slate-300 pl-4 py-1 shrink-0">
-            <div className="text-[6.8px] font-black uppercase tracking-wider text-slate-600 mb-2">
-              KEHADIRAN PESERTA
-            </div>
-            <div className="flex items-center gap-3 font-bold text-black text-[7.5px]">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 border border-black inline-block bg-white" /> Hadir
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 border border-black inline-block bg-white" /> Izin/Sakit
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 border border-black inline-block bg-white" /> Alpa
-              </span>
-            </div>
-          </div>
-
-          {/* Paraf Pengawas */}
-          <div className="border-l border-slate-300 pl-4 py-1 w-[130px] shrink-0 flex flex-col justify-between h-[64px]">
-            <div className="text-[6.8px] font-black uppercase tracking-wider text-slate-600">
-              PARAF PENGAWAS
-            </div>
-            <div className="border-b border-black w-full" />
-          </div>
         </div>
-
-        {/* ── 9. QR CODE ANCHOR (Koordinat Tetap x: 806, y: 1264, w: 142, h: 120) ── */}
-        <div
-          style={boxStyle(806, 1264, 142, 120)}
-          className="border-[1.5px] border-black rounded-md bg-white p-2 text-center flex flex-col items-center justify-center gap-1"
-        >
-          <div className="inline-block border border-black p-[3px] bg-white">
-            <QRCodeSVG value={qrPayload} size={86} level="M" />
-          </div>
-          <div className="text-[6.8px] text-black font-mono font-bold leading-none truncate max-w-full">
-            {isBlankSheet ? 'BLANKO' : siswa?.nis || '-'}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* ══════════════════════════════════════════════════════════════════
-        HALAMAN 2 (OPSIONAL): LEMBAR LAMPIRAN JAWABAN URAIAN / ESAI LUAS
-    ══════════════════════════════════════════════════════════════════ */}
-    {essayLayoutMode === 'second_page' && essayQuestions.length > 0 && (
-      <div className="w-[210mm] h-[297mm] bg-white text-black relative ljk-page box-border print:break-after-page last:print:break-after-auto shadow-2xl print:shadow-none shrink-0 mt-6 print:mt-0">
-        <div className="relative w-full h-full border-[2px] border-black overflow-hidden bg-white">
-          <FidMarker pos="top-left" />
-          <FidMarker pos="top-right" />
-          <FidMarker pos="bottom-left" />
-          <FidMarker pos="bottom-right" />
-
-          {/* Header Ringkas Lembar Lampiran Uraian */}
-          <div style={boxStyle(44, 24, 912, 110)} className="border-[1.5px] border-black rounded-md bg-slate-50 px-5 py-3 flex items-center justify-between gap-4">
-            <div className="space-y-1 min-w-0 flex-1">
-              <div className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-600">
-                {sekolahBaris1} — {sekolahBaris2}
-              </div>
-              <div className="text-[13px] font-black uppercase tracking-tight text-black truncate">
-                LEMBAR JAWABAN URAIAN / ESAI — {title}
-              </div>
-              <div className="text-[9px] font-bold text-slate-700 flex flex-wrap items-center gap-3 pt-0.5">
-                <span>NAMA: <b className="text-black uppercase">{isBlankSheet ? '________________________' : siswa?.nama || '-'}</b></span>
-                <span>•</span>
-                <span>NIS: <b className="text-black font-mono">{isBlankSheet ? '________' : siswa?.nis || '-'}</b></span>
-                <span>•</span>
-                <span>KELAS: <b className="text-black">{siswa?.kelas || '-'}</b></span>
-                <span>•</span>
-                <span>MAPEL: <b className="text-black">{mapel}</b></span>
-              </div>
-            </div>
-            <div className="border-[1.5px] border-black rounded bg-white px-4 py-2 text-center shrink-0">
-              <div className="text-[7px] font-black uppercase tracking-wider text-slate-500">TOTAL SKOR ESAI</div>
-              <div className="text-[14px] font-black text-black mt-1 font-mono">
-                ____ / {essayQuestions.reduce((acc: number, q: any) => acc + (Number(q.poin) || 8), 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* Area Garis Jawaban Uraian Luas (y: 148..1248) */}
-          <div
-            style={boxStyle(44, 148, 912, 1100)}
-            className="border-[1.5px] border-black rounded-md bg-white p-5 flex flex-col justify-between gap-3 overflow-hidden"
-          >
-            {essayQuestions.map((question: any) => (
-              <div key={question.no} className="flex-1 flex flex-col justify-between border border-slate-300 rounded-md p-3 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-300 pb-1.5 mb-2">
-                  <span className="px-2.5 py-0.5 rounded bg-black text-white text-[9.5px] font-black">
-                    SOAL URAIAN NO. {question.no}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded border border-black bg-slate-100 text-[8.5px] font-mono font-black">
-                    SKOR GURU: _____ / {question.poin || 8} POIN
-                  </span>
-                </div>
-                <div className="flex-1 flex flex-col justify-around">
-                  {Array.from({ length: secondPageLineCount }).map((_, lIdx) => (
-                    <div key={lIdx} className="w-full h-[18px] border-b border-dotted border-slate-400" />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer & QR Halaman 2 */}
-          <div
-            style={boxStyle(44, 1264, 746, 120)}
-            className="border-[1.5px] border-black rounded-md bg-white px-4 py-2.5 flex items-center justify-between gap-4 text-[7.8px] text-slate-800"
-          >
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="font-black text-black uppercase text-[8.5px] truncate">
-                LAMPIRAN URAIAN: {isBlankSheet ? 'LEMBAR CADANGAN' : siswa?.nama || '-'}
-              </div>
-              <div className="text-slate-600 font-semibold truncate">
-                Pastikan lembar lampiran ini disatukan dengan lembar LJK utama saat dikumpulkan.
-              </div>
-              <div className="text-[7px] font-mono text-slate-500 pt-0.5">
-                KODE: {idKunci || 'STD'} &nbsp;•&nbsp; HALAMAN LAMPIRAN ESAI ({essayQuestions.length} SOAL)
-              </div>
-            </div>
-            <div className="border-l border-slate-300 pl-4 py-1 w-[130px] shrink-0 flex flex-col justify-between h-[64px]">
-              <div className="text-[6.8px] font-black uppercase tracking-wider text-slate-600">
-                PARAF GURU / KOREKTOR
-              </div>
-              <div className="border-b border-black w-full" />
-            </div>
-          </div>
-
-          <div
-            style={boxStyle(806, 1264, 142, 120)}
-            className="border-[1.5px] border-black rounded-md bg-white p-2 text-center flex flex-col items-center justify-center gap-1"
-          >
-            <div className="inline-block border border-black p-[3px] bg-white">
-              <QRCodeSVG value={qrPayload} size={86} level="M" />
-            </div>
-            <div className="text-[6.8px] text-black font-mono font-bold leading-none truncate max-w-full">
-              {isBlankSheet ? 'BLANKO-ESAI' : `${siswa?.nis || '-'}-ESAI`}
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
+      )}
     </>
   );
 }

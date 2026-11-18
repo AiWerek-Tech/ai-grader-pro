@@ -129,10 +129,10 @@ function buildQuestionBlueprintSummary(questionBlueprint: QuestionBlueprintItem[
       return `have ${item.jumlah_pasang || 3} matching rows (format: "1-A, 2-B, 3-C").`;
     }
     if (tipe === 'short_answer') {
-      return `are short-answer character boxes (${item.panjang_jawaban || 10} chars).`;
+      return 'have an open rectangular write-in box (read the student\'s handwritten text, number, or math expression inside the box).';
     }
     if (tipe === 'essay') {
-      return 'are essay questions at the bottom of the sheet.';
+      return 'are essay questions in the bottom JAWABAN URAIAN / ESAI box (transcribe the student\'s handwritten response).';
     }
     return `type ${tipe}.`;
   };
@@ -170,10 +170,10 @@ function buildSystemPrompt(
   const blueprintLines = buildQuestionBlueprintSummary(questionBlueprint);
 
   let prompt = `Examine this LJK (Lembar Jawaban Komputer) answer sheet carefully.
-1. Extract the student's full name ("name") from 'NAMA PESERTA' (or the bottom footer text) and student ID/NIS ("nis") from 'NOMOR INDUK (NIS)' or the number in parentheses at the bottom-left footer (e.g., "(388)" -> "388").
-2. Read all ${totalSoal} questions (numbered 1 to ${totalSoal}). For each question number, look at the horizontal row of circles/boxes immediately to the right of that question number:
+1. Extract the student's full name ("name") from 'NAMA PESERTA' in the top-left identity box and student ID/NIS ("nis") from 'NIS / NO. PESERTA' or the 'NIS:' label under the top-right QR code.
+2. Read all ${totalSoal} questions (numbered 1 to ${totalSoal}). For each question number, look at the answer area immediately to the right of that question number (or in the bottom 'JAWABAN URAIAN / ESAI' section for essay items):
 ${blueprintLines || `- Questions 1-${totalSoal} have circles from left to right.`}
-3. CRITICAL VISUAL & SPATIAL COUNTING RULE:
+3. CRITICAL VISUAL & SPATIAL COUNTING RULE FOR BUBBLE QUESTIONS:
    - In each row, the student's chosen circle is completely blackened (filled solid black ●) or crossed (X), which COVERS the letter printed inside that circle.
    - Meanwhile, the OTHER unchosen circles on that same row remain white (○) with their printed letters visible inside!
    - To avoid any confusion between adjacent circles (like B vs C in a 5-circle row):
@@ -181,6 +181,9 @@ ${blueprintLines || `- Questions 1-${totalSoal} have circles from left to right.
      * Count how many empty white circles (○) are to the RIGHT of the black dot (●) on that row -> "right_empty".
      * List the remaining visible letters in "unfilled_letters_visible".
      * Put the chosen letter in "filled_letter" (or "?" if all circles on that row are empty white).
+4. RULE FOR SHORT-ANSWER (ISN) & ESSAY QUESTIONS:
+   - For short-answer (ISN) boxes, read the handwritten text, number, or mathematical value inside the rectangular box and put the exact text in "filled_letter" (or "?" if blank).
+   - For essay questions in the bottom 'JAWABAN URAIAN / ESAI' section, transcribe the handwritten answer into "filled_letter" (or "?" if blank or not present on this page).
 
 Return pure JSON matching this exact structure:
 {
@@ -472,7 +475,7 @@ async function callModel(
       {
         model: targetModel,
         generationConfig: {
-          temperature: 0,
+          temperature,
           responseMimeType: 'application/json',
         },
       },

@@ -67,6 +67,8 @@ export async function saveBatchHasilScanAction(
       const existingRow = existingHasil.find(
         (r) => String(r.id_siswa) === String(p.id_siswa) && String(r.id_kunci) === String(p.id_kunci)
       );
+      const effectiveSemester = String(kunci.semester || existingRow?.semester || acadSession?.semester || 'GANJIL').toUpperCase();
+      const effectiveTahun = String(kunci.tahun_ajaran || existingRow?.tahun_ajaran || acadSession?.tahunAjaran || '');
 
       if (existingRow && existingRow.id_hasil) {
         const updatedRowData = [
@@ -79,8 +81,8 @@ export async function saveBatchHasilScanAction(
           ts,
           existingRow.is_override || '',
           existingRow.override_reason || '',
-          acadSession?.tahunAjaran || existingRow.tahun_ajaran || '',
-          acadSession?.semester || existingRow.semester || ''
+          effectiveTahun,
+          effectiveSemester
         ];
         await dbUpdateRow('HASIL', existingRow.id_hasil, updatedRowData);
         updatedCount++;
@@ -97,8 +99,8 @@ export async function saveBatchHasilScanAction(
           ts,
           '',
           '',
-          acadSession?.tahunAjaran || '',
-          acadSession?.semester || ''
+          effectiveTahun,
+          effectiveSemester
         ]);
         results.push({ id_siswa: p.id_siswa, skor: skorDetail.skor, id_hasil: newId, updated: false });
       }
@@ -238,7 +240,10 @@ export async function saveHasilScanAction(reqData: {
   }
 }
 
-export async function getHasilAction(guruId?: string) {
+export async function getHasilAction(
+  guruId?: string,
+  semesterMode: 'ACTIVE' | 'ALL' | 'GANJIL' | 'GENAP' = 'ALL'
+) {
   try {
     const authSession = await requireAuth();
     const { data: session } = await getAcademicSessionAction();
@@ -261,24 +266,31 @@ export async function getHasilAction(guruId?: string) {
       // Personal Guru Isolation: only show scores owned by the logged-in teacher.
       filtered = filtered.filter(r => String(r.id_guru) === String(authSession.id));
     }
-    
-    // Filter by Active Session (case-insensitive, fallback if empty)
+
     const cleanTahun = String(tahunAjaran || '').trim();
-    const cleanSem = String(semester || '').trim().toUpperCase();
+    const cleanSem = String(semester || 'GANJIL').trim().toUpperCase();
+    const targetSem =
+      semesterMode === 'GANJIL' || semesterMode === 'GENAP'
+        ? semesterMode
+        : semesterMode === 'ACTIVE'
+          ? cleanSem
+          : null;
+
     filtered = filtered.filter(r => {
-      const rTahun = String(r.tahun_ajaran || '').trim();
-      const rSem = String(r.semester || '').trim().toUpperCase();
+      const kInfo = kunci.find(k => k.id_kunci === r.id_kunci);
+      const rTahun = String(r.tahun_ajaran || kInfo?.tahun_ajaran || '').trim();
+      const rSem = String(r.semester || kInfo?.semester || '').trim().toUpperCase();
       const matchTahun = !cleanTahun || !rTahun || rTahun.toLowerCase() === cleanTahun.toLowerCase();
-      const matchSem = !cleanSem || !rSem || rSem === cleanSem;
+      const matchSem = !targetSem || !rSem || rSem === targetSem;
       return matchTahun && matchSem;
     });
-    
-    // Enrich with dynamic KKM logic
+
+    // Enrich with dynamic KKM logic & resolved semester
     const data = filtered.map(h => {
       const kInfo = kunci.find(k => k.id_kunci === h.id_kunci);
       const mInfo = mapels.find(m => m.id_mapel === kInfo?.id_mapel);
       const namaMapel = (mInfo?.nama_mapel || '').toLowerCase();
-      
+
       const isEksakta = keywordsEksakta.some(kw => namaMapel.includes(kw));
       const kkmReferansi = isEksakta ? kkmEksakta : kkmNonEksakta;
       const isLulus = Number(h.skor) >= kkmReferansi;
@@ -286,8 +298,11 @@ export async function getHasilAction(guruId?: string) {
       let detail = {};
       try { detail = typeof h.detail_json === 'string' ? JSON.parse(h.detail_json) : h.detail_json; } catch{}
 
+      const resolvedSemester = String(h.semester || kInfo?.semester || cleanSem || 'GANJIL').trim().toUpperCase();
+
       return {
         ...h,
+        semester: resolvedSemester,
         detail_json: detail,
         kkm_referensi: kkmReferansi,
         is_lulus: isLulus,
@@ -296,7 +311,7 @@ export async function getHasilAction(guruId?: string) {
       };
     });
 
-    return { success: true, data: data.reverse() };
+    return { success: true, data: data.reverse(), activeSemester: cleanSem };
   } catch (e: any) {
     return { success: false, message: e.message };
   }

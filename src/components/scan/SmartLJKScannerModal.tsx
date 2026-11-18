@@ -48,7 +48,6 @@ export function SmartLJKScannerModal({
 
   // Camera state
   const [cameraState, setCameraState] = useState<'initializing' | 'active' | 'fallback_lan' | 'error'>('initializing');
-  const [cameraErrorMsg, setCameraErrorMsg] = useState<string>('');
   const [torchSupported, setTorchSupported] = useState<boolean>(false);
   const [torchOn, setTorchOn] = useState<boolean>(false);
   const [autoCapture, setAutoCapture] = useState<boolean>(true);
@@ -95,7 +94,6 @@ export function SmartLJKScannerModal({
   const startCamera = useCallback(async () => {
     stopStream();
     setCameraState('initializing');
-    setCameraErrorMsg('');
 
     if (typeof window === 'undefined') return;
 
@@ -135,7 +133,6 @@ export function SmartLJKScannerModal({
       setCameraState('active');
     } catch (err: any) {
       console.warn('WebRTC camera fallback:', err?.message || err);
-      setCameraErrorMsg(err?.message || 'Akses kamera langsung dibatasi oleh browser pada koneksi HTTP lokal.');
       setCameraState('fallback_lan');
     }
   }, [stopStream]);
@@ -906,21 +903,21 @@ export function SmartLJKScannerModal({
                 />
               ))}
 
-              {/* Simulated Header & QR Zone Guides inside Frame */}
-              <div className="absolute top-[12%] left-[6%] right-[6%] h-[11%] border border-dashed border-white/25 rounded flex items-center justify-center">
+              {/* Simulated Header & Top-Right QR Zone Guides inside Frame */}
+              <div className="absolute top-[12%] left-[6%] right-[24%] h-[10%] border border-dashed border-white/25 rounded flex items-center justify-center">
                 <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
-                  Area Identitas Peserta
+                  Identitas Peserta
                 </span>
               </div>
 
-              <div className="absolute top-[26%] bottom-[13%] left-[6%] right-[6%] border border-dashed border-sky-400/30 rounded flex items-center justify-center">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-300/40">
-                  Area Bulatan Jawaban LJK
-                </span>
-              </div>
-
-              <div className="absolute bottom-[2%] right-[6%] w-[16%] h-[9%] border border-dashed border-emerald-400/50 rounded flex items-center justify-center bg-emerald-500/10">
+              <div className="absolute top-[12%] right-[6%] w-[16%] h-[10%] border border-dashed border-emerald-400/50 rounded flex items-center justify-center bg-emerald-500/10">
                 <span className="text-[8px] font-black text-emerald-300/80">QR</span>
+              </div>
+
+              <div className="absolute top-[24%] bottom-[3%] left-[6%] right-[6%] border border-dashed border-sky-400/30 rounded flex items-center justify-center">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-300/40">
+                  Area Jawaban LJK &amp; Esai
+                </span>
               </div>
 
               {/* Lock Progress Bar when Auto-Capturing */}

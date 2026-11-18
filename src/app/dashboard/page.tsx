@@ -2,10 +2,11 @@ import Link from "next/link";
 import { getAdminDashboardStatsAction, getSystemLogsAction } from "@/lib/actions/admin";
 import { getCurrentUser } from "@/lib/session-server";
 import { BrandLogo } from "@/components/BrandLogo";
+import { APP_VERSION } from "@/lib/app-version";
 import { 
   Scan, GraduationCap, Users, BookOpen, School, Activity, 
-  ShieldCheck, Terminal, Stethoscope, Settings, FileText, Award,
-  Key, Printer, ScanLine, Smartphone, Download, ExternalLink, Info, CheckCircle2, Globe
+  Terminal, Stethoscope, Settings, FileText, Award,
+  Key, Printer, ScanLine
 } from 'lucide-react';
 
 export default async function Dashboard() {
@@ -36,42 +37,6 @@ export default async function Dashboard() {
   }
 
   const firstName = user?.nama?.trim()?.split(/\s+/)?.[0] || 'User';
-
-  const androidApkDownloadUrl =
-    'https://github.com/AiWerek-Tech/ai-grader-pro-mobile/releases/download/v2.0.5/wmvaa-ai-grader-pro-v2.0.5-android.apk';
-  const androidReleasePageUrl =
-    'https://github.com/AiWerek-Tech/ai-grader-pro-mobile/releases/tag/v2.0.5';
-  const webRepoUrl = 'https://github.com/AiWerek-Tech/ai-grader-pro';
-
-  const importantInfos = isGuru
-    ? [
-        {
-          title: 'Alur Koreksi LJK Terpadu',
-          desc: 'Siapkan kunci di menu Kunci Jawaban, cetak lembar LJK ber-QR di menu LJK, pindai melalui Scan LJK, lalu tinjau & ekspor Excel di menu Hasil.',
-        },
-        {
-          title: 'Keamanan Draft Scan Otomatis',
-          desc: 'Antrean foto hasil scan yang belum disimpan otomatis dicadangkan di perangkat. Pastikan klik Simpan ke Database sebelum keluar atau berganti perangkat.',
-        },
-        {
-          title: 'Koneksi Cepat Aplikasi HP Guru',
-          desc: 'Buka aplikasi Android WMVAA AI Grader Pro (otomatis terhubung ke https://app.wmvaa.id/ai-grader) atau ketuk QR Akses HP Guru di pojok kanan atas.',
-        },
-      ]
-    : [
-        {
-          title: 'Pemantauan Integritas Spreadsheet',
-          desc: 'Gunakan menu System Doctor secara berkala untuk memastikan struktur sheet Google Spreadsheet tetap sinkron dan melakukan self-healing bila perlu.',
-        },
-        {
-          title: 'Kapasitas & Multi-Key Gemini AI',
-          desc: 'Atur pool multi API Key Gemini dan model AI aktif di menu Pengaturan Sistem agar pemindaian serentak oleh banyak guru tetap lancar tanpa rate-limit.',
-        },
-        {
-          title: 'Keamanan Onboarding Produksi',
-          desc: 'Pastikan mode setup runtime tertutup setelah inisialisasi awal dan distribusikan aplikasi Android resmi kepada guru melalui tautan unduhan di samping.',
-        },
-      ];
 
   // Quick Access items based on role
   const quickAccessItems = isGuru ? [
@@ -113,14 +78,14 @@ export default async function Dashboard() {
         </div>
         <div className="flex-shrink-0 relative z-10">
           <div className="px-4 py-2.5 sm:px-5 sm:py-3 bg-white dark:bg-[#09051f] border border-purple-200/70 dark:border-purple-500/20 rounded-2xl sm:rounded-[1rem] flex items-center gap-3 backdrop-blur-xl shadow-lg shadow-purple-500/10 transition-colors">
-             <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0">
+             <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
                <BrandLogo variant="symbol" className="w-full h-full" />
              </div>
              <div className="flex flex-col">
                <span className="text-[9px] font-black tracking-[0.2em] uppercase text-emerald-600 dark:text-cyan-400 flex items-center gap-1.5">
                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> System Live
                </span>
-               <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 tracking-widest">WMVAA AI GRADER v2.0</span>
+               <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 tracking-widest">WMVAA AI GRADER v{APP_VERSION}</span>
              </div>
           </div>
         </div>
@@ -258,7 +223,7 @@ export default async function Dashboard() {
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full border border-white/25 mb-4 sm:mb-6 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse" />
-                <span className="text-[9px] font-black text-white tracking-[0.2em] uppercase drop-shadow-sm">{isGuru ? 'Teacher Panel' : 'Enterprise v2.0'}</span>
+                <span className="text-[9px] font-black text-white tracking-[0.2em] uppercase drop-shadow-sm">{isGuru ? 'Teacher Panel' : `Enterprise v${APP_VERSION}`}</span>
               </div>
               <h3 className="text-xl sm:text-3xl font-black text-white leading-tight tracking-tighter mb-2 drop-shadow-md">
                 {isGuru ? 'Teacher' : 'WMVAA AI'}<br className="hidden sm:block"/> Grader Pro
@@ -303,143 +268,6 @@ export default async function Dashboard() {
           </div>
         </div>
         
-      </div>
-
-      {/* ── INFORMASI PENTING & DOWNLOAD APLIKASI ANDROID ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
-        
-        {/* Card Download APK Android */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-emerald-50 via-white to-cyan-50/70 dark:from-emerald-950/35 dark:via-[#0a0e1a] dark:to-cyan-950/30 border border-emerald-200/80 dark:border-emerald-500/20 p-6 sm:p-8 rounded-2xl sm:rounded-[2.5rem] flex flex-col justify-between gap-6 shadow-sm dark:shadow-none min-w-0">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-widest">
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Aplikasi Android</span>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300">
-                v2.0.5 · APK
-              </span>
-            </div>
-
-            <div>
-              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                Download WMVAA Grader Mobile
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-                Gunakan aplikasi Android resmi untuk pemindaian LJK 1-klik dengan kamera HP, multi-upload galeri, scan QR server, cetak A4, dan ekspor laporan langsung ke folder Downloads.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Default terhubung ke <span className="font-mono text-emerald-700 dark:text-cyan-400">app.wmvaa.id/ai-grader</span></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Mendukung Android 7.0+ (API 24) &amp; Mode Layar Tetap Menyala</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2.5">
-            <a
-              href={androidApkDownloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:via-teal-500 hover:to-cyan-500 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 shadow-lg shadow-emerald-600/25 transition-all active:scale-95"
-            >
-              <Download className="w-4 h-4 shrink-0" />
-              <span>Download APK v2.0.5 (7.96 MB)</span>
-            </a>
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-bold">
-              <a
-                href={androidReleasePageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-cyan-400 hover:underline"
-              >
-                <span>Catatan Rilis GitHub</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-              <span className="text-slate-500 dark:text-slate-400 text-[10px]">
-                Aktifkan &ldquo;Sumber Tidak Dikenal&rdquo; saat install
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card Info Penting & Tautan Resmi */}
-        <div className="lg:col-span-3 bg-white dark:bg-[#0a0e1a]/75 border border-slate-200 dark:border-white/[0.05] p-6 sm:p-8 rounded-2xl sm:rounded-[2.5rem] flex flex-col justify-between gap-5 shadow-sm dark:shadow-none min-w-0">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-cyan-400 border border-purple-500/20">
-                  <Info className="w-4 h-4" />
-                </span>
-                <span>Informasi Penting &amp; Panduan Cepat</span>
-              </h3>
-              <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 dark:text-cyan-400">
-                {isGuru ? 'Panduan Guru' : 'Panduan Admin'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              {importantInfos.map((info, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] flex items-start gap-3"
-                >
-                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-600 to-cyan-500 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">
-                    {idx + 1}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {info.title}
-                    </div>
-                    <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
-                      {info.desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-200/80 dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3 text-[11px] font-bold">
-            <div className="flex flex-wrap items-center gap-3">
-              <a
-                href="https://app.wmvaa.id/ai-grader"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-700 dark:text-cyan-300 border border-purple-500/20 hover:bg-purple-500/15 transition-colors"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>app.wmvaa.id/ai-grader</span>
-              </a>
-              <a
-                href="https://wmvaa.id"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Portal wmvaa.id</span>
-              </a>
-            </div>
-            <a
-              href={webRepoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-cyan-400 transition-colors"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Dokumentasi &amp; Rilis Web v2.0.5</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-
       </div>
     </div>
   );

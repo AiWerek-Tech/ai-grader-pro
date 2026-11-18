@@ -11,6 +11,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { withBasePath } from '@/lib/base-path';
 import { BrandLogo } from '@/components/BrandLogo';
+import { APP_VERSION, ANDROID_APK_RELEASE } from '@/lib/app-version';
 import {
   Menu, X, LayoutDashboard, Key, ScanLine, Award,
   ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download
@@ -119,9 +120,9 @@ export default function ResponsiveDashboardWrapper({
         {/* Brand Header */}
         <div className="px-2 mb-6 lg:mb-8 flex items-center justify-between gap-2">
           <Link href="/dashboard" className="flex flex-col min-w-0 group" onClick={() => setIsMobileMenuOpen(false)}>
-            <BrandLogo variant="horizontal" priority className="h-11 w-auto max-w-[185px] object-left group-hover:scale-[1.02] transition-transform" />
+            <BrandLogo variant="horizontal" priority className="h-14 w-auto max-w-[215px] object-left group-hover:scale-[1.02] transition-transform" />
             <div className="text-[9px] font-black text-purple-600 dark:text-cyan-400 uppercase tracking-[0.22em] mt-1.5 pl-0.5 opacity-90">
-              Enterprise v2.0
+              Enterprise v{APP_VERSION}
             </div>
           </Link>
 
@@ -230,16 +231,16 @@ export default function ResponsiveDashboardWrapper({
             </button>
 
             {/* Mobile Brand Pill */}
-            <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
-              <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 shadow-md shadow-purple-500/20 border border-purple-200/60 dark:border-purple-500/30 bg-[#09051f]">
+            <Link href="/dashboard" className="flex items-center gap-2.5 lg:hidden">
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-md shadow-purple-500/20 border border-purple-200/60 dark:border-purple-500/30 bg-[#09051f]">
                 <BrandLogo variant="app-icon" priority className="w-full h-full" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-black tracking-tight text-slate-900 dark:text-white leading-none">
+                <span className="text-[13px] font-black tracking-tight text-slate-900 dark:text-white leading-none">
                   WMVAA Grader
                 </span>
-                <span className="text-[8px] font-bold text-purple-600 dark:text-cyan-400 uppercase tracking-widest mt-0.5">
-                  AI Pro v2.0
+                <span className="text-[9px] font-bold text-purple-600 dark:text-cyan-400 uppercase tracking-widest mt-0.5">
+                  AI Pro v{APP_VERSION}
                 </span>
               </div>
             </Link>
@@ -397,7 +398,7 @@ export default function ResponsiveDashboardWrapper({
             onClick={() => setShowLanModal(false)}
           >
             <div
-              className="bg-white dark:bg-[#09051f] border border-slate-200 dark:border-purple-500/20 rounded-[2rem] max-w-md w-full p-6 shadow-2xl space-y-5"
+              className="bg-white dark:bg-[#09051f] border border-slate-200 dark:border-purple-500/20 rounded-[2rem] max-w-md w-full max-h-[90dvh] overflow-y-auto touch-scroll p-6 shadow-2xl space-y-5"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3">
@@ -486,13 +487,13 @@ export default function ResponsiveDashboardWrapper({
               {/* Unduh APK Android & Tips PWA */}
               <div className="space-y-2.5">
                 <a
-                  href="https://github.com/AiWerek-Tech/ai-grader-pro-mobile/releases/download/v2.0.5/wmvaa-ai-grader-pro-v2.0.5-android.apk"
+                  href={ANDROID_APK_RELEASE.downloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
                 >
                   <Download className="w-4 h-4 shrink-0" />
-                  <span>Download APK Android v2.0.5</span>
+                  <span>Download APK Android v{ANDROID_APK_RELEASE.version}</span>
                 </a>
                 <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5">
                   <Smartphone className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />

@@ -4,15 +4,17 @@ import { getHasilAction, overrideHasilAction, deleteHasilAction, updateHasilAnsw
 import { scoreStudentEssaysWithAIAction } from '@/lib/actions/essay';
 import { getSiswaAction } from '@/lib/actions/siswa';
 import { getKunciListAction } from '@/lib/actions/kunci';
+import { getSettingsAction } from '@/lib/actions/settings';
 import { TIPE_SOAL_AKM, TIPE_COLOR, formatJawaban, getTipeDistribusi } from '@/lib/constants/tipe-soal';
 import { normalizeTipe, normalizeAIAnswer, formatAnswerForDisplay, answersMatch } from '@/lib/ai/grader-engine';
 import { createWorkbook, downloadWorkbook } from '@/lib/utils/excel';
+import HasilPrintSheet from '@/components/hasil/HasilPrintSheet';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
   Search, FileDown, RefreshCw, X, ChevronDown, ArrowUpDown,
   ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Eye, Pencil,
-  CheckCircle2, AlertCircle, Loader2, Target,
+  CheckCircle2, AlertCircle, Loader2, Target, BarChart3,
   TrendingUp, TrendingDown, Users, ShieldAlert, Trash2, FileSpreadsheet, Printer, Save, Sparkles
 } from 'lucide-react';
 
@@ -37,6 +39,7 @@ export default function HasilPage() {
   const [hasil, setHasil] = useState<any[]>([]);
   const [siswa, setSiswa] = useState<any[]>([]);
   const [kunci, setKunci] = useState<any[]>([]);
+  const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -44,9 +47,11 @@ export default function HasilPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterKunci, setFilterKunci] = useState('ALL');
   const [filterKelas, setFilterKelas] = useState('ALL');
+  const [filterSemester, setFilterSemester] = useState<'ALL' | 'GANJIL' | 'GENAP'>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'LULUS' | 'TIDAK_LULUS' | 'REVIEW' | 'OVERRIDE'>('ALL');
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [showItemAnalysis, setShowItemAnalysis] = useState(false);
 
   // ─── Pagination ───────────────────────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,18 +75,22 @@ export default function HasilPage() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [hRes, sRes, kRes] = await Promise.all([
-        getHasilAction(), getSiswaAction(), getKunciListAction()
+      const [hRes, sRes, kRes, setRes] = await Promise.all([
+        getHasilAction(undefined, 'ALL'),
+        getSiswaAction(),
+        getKunciListAction(undefined, 'ALL'),
+        getSettingsAction(),
       ]);
       if (hRes.success) setHasil(hRes.data || []);
       if (sRes.success) setSiswa(sRes.data || []);
       if (kRes.success) setKunci(kRes.data || []);
+      if (setRes.success) setSettings(setRes.data || {});
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); setRefreshing(false); }
   };
 
   useEffect(() => { fetchData(); }, []);
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterKunci, filterKelas, filterStatus, sortField, sortDir]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterKunci, filterKelas, filterSemester, filterStatus, sortField, sortDir]);
 
   // Reset per-question edit state when detail modal opens/closes
   useEffect(() => {
@@ -122,6 +131,9 @@ export default function HasilPage() {
     );
     if (filterKunci !== 'ALL') list = list.filter(h => h.id_kunci === filterKunci);
     if (filterKelas !== 'ALL') list = list.filter(h => h.kelasLabel === filterKelas);
+    if (filterSemester !== 'ALL') {
+      list = list.filter(h => String(h.semester || h.kInfo?.semester || 'GANJIL').toUpperCase() === filterSemester);
+    }
     if (filterStatus === 'LULUS') list = list.filter(h => h.is_lulus && !h.det?.need_review);
     else if (filterStatus === 'TIDAK_LULUS') list = list.filter(h => !h.is_lulus);
     else if (filterStatus === 'REVIEW') list = list.filter(h => h.det?.need_review);
@@ -137,7 +149,7 @@ export default function HasilPage() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [enrichedHasil, searchTerm, filterKunci, filterKelas, filterStatus, sortField, sortDir]);
+  }, [enrichedHasil, searchTerm, filterKunci, filterKelas, filterSemester, filterStatus, sortField, sortDir]);
 
   // ─── Stats (mengikuti filter aktif agar Guru bisa melihat rata-rata per Kelas/Ujian) ───
   const stats = useMemo(() => {
@@ -168,8 +180,67 @@ export default function HasilPage() {
     searchTerm,
     filterKunci !== 'ALL' ? filterKunci : '',
     filterKelas !== 'ALL' ? filterKelas : '',
+    filterSemester !== 'ALL' ? filterSemester : '',
     filterStatus !== 'ALL' ? filterStatus : '',
   ].filter(Boolean).length;
+
+  const selectedKunciObj = useMemo(() => {
+    if (filterKunci !== 'ALL') {
+      return kunci.find((k) => k.id_kunci === filterKunci) || null;
+    }
+    return filteredHasil[0]?.kInfo || null;
+  }, [filterKunci, kunci, filteredHasil]);
+
+  // ─── Analisis Daya Serap Butir Soal Visual di Web ─────────────────────────
+  const itemAnalysisStats = useMemo(() => {
+    if (filteredHasil.length === 0) return null;
+    const refKunciItems: any[] = Array.isArray(selectedKunciObj?.data_json)
+      ? selectedKunciObj.data_json
+      : [];
+    const maxQuestions = Math.max(
+      refKunciItems.length,
+      ...filteredHasil.map((h) => (Array.isArray(h.det?.detail) ? h.det.detail.length : 0))
+    );
+    if (maxQuestions <= 0) return null;
+
+    const items: Array<{
+      no: number;
+      kunciLabel: string;
+      correctCount: number;
+      totalCount: number;
+      pct: number;
+    }> = [];
+
+    for (let q = 1; q <= maxQuestions; q++) {
+      let correct = 0;
+      const kItem = refKunciItems.find((k: any) => Number(k.no) === q) || refKunciItems[q - 1];
+      filteredHasil.forEach((h) => {
+        const details: any[] = Array.isArray(h.det?.detail) ? h.det.detail : [];
+        const dItem = details.find((d: any) => Number(d.no) === q) || details[q - 1];
+        if (dItem?.status === 'benar') correct++;
+      });
+      const pct = Math.round((correct / filteredHasil.length) * 100);
+      items.push({
+        no: q,
+        kunciLabel: kItem ? formatJawaban(kItem) : '—',
+        correctCount: correct,
+        totalCount: filteredHasil.length,
+        pct,
+      });
+    }
+
+    const hardest = [...items].filter((x) => x.pct < 50).sort((a, b) => a.pct - b.pct);
+    const easiest = [...items].filter((x) => x.pct >= 75).sort((a, b) => b.pct - a.pct);
+    return { items, hardest, easiest, studentCount: filteredHasil.length };
+  }, [filteredHasil, selectedKunciObj]);
+
+  const handlePrintPdfRekap = () => {
+    if (filteredHasil.length === 0) {
+      toast.error('Tidak ada data nilai siswa untuk dicetak.');
+      return;
+    }
+    setTimeout(() => window.print(), 80);
+  };
 
   // ─── Simpan Koreksi Jawaban & Poin Esai Per-Butir di Modal Detail ─────────
   const handleSavePerQuestionEdits = async () => {
@@ -562,18 +633,32 @@ export default function HasilPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={handlePrintPdfRekap}
+            title="Cetak PDF Daftar Nilai Siswa Per Kelas Ber-Kop Sekolah (A4)"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
+          >
+            <Printer className="w-4 h-4" /> Cetak PDF Nilai Kelas
+          </button>
           <button onClick={handleExportExcel}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/25 active:scale-95">
-            <FileSpreadsheet className="w-4 h-4" /> Export Excel (.xlsx)
+            <FileSpreadsheet className="w-4 h-4" /> Excel (.xlsx)
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowItemAnalysis((v) => !v)}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider border transition-all active:scale-95 ${
+              showItemAnalysis
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-purple-600 dark:text-purple-400'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" /> <span className="hidden sm:inline">Analisis Butir</span>
           </button>
           <button onClick={handleExport}
             className="flex items-center justify-center gap-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-600 dark:text-amber-400 hover:text-white border border-amber-500/25 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:scale-95">
             <FileDown className="w-4 h-4" /> CSV
-          </button>
-          <button onClick={() => window.print()}
-            title="Cetak Rekap Nilai Kelas (A4)"
-            className="flex items-center justify-center gap-1.5 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] hover:border-indigo-500/40 text-slate-700 dark:text-slate-300 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-sm active:scale-95">
-            <Printer className="w-4 h-4 text-indigo-500" /> <span className="hidden sm:inline">Cetak</span>
           </button>
           <button onClick={() => fetchData(true)} disabled={refreshing}
             className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl flex items-center justify-center text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-all disabled:opacity-50 shadow-sm active:scale-95">
@@ -583,7 +668,7 @@ export default function HasilPage() {
       </div>
 
       {/* ── Stats Bar (Ringkas 3 kolom di HP agar tidak kewalahan scroll) ── */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 print:hidden">
         {[
           { label: 'Total Scan', value: stats.total, icon: <Users className="w-4 h-4" />, color: 'text-slate-700 dark:text-slate-300', bg: 'bg-slate-500/10' },
           { label: 'Siswa Lulus', value: `${stats.persenLulus}%`, icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
@@ -631,10 +716,24 @@ export default function HasilPage() {
             </select>
             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           </div>
+
+          <div className="relative col-span-2 sm:col-span-1">
+            <select
+              value={filterSemester}
+              onChange={e => setFilterSemester(e.target.value as 'ALL' | 'GANJIL' | 'GENAP')}
+              aria-label="Filter semester hasil"
+              className={`w-full sm:w-auto appearance-none bg-white dark:bg-white/[0.03] border rounded-xl pl-3 sm:pl-4 pr-8 py-2.5 sm:py-3 text-xs sm:text-sm font-bold focus:outline-none transition-all cursor-pointer shadow-sm ${filterSemester !== 'ALL' ? 'border-purple-500/50 text-purple-600 dark:text-purple-400' : 'border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}
+            >
+              <option value="ALL">Semua Semester</option>
+              <option value="GANJIL">Semester Ganjil (1)</option>
+              <option value="GENAP">Semester Genap (2)</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Filter Status pills */}
-        <div className="flex gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto touch-scroll py-0.5">
+        <div className="flex gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto py-0.5">
           {[
             { val: 'ALL', label: 'Semua' },
             { val: 'LULUS', label: '✓ Lulus' },
@@ -650,15 +749,67 @@ export default function HasilPage() {
         </div>
 
         {activeFilters > 0 && (
-          <button onClick={() => { setSearchTerm(''); setFilterKunci('ALL'); setFilterKelas('ALL'); setFilterStatus('ALL'); }}
+          <button onClick={() => { setSearchTerm(''); setFilterKunci('ALL'); setFilterKelas('ALL'); setFilterSemester('ALL'); setFilterStatus('ALL'); }}
             className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-rose-500/20 flex-shrink-0 active:scale-95">
             <X className="w-3 h-3" /> Reset
           </button>
         )}
       </div>
 
+      {/* ── Panel Visual Analisis Daya Serap Butir Soal (Evaluasi Kelas) ── */}
+      {showItemAnalysis && itemAnalysisStats && (
+        <div className="print:hidden bg-white dark:bg-[#0a0e1a]/60 border border-purple-500/25 rounded-[2rem] p-5 sm:p-6 space-y-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-purple-500" />
+                <span>Analisis Daya Serap per Nomor Soal ({itemAnalysisStats.studentCount} Siswa)</span>
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Menampilkan persentase siswa yang menjawab benar pada tiap nomor soal untuk bahan evaluasi pembelajaran guru.
+              </p>
+            </div>
+            {itemAnalysisStats.hardest.length > 0 && (
+              <span className="px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-300 text-[10px] font-black">
+                Perlu Evaluasi (&lt;50%): No. {itemAnalysisStats.hardest.slice(0, 8).map((x) => x.no).join(', ')}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2">
+            {itemAnalysisStats.items.map((it) => {
+              const tone =
+                it.pct >= 75
+                  ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300'
+                  : it.pct >= 50
+                    ? 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300'
+                    : 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300';
+              return (
+                <div key={it.no} className={`p-2.5 rounded-xl border ${tone} space-y-1`}>
+                  <div className="flex items-center justify-between text-[10px] font-black">
+                    <span>No. {it.no}</span>
+                    <span>{it.pct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        it.pct >= 75 ? 'bg-emerald-500' : it.pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${it.pct}%` }}
+                    />
+                  </div>
+                  <div className="text-[9px] font-mono opacity-80 truncate">
+                    Kunci: {it.kunciLabel} ({it.correctCount}/{it.totalCount})
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Table ── */}
-      <div className="bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
+      <div className="print:hidden bg-white dark:bg-[#0a0e1a]/60 backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2rem] overflow-hidden shadow-sm">
 
         {/* Toolbar */}
         <div className="px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-white/[0.05] bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between flex-wrap gap-2">
@@ -1480,6 +1631,34 @@ export default function HasilPage() {
           </div>
         </div>
       )}
+
+      {/* ════════════════════════════════════════════
+          LEMBAR CETAK PDF DAFTAR NILAI SISWA PER KELAS BER-KOP SEKOLAH
+      ════════════════════════════════════════════ */}
+      <HasilPrintSheet
+        items={filteredHasil}
+        settings={settings}
+        filterKelas={filterKelas}
+        filterKunci={filterKunci}
+        selectedKunciObj={selectedKunciObj}
+      />
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          html, body {
+            background: white !important;
+            color: black !important;
+          }
+          #hasil-print-root {
+            display: block !important;
+          }
+        }
+      `,
+        }}
+      />
     </div>
   );
 }

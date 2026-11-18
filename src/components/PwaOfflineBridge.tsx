@@ -37,11 +37,18 @@ export function PwaOfflineBridge() {
         .catch(() => {});
     }
 
-    // Bersihkan Cache Storage versi v2.0.0–v2.0.2 yang pernah menyimpan respons HTML/redirect lama
+    // Bersihkan Cache Storage versi v2.0.0–v2.0.2 yang pernah menyimpan respons HTML/redirect lama,
+    // tanpa menghapus cache halaman khusus /offline
     if (typeof caches !== 'undefined') {
       caches
         .keys()
-        .then((keys) => Promise.all(keys.filter((k) => k.startsWith('wmvaa-')).map((k) => caches.delete(k))))
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter((k) => k.startsWith('wmvaa-') && k !== 'wmvaa-offline-shell-v1')
+              .map((k) => caches.delete(k))
+          )
+        )
         .catch(() => {});
     }
 
@@ -156,7 +163,8 @@ export function PwaOfflineBridge() {
     };
   }, []);
 
-  if (!isOffline) return null;
+  // Di Android WebView, banner & layar offline penuh ditangani secara native oleh MainActivity.kt agar tidak menumpuk ganda
+  if (!isOffline || hasNativeSettings) return null;
 
   return (
     <div className="fixed top-2 inset-x-3 z-[200] max-w-md mx-auto bg-amber-500/95 backdrop-blur-xl text-slate-950 px-4 py-2.5 rounded-2xl shadow-2xl border border-amber-300 flex items-center justify-between gap-3 print:hidden animate-in fade-in duration-200">
@@ -167,18 +175,15 @@ export function PwaOfflineBridge() {
         </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        {hasNativeSettings && (
-          <button
-            type="button"
-            onClick={() => window.WMVAANative?.openServerSettings?.()}
-            className="px-2.5 py-1 rounded-xl bg-white/80 text-slate-950 text-[9px] font-black uppercase tracking-wider shrink-0 active:scale-95"
-          >
-            Server
-          </button>
-        )}
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            if (!navigator.onLine) {
+              window.location.assign(withBasePath('/offline'));
+            } else {
+              window.location.reload();
+            }
+          }}
           className="px-2.5 py-1 rounded-xl bg-slate-950 text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 active:scale-95"
         >
           <RefreshCw className="w-3 h-3" /> Muat Ulang

@@ -21,6 +21,7 @@ Platform koreksi Lembar Jawaban Komputer (LJK) & asesmen digital tingkat enterpr
 
 ### 3. Studio Kunci Jawaban Bank Soal AKM & Pembobotan Guru (`/dashboard/kunci`)
 * **Studio 2-Langkah Gaya Bank Soal + Standar Kurikulum Merdeka:** Dropdown **Jenis Asesmen Kurikulum Merdeka** (STS, SAS, SAT, Sumatif Lingkup Materi, Formatif/UH, Diagnostik Kognitif/Non-Kognitif, ASAJ/US, Try Out, atau Kustom) & **Dropdown Semester** (Ganjil/Genap), konfigurasi **Jumlah Soal & Bobot Nilai %** per jenis dalam satu layar beserta tombol **Bagi Otomatis 100%** & rekapitulasi real-time, lalu pengisian kunci cepat via **Input Kilat** (tempel teks, Excel `.xlsx`, AI) atau **Papan Cepat** keyboard.
+* **Ekstraksi AI Multi-Dokumen (`.docx`, `.pdf`, Multi-Foto, Teks):** Mendukung 3 mode cerdas (**Kunci Saja**, **Naskah Soal + Kunci**, atau **Jawab Naskah Soal Mentah oleh AI**), ekstraksi langsung file Word `.docx` tanpa konversi manual, pratinjau hasil sebelum diterapkan, serta mode **Ganti Semua** atau **Tambahkan Lanjutan (Append)**.
 * **Kewenangan Pembobotan Penuh Guru:** Pembobotan persentase `%` per jenis soal (otomatis terhitung ke poin per butir), pilihan **4 Opsi (A–D) / 5 Opsi (A–E)** langsung di kartu PG, opsi lanjutan **AKM Kompleks (`Mutlak` / `Parsial Proporsional`)**, penalti jawaban salah, penandaan **Bonus / Anulir** opsional per nomor, duplikat multi-kelas sekaligus, filter & badge semester, cetak kunci pegangan guru, dan **Hitung Ulang Nilai Tersimpan (`Re-grade`)**.
 * Mendukung penuh **8 tipe soal**:
   1. **Pilihan Ganda (`A–E`)** — `single_choice`
@@ -33,18 +34,19 @@ Platform koreksi Lembar Jawaban Komputer (LJK) & asesmen digital tingkat enterpr
   8. **Uraian / Esai** — `essay`
 
 ### 4. Generator & Cetak LJK Digital / Hybrid (`/dashboard/ljk` & `/print/ljk`)
-* Menghasilkan lembar LJK siap cetak ukuran A4 lengkap dengan **QR Code identitas** (ID kunci, siswa/NIS) dan **4 penanda sudut (*fiducial markers*)** untuk kalibrasi pemindaian OMR lokal berakurasi tinggi.
-* Mendukung cetak per kelas, pemilihan siswa tertentu, serta pencetakan langsung dari Android APK melalui bridge `PrintManager`.
+* Menghasilkan lembar LJK siap cetak ukuran A4 lengkap dengan **Kop Sekolah dinamis (SMP / SMA)**, **QR Code identitas di kanan-atas kotak identitas siswa** (ID kunci, siswa/NIS), dan **4 penanda sudut (*fiducial markers*)** untuk kalibrasi pemindaian OMR & AI Vision berakurasi tinggi.
+* **Tata Letak Kolom & Area Jawaban Adaptif:** Pembagian jumlah soal objektif seimbang per kolom (mis. 30 soal menjadi `10 + 10 + 10` di 3 kolom), kotak tulis terbuka untuk **Isian Singkat** (mendukung angka, pecahan, simbol matematika, maupun kata), serta **Zona Uraian/Esai Terintegrasi** anti-terpotong yang menyesuaikan tinggi baris secara otomatis atau berpindah ke Halaman 2 bila diperlukan.
+* Mendukung filter lintas semester (`Semua Semester / Ganjil / Genap`), cetak per kelas, pemilihan siswa tertentu, serta pencetakan langsung dari Android APK melalui bridge `PrintManager`.
 
 ### 5. Pemindai & Analisis LJK Hibrida (`/dashboard/analisis` & `/api/scan`)
 * **Hybrid OMR + Gemini Vision Consensus Engine:** Memadukan deteksi grid OMR lokal berkecepatan tinggi (`hybrid-detector.ts`) dengan pembacaan visual AI (`gemini-fallback.ts`) serta fallback otomatis yang aman.
-* **Multi-Input Fleksibel:** Potret kamera 1-klik dari HP, unggah banyak foto dari galeri sekaligus, atau *Live WebRTC Scanner*.
-* **Auto-Match Siswa & Auto-Save Draft:** Mencocokkan NIS dan kemiripan nama siswa secara otomatis serta menyimpan antrean hasil scan yang belum disimpan ke `localStorage` agar aman dari reload mendadak.
+* **Auto-Resolve Kunci via QR & Progres Kelengkapan Kelas:** Mengenali kode ujian dari QR Code kanan-atas secara otomatis, menampilkan bar **Progres Scan Kelas & Daftar Siswa Belum Discan**, serta mencocokkan NIS/nama siswa secara otomatis dan menyimpan draft ke `localStorage`.
+* **Multi-Input Fleksibel:** Potret kamera 1-klik dari HP, unggah banyak foto dari galeri sekaligus, atau *Live WebRTC Scanner* dengan panduan bidik *4 corner fiducial*.
 
-### 6. Hasil Nilai, Koreksi Detail & Penilaian Esai AI (`/dashboard/hasil`)
-* Inspeksi jawaban per nomor soal secara interaktif dan koreksi manual jika diperlukan.
-* **Automated Essay Scoring (AI):** Menilai jawaban uraian/esai siswa secara batch menggunakan Gemini AI berdasarkan rubrik & poin maksimal (`scoreStudentEssaysWithAIAction`), lengkap dengan evaluasi kata kunci cadangan saat koneksi AI terkendala.
-* **Override Skor & Ekspor Excel:** Perubahan skor terkontrol dan ekspor laporan rekap nilai ke format `.xlsx` (`exceljs`).
+### 6. Hasil Nilai, Cetak PDF Nilai Kelas Ber-Kop Sekolah & Analisis Butir (`/dashboard/hasil`)
+* **Cetak PDF Nilai Kelas Ber-Kop Sekolah Resmi (`HasilPrintSheet`):** Mencetak laporan daftar nilai siswa per kelas ukuran A4 siap arsip lengkap dengan **Kop Surat Sekolah Resmi (Logo Yayasan & Sekolah, Nama Yayasan, Nama Sekolah SMP/SMA, Alamat)**, ringkasan statistik kelas & ketuntasan KKM, tabel nilai berurut abjad (`NIS, Nama, Kelas, B/S/K, Nilai Akhir, Predikat, Ketuntasan`), serta blok tanda tangan **Kepala Sekolah & Guru Mata Pelajaran**.
+* **Analisis Daya Serap Butir Soal Visual:** Menampilkan persentase ketercapaian per nomor soal lengkap dengan klasifikasi tingkat kesukaran (**Mudah / Sedang / Sulit**) untuk evaluasi pembelajaran guru.
+* **Automated Essay Scoring (AI) & Ekspor Excel:** Menilai jawaban uraian/esai siswa secara batch menggunakan Gemini AI berdasarkan rubrik & poin maksimal (`scoreStudentEssaysWithAIAction`), inspeksi jawaban per nomor soal secara interaktif, override skor terkontrol, filter lintas semester, dan ekspor laporan `.xlsx` (`exceljs`).
 
 ### 7. Manajemen Data Master & Akademik
 * **Data Siswa (`/dashboard/siswa`):** CRUD siswa, filter kelas & jenjang (`SMP`/`SMA`), validasi data, operasi massal (*bulk delete/clean*), serta impor/ekspor Excel.

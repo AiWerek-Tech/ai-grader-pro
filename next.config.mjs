@@ -82,7 +82,7 @@ const nextConfig = {
   // CSRF protection for server actions with dynamic LAN IP support
   experimental: {
     serverActions: {
-      bodySizeLimit: '12mb',
+      bodySizeLimit: '16mb',
       allowedOrigins: actionOrigins,
     },
   },

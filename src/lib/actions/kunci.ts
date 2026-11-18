@@ -1,6 +1,12 @@
 'use server';
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  AiExtractInputFile,
+  AiExtractMode,
+  extractTextFromDocxBuffer,
+  formatAiExtractError,
+  runAiKeyExtraction,
+} from '@/lib/ai/kunci-extractor';
 import {
   dbAppendRow,
   dbBatchAppendRows,
@@ -14,7 +20,6 @@ import {
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
 import { getAcademicSessionAction, getSettingsAction } from '@/lib/actions/settings';
-import { resolveApiKeyPool } from '@/lib/ai/gemini-fallback';
 import { hitungSkorV3 } from '@/lib/ai/grader-engine';
 import { getTipeMeta } from '@/lib/constants/tipe-soal';
 
@@ -468,161 +473,94 @@ export async function regradeKunciHasilAction(idKunci: string) {
   }
 }
 
-/** Ekstrak kunci jawaban terstruktur (8 tipe AKM) dari teks soal/kunci atau gambar menggunakan Gemini AI. */
+/** Ekstrak soal & kunci jawaban terstruktur (8 tipe AKM) dari teks, Word (.docx), PDF, atau multi-foto via Gemini AI. */
 export async function extractKunciWithAIAction(payload: {
   rawText?: string;
   imageBase64?: string;
   mimeType?: string;
+  files?: AiExtractInputFile[];
+  mode?: AiExtractMode;
+  scaleTo100?: boolean;
 }) {
   try {
     const authSession = await requireAuth();
-    const rawText = String(payload.rawText || '').trim();
-    const imageBase64 = String(payload.imageBase64 || '').trim();
-    const mimeType = String(payload.mimeType || 'image/jpeg').trim();
+    const rawTextParts: string[] = [];
+    if (payload.rawText && String(payload.rawText).trim()) {
+      rawTextParts.push(String(payload.rawText).trim());
+    }
 
-    if (!rawText && !imageBase64) {
-      throw new Error('Masukkan teks soal/kunci atau unggah foto lembar kunci.');
+    const incomingFiles: AiExtractInputFile[] = [];
+    if (Array.isArray(payload.files)) {
+      incomingFiles.push(...payload.files.slice(0, 8));
+    } else if (payload.imageBase64 && String(payload.imageBase64).trim()) {
+      incomingFiles.push({
+        name: 'lampiran-kunci',
+        base64: String(payload.imageBase64).trim(),
+        mimeType: String(payload.mimeType || 'image/jpeg').trim(),
+      });
+    }
+
+    const mediaFiles: AiExtractInputFile[] = [];
+    for (const f of incomingFiles) {
+      if (!f?.base64) continue;
+      const lowerName = (f.name || '').toLowerCase();
+      const mime = (f.mimeType || '').toLowerCase();
+
+      if (
+        lowerName.endsWith('.docx') ||
+        mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ) {
+        const docText = extractTextFromDocxBuffer(Buffer.from(f.base64, 'base64'));
+        if (docText) rawTextParts.push(`[DOKUMEN WORD: ${f.name}]\n${docText}`);
+      } else if (
+        lowerName.endsWith('.txt') ||
+        lowerName.endsWith('.md') ||
+        lowerName.endsWith('.csv') ||
+        mime.startsWith('text/')
+      ) {
+        const plain = Buffer.from(f.base64, 'base64').toString('utf8').trim();
+        if (plain) rawTextParts.push(`[DOKUMEN TEKS: ${f.name}]\n${plain}`);
+      } else if (mime === 'application/pdf' || lowerName.endsWith('.pdf')) {
+        mediaFiles.push({ name: f.name || 'dokumen.pdf', base64: f.base64, mimeType: 'application/pdf' });
+      } else if (mime.startsWith('image/') || !mime) {
+        mediaFiles.push({ name: f.name || 'gambar.jpg', base64: f.base64, mimeType: f.mimeType || 'image/jpeg' });
+      } else {
+        throw new Error(
+          `Format file "${f.name}" belum didukung (${f.mimeType || 'tidak dikenal'}). Gunakan Foto (JPG/PNG/WEBP), PDF, Word (.docx), atau TXT.`
+        );
+      }
+    }
+
+    const combinedText = rawTextParts.join('\n\n---\n\n').trim();
+    if (!combinedText && mediaFiles.length === 0) {
+      throw new Error('Tempel teks soal/kunci atau unggah file (Foto, PDF, Word .docx, atau TXT) terlebih dahulu.');
     }
 
     const settingsRes = await getSettingsAction();
     const settings = (settingsRes.data || {}) as Record<string, string>;
-    const apiKeys = resolveApiKeyPool(settings);
-    const activeKey = apiKeys[0] || process.env.GEMINI_API_KEY || '';
-    if (!activeKey) {
-      throw new Error('API Key Gemini belum dikonfigurasi di Pengaturan atau .env.local.');
-    }
 
-    const prompt = `Anda adalah asisten penyusun kunci jawaban asesmen sekolah Indonesia.
-Tugas: Ekstrak seluruh butir kunci jawaban dari materi yang diberikan ke JSON valid.
-Gunakan HANYA kode tipe soal berikut:
-- "single_choice": PG 5 opsi A-E (jawaban: "A".."E")
-- "single_choice_4": PG 4 opsi A-D (jawaban: "A".."D")
-- "true_false": Benar/Salah (jawaban: "B" atau "S")
-- "multiple_select": PG Kompleks >1 jawaban (jawaban: ["A","C"])
-- "multiple_true_false": B/S Majemuk (jawaban: ["B","S","B"], jumlah_pernyataan: integer 2..10)
-- "matching": Menjodohkan (jawaban: {"1":"A","2":"B"}, jumlah_pasang: integer 2..5)
-- "short_answer": Isian Singkat (jawaban: string kata/angka, pisah sinonim dengan "|")
-- "essay": Uraian/Esai (jawaban: kata kunci singkat pisah "|", atau "" jika manual)
-
-Format JSON WAJIB:
-{
-  "judul_saran": "Judul ujian singkat jika terdeteksi atau kosong",
-  "items": [
-    { "no": 1, "tipe": "single_choice", "jawaban": "A", "poin": 2 }
-  ]
-}
-Maksimal 100 soal. Jangan kembalikan penjelasan di luar JSON.${
-      rawText ? `\n\nMATERI TEKS:\n${rawText.slice(0, 20000)}` : ''
-    }`;
-
-    const configuredModel = settings?.ai_model;
-    const candidateModels = [...new Set([
-      configuredModel || 'gemini-2.5-flash',
-      'gemini-3-flash-preview',
-      'gemini-2.0-flash',
-    ])];
-
-    let rawResponse = '';
-    let lastError: any = null;
-
-    for (const modelName of candidateModels) {
-      try {
-        const genAI = new GoogleGenerativeAI(activeKey);
-        const model = genAI.getGenerativeModel(
-          {
-            model: modelName,
-            generationConfig: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          },
-          { apiVersion: 'v1beta' }
-        );
-        const parts: any[] = imageBase64
-          ? [{ inlineData: { data: imageBase64, mimeType } }, prompt]
-          : [prompt];
-        const result = await model.generateContent(parts);
-        rawResponse = result.response.text();
-        if (rawResponse) break;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-
-    if (!rawResponse) {
-      throw new Error(lastError?.message || 'Gemini AI gagal memproses materi kunci.');
-    }
-
-    const cleaned = rawResponse
-      .trim()
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-    const parsed = JSON.parse(cleaned);
-    const rawItems = Array.isArray(parsed?.items) ? parsed.items : [];
-    if (rawItems.length === 0) {
-      throw new Error('AI tidak menemukan butir kunci jawaban yang jelas pada materi tersebut.');
-    }
-
-    const sanitizedItems = rawItems.slice(0, 100).map((it: any, idx: number) => {
-      const meta = getTipeMeta(it?.tipe);
-      const no = Number(it?.no) || idx + 1;
-      const poin = Math.max(0.05, Math.round((Number(it?.poin) || 1) * 100) / 100);
-      const base: Record<string, any> = {
-        no,
-        tipe: meta.kode,
-        opsi: [...meta.opsi],
-        poin,
-        jawaban: it?.jawaban ?? '',
-      };
-
-      if (meta.kode === 'multiple_true_false') {
-        const arr = Array.isArray(it?.jawaban)
-          ? it.jawaban.map((v: any) => (String(v).toUpperCase().startsWith('S') ? 'S' : 'B'))
-          : ['B', 'S', 'B'];
-        const jp = Math.max(2, Math.min(10, Number(it?.jumlah_pernyataan) || arr.length || 3));
-        base.jumlah_pernyataan = jp;
-        base.jawaban = Array.from({ length: jp }, (_, i) => arr[i] || 'B');
-      } else if (meta.kode === 'matching') {
-        const jps = Math.max(2, Math.min(5, Number(it?.jumlah_pasang) || 3));
-        const obj = it?.jawaban && typeof it.jawaban === 'object' ? it.jawaban : {};
-        const cleanMap: Record<string, string> = {};
-        for (let i = 1; i <= jps; i++) {
-          const val = String(obj[String(i)] || 'A').toUpperCase().slice(0, 1);
-          cleanMap[String(i)] = ['A', 'B', 'C', 'D', 'E'].includes(val) ? val : 'A';
-        }
-        base.jumlah_pasang = jps;
-        base.jawaban = cleanMap;
-      } else if (meta.kode === 'multiple_select') {
-        const arr = Array.isArray(it?.jawaban)
-          ? it.jawaban.map((v: any) => String(v).toUpperCase().slice(0, 1)).filter((v: string) => ['A', 'B', 'C', 'D', 'E'].includes(v))
-          : [];
-        base.jawaban = [...new Set(arr)].sort();
-      } else if (meta.kode === 'short_answer') {
-        base.panjang_jawaban = Math.max(3, Math.min(20, Number(it?.panjang_jawaban) || 10));
-        base.jawaban = String(it?.jawaban || '').trim();
-      } else if (meta.kode === 'essay') {
-        base.jawaban = String(it?.jawaban || '').trim();
-      } else if (meta.kode === 'true_false') {
-        const tf = String(it?.jawaban || 'B').toUpperCase();
-        base.jawaban = tf.startsWith('S') || tf.startsWith('F') ? 'S' : 'B';
-      } else {
-        const ch = String(it?.jawaban || 'A').toUpperCase().slice(0, 1);
-        base.jawaban = meta.opsi.includes(ch as any) ? ch : 'A';
-      }
-
-      return base;
+    const result = await runAiKeyExtraction({
+      rawText: combinedText,
+      mediaFiles,
+      mode: payload.mode || 'auto',
+      scaleTo100: payload.scaleTo100 !== false,
+      settings,
     });
 
-    await logger.info('AI_EXTRACT_KUNCI', `Ekstrak AI menghasilkan ${sanitizedItems.length} butir`, authSession.id);
+    await logger.info(
+      'AI_EXTRACT_KUNCI',
+      `Ekstrak AI (${result.modelUsed}, mode=${payload.mode || 'auto'}) menghasilkan ${result.items.length} butir (${result.uncertainNumbers.length} perlu ditinjau)`,
+      authSession.id
+    );
+
     return {
       success: true,
-      data: {
-        judul_saran: String(parsed?.judul_saran || '').trim(),
-        items: sanitizedItems,
-      },
+      data: result,
     };
   } catch (e: any) {
-    return { success: false, message: e.message || 'Gagal mengekstrak kunci dengan AI.' };
+    return {
+      success: false,
+      message: formatAiExtractError(e),
+    };
   }
 }

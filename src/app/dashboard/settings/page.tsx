@@ -613,9 +613,9 @@ export default function SettingsPage() {
                       "1. ORIENTASI & KALIBRASI SPASIAL:\n" +
                       "   - Deteksi 4 Fiducial Marker (kotak hitam konsentris) di keempat sudut lembar kertas sebagai patokan batas dokumen.\n" +
                       "   - Kompensasikan kemiringan sudut (skew/rotation), perspektif kamera ponsel, atau bayangan tangan secara visual.\n\n" +
-                      "2. BLOK IDENTITAS PESERTA (KIRI ATAS) & QR ANCHOR:\n" +
+                      "2. BLOK IDENTITAS PESERTA (KIRI ATAS) & QR ANCHOR (KANAN ATAS):\n" +
                       "   - Baca kolom 'NAMA PESERTA': Transkrip nama lengkap siswa.\n" +
-                      "   - Baca 'NOMOR INDUK (NIS)' di kotak identitas ATAU di bawah QR Code kanan bawah.\n\n" +
+                      "   - Baca 'NIS / NO. PESERTA' di kotak identitas ATAU di bawah QR Code kanan atas.\n\n" +
                       "3. ATURAN KRITIS DETEKSI POSISI BULATAN (ANTI-JEBAKAN HURUF TERTUTUP TINTA):\n" +
                       "   - Setiap bulatan kosong pada LJK memiliki huruf tercetak tipis (A, B, C, D, E atau B, S) di tengahnya.\n" +
                       "   - Ketika siswa MENGHITAMKAN bulatan (●) atau MEMBERI TANDA SILANG (X) pada pilihannya (misalnya memilih A di bulatan paling kiri), huruf 'A' di dalam bulatan pertama tersebut akan TERTUTUP TINTA GELAP / SILANG, sedangkan huruf 'B', 'C', 'D' di sebelahnya tetap terlihat jelas di dalam lingkaran putih kosong!\n" +

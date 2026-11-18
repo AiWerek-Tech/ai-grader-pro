@@ -33,8 +33,8 @@ export async function getSettingsAction() {
         "2. BLOK IDENTITAS PESERTA (KIRI ATAS):\n" +
         "   - Baca kolom 'NAMA PESERTA': Transkrip nama lengkap siswa (baik teks tercetak maupun tulisan tangan kapital).\n" +
         "   - Baca 'KELAS' dan 'MAPEL' untuk memperkuat verifikasi identitas.\n" +
-        "   - Periksa ANCHOR ID / QR Code di sudut kanan bawah untuk mengekstrak identitas NIS atau ID Siswa jika tersedia.\n\n" +
-        "3. AREA JAWABAN (ADAPTIF 1, 2, ATAU 3 KOLOM VERTIKAL):\n" +
+        "   - Periksa ANCHOR ID / QR Code di sudut kanan atas untuk mengekstrak identitas NIS atau ID Siswa jika tersedia.\n\n" +
+        "3. AREA JAWABAN (ADAPTIF 1, 2, 3, ATAU 4 KOLOM VERTIKAL):\n" +
         "   - Soal tersusun berurutan dari nomor 1 sampai nomor {{totalSoal}}.\n" +
         "   - Periksa marking secara ketat pada setiap nomor soal sesuai format AKM:\n" +
         "     * [PG_TUNGGAL] (A-E atau A-D): Ekstrak SATU huruf yang paling tegas terisi (hitam pekat atau silang tegas X).\n" +
@@ -42,7 +42,7 @@ export async function getSettingsAction() {
         "     * [PG_KOMPLEKS] (Multi-pilihan): Ekstrak seluruh opsi yang terisi, gabungkan berurutan (contoh: 'AC', 'ABD').\n" +
         "     * [MTF] (Pernyataan Majemuk B/S): Baca setiap baris pernyataan, pisahkan dengan koma (contoh: 'B,S,B').\n" +
         "     * [MENJODOHKAN]: Baca pasangan garis atau label (contoh: '1-B, 2-A, 3-C').\n" +
-        "     * [ISIAN_SINGKAT]: Transkrip huruf/angka di dalam kotak karakter.\n" +
+        "     * [ISIAN_SINGKAT]: Transkrip jawaban tertulis (angka, simbol matematika, atau kata/frasa) di dalam kotak isian terbuka.\n" +
         "     * [URAIAN]: Baca teks narasi jawaban secara utuh.\n" +
         "   - ATURAN VALIDASI ARSIRAN:\n" +
         "     * SAH: Bulatan terisi hitam pekat ATAU bertanda silang tegas (X).\n" +

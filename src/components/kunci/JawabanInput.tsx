@@ -286,25 +286,15 @@ export default function JawabanInput({ item, onChangeJawaban, onPatchItem }: Jaw
   }
 
   if (item.tipe === 'short_answer') {
-    const pj = Math.max(3, Math.min(20, Number(item.panjang_jawaban) || 10));
     return (
-      <div className="space-y-2 w-full">
+      <div className="w-full">
         <input
           type="text"
           value={typeof item.jawaban === 'string' ? item.jawaban : ''}
           onChange={(e) => onChangeJawaban(e.target.value)}
-          placeholder="Contoh: Soekarno | Ir. Soekarno (pisah sinonim pakai |)"
+          placeholder="Contoh: 42 | 3/4 | Soekarno (pisah variasi jawaban pakai |)"
           className="w-full h-9 px-3 rounded-xl bg-slate-50 dark:bg-[#050314] border border-orange-400/40 dark:border-orange-500/30 text-slate-900 dark:text-white font-semibold text-xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
         />
-        {onPatchItem && (
-          <SubStepper
-            label="Kotak Huruf LJK"
-            value={pj}
-            min={3}
-            max={20}
-            onChange={(next) => patch({ panjang_jawaban: next })}
-          />
-        )}
       </div>
     );
   }

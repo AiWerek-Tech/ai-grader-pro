@@ -101,6 +101,8 @@ export async function scanLJKAction(
     confidence: number;
     needReview: boolean;
     warning?: string;
+    detectedKunciId?: string;
+    detectedKunciJudul?: string;
     consensus?: boolean;
     entropy?: number;
   };
@@ -165,10 +167,49 @@ export async function scanLJKAction(
       throw new Error(aiFailureWarning || 'Scanner gagal mengekstraksi LJK. Pastikan foto LJK terang dan seluruh sudut kertas terlihat.');
     }
 
-    // 3. Penggabungan Jawaban Cerdas:
+    // 3. Cek apakah QR Code LJK merujuk ke Kunci Jawaban lain milik guru ini (Auto-Resolve Kunci via QR)
+    let activeKunciRow = kunciRow;
+    let activeDataJson: any[] = data_json;
+    let activeKunciObj = kunciObj;
+    let activeBlueprint = questionBlueprint;
+    let autoSwitchedKunciNote = '';
+
+    if (
+      hybridResult.idKunci &&
+      hybridResult.idKunci !== 'STD' &&
+      !String(idKunci).startsWith(hybridResult.idKunci) &&
+      !String(kunciRow.judul_ujian || '').startsWith(hybridResult.idKunci)
+    ) {
+      const qrMatchedRow = allKunci.find(k =>
+        (String(k.id_kunci) === hybridResult.idKunci || String(k.id_kunci).startsWith(hybridResult.idKunci!)) &&
+        (authSession.role === 'ADMIN' || String(k.id_guru) === String(authSession.id))
+      );
+      if (qrMatchedRow && qrMatchedRow.id_kunci !== kunciRow.id_kunci) {
+        try {
+          const qrJson = typeof qrMatchedRow.data_json === 'string' ? JSON.parse(qrMatchedRow.data_json) : (qrMatchedRow.data_json || []);
+          const qrPoin = typeof qrMatchedRow.pengaturan_poin === 'string' ? JSON.parse(qrMatchedRow.pengaturan_poin) : (qrMatchedRow.pengaturan_poin || {});
+          if (Array.isArray(qrJson) && qrJson.length > 0) {
+            activeKunciRow = qrMatchedRow;
+            activeDataJson = qrJson;
+            activeKunciObj = { ...qrMatchedRow, data_json: qrJson, pengaturan_poin: qrPoin };
+            activeBlueprint = qrJson.map((item: any, idx: number) => ({
+              no: Number(item.no || idx + 1),
+              tipe: item.tipe || activeKunciObj.tipe_soal || 'single_choice',
+              opsi: item.opsi || [],
+              jumlah_pernyataan: item.jumlah_pernyataan,
+              jumlah_pasang: item.jumlah_pasang,
+              panjang_jawaban: item.panjang_jawaban,
+            }));
+            autoSwitchedKunciNote = `ℹ️ QR Code LJK terdeteksi untuk ujian "${qrMatchedRow.judul_ujian}" — dinilai otomatis menggunakan kunci tersebut.`;
+          }
+        } catch {}
+      }
+    }
+
+    // 3b. Penggabungan Jawaban Cerdas:
     // Utamakan 100% hasil AI Vision V6 (karena tahan kemiringan kamera HP, bayangan, & variasi jumlah kolom cetak).
     // Gunakan OMR lokal hanya jika AI gagal total (offline/timeout).
-    const kunciDataJson: any[] = data_json;
+    const kunciDataJson: any[] = activeDataJson;
     const hybridAnswerMap = new Map(
       (hybridResult.answers || []).map((answer) => [Number(answer.no), answer])
     );
@@ -176,7 +217,7 @@ export async function scanLJKAction(
       (Array.isArray(aiResult?.answers) ? aiResult.answers : []).map((answer: any) => [Number(answer.no), answer.ans])
     );
 
-    const rawAnswers = questionBlueprint.map((question) => {
+    const rawAnswers = activeBlueprint.map((question) => {
       const no = Number(question.no);
       const hybridItem = hybridAnswerMap.get(no);
       const hybridAns = hybridItem?.ans;
@@ -200,14 +241,14 @@ export async function scanLJKAction(
 
     const normAnswers = rawAnswers.map((ans: any) => {
       const kItem = kunciDataJson.find(k => Number(k.no) === Number(ans.no));
-      const tipe = kItem?.tipe || kunciObj.tipe_soal || 'single_choice';
+      const tipe = kItem?.tipe || activeKunciObj.tipe_soal || 'single_choice';
       return {
         no: ans.no,
         ans: normalizeAIAnswer(ans.ans, tipe),
       };
     });
 
-    const skorDetail = hitungSkorV3(normAnswers, kunciObj);
+    const skorDetail = hitungSkorV3(normAnswers, activeKunciObj);
 
     // 4. Auto-match siswa (Prioritas: 1. ID Siswa QR -> 2. NIS QR/AI -> 3. Fuzzy Nama dengan Prioritas Kelas Ujian)
     const [rawSiswa, allKelas] = await Promise.all([
@@ -295,6 +336,7 @@ export async function scanLJKAction(
     const combinedConfidence = Math.round(Math.max(0, Math.min(1, combinedConfidenceRaw)) * 100);
 
     const qrKunciMismatch =
+      !autoSwitchedKunciNote &&
       hybridResult.idKunci &&
       idKunci &&
       hybridResult.idKunci !== 'STD' &&
@@ -302,6 +344,7 @@ export async function scanLJKAction(
       !String(kunciRow.judul_ujian || '').startsWith(hybridResult.idKunci);
 
     const warningParts = [
+      autoSwitchedKunciNote,
       qrKunciMismatch
         ? `⚠️ QR Code LJK ini tercetak untuk kode ujian berbeda (${hybridResult.idKunci}).`
         : '',
@@ -342,6 +385,8 @@ export async function scanLJKAction(
         confidence: combinedConfidence,
         needReview,
         warning,
+        detectedKunciId: activeKunciRow.id_kunci,
+        detectedKunciJudul: activeKunciRow.judul_ujian,
         consensus: aiResult?.consensus ?? true,
         entropy: aiResult?.entropy ?? 0,
       }

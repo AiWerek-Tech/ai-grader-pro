@@ -425,23 +425,9 @@ export default function CompositionConfigurator({
               </label>
             </div>
             {config.isnCount > 0 && (
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
-                  {perItemText(config.isnCount, config.isnPct)}
-                </p>
-                <label className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  <span>Kotak LJK:</span>
-                  <SafeNumberInput
-                    value={config.isnPanjang}
-                    min={3}
-                    max={20}
-                    step={1}
-                    ariaLabel="Default panjang kotak Isian"
-                    onChangeValue={(v) => update({ isnPanjang: Math.round(v) })}
-                    className="w-11 h-6 px-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center text-[11px] font-black"
-                  />
-                </label>
-              </div>
+              <p className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                {perItemText(config.isnCount, config.isnPct)}
+              </p>
             )}
           </div>
 

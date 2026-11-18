@@ -246,7 +246,9 @@ export default function AnalisisPage() {
 
   const [selectedKunci, setSelectedKunci] = useState<any | null>(null);
   const [searchKunci, setSearchKunci]     = useState('');
+  const [filterSemester, setFilterSemester] = useState<'ALL' | 'GANJIL' | 'GENAP'>('ALL');
   const [isKunciCollapsed, setIsKunciCollapsed] = useState(false);
+  const [showMissingSiswa, setShowMissingSiswa] = useState(false);
 
   const [scanItems, setScanItems] = useState<ScanItem[]>([]);
   const [scanning, setScanning]   = useState(false);
@@ -275,9 +277,9 @@ export default function AnalisisPage() {
       setLoadingData(true);
       try {
         const [kRes, sRes, hRes] = await Promise.all([
-          getKunciListAction(),
+          getKunciListAction(undefined, 'ALL'),
           getSiswaAction(),
-          getHasilAction(),
+          getHasilAction(undefined, 'ALL'),
         ]);
         const kList = kRes.success ? kRes.data || [] : [];
         if (kRes.success) setKunciList(kList);
@@ -357,12 +359,54 @@ export default function AnalisisPage() {
   }, [scanItems, selectedKunci, loadingData]);
 
   const filteredKunci = useMemo(() =>
-    kunciList.filter(k =>
-      !searchKunci ||
-      k.judul_ujian?.toLowerCase().includes(searchKunci.toLowerCase()) ||
-      k.nama_mapel?.toLowerCase().includes(searchKunci.toLowerCase()) ||
-      k.nama_guru?.toLowerCase().includes(searchKunci.toLowerCase())
-    ), [kunciList, searchKunci]);
+    kunciList.filter(k => {
+      if (filterSemester !== 'ALL') {
+        const smt = String(k.semester || '').toUpperCase();
+        if (filterSemester === 'GANJIL' && !(smt.includes('GANJIL') || smt === '1')) return false;
+        if (filterSemester === 'GENAP' && !(smt.includes('GENAP') || smt === '2')) return false;
+      }
+      return (
+        !searchKunci ||
+        k.judul_ujian?.toLowerCase().includes(searchKunci.toLowerCase()) ||
+        k.nama_mapel?.toLowerCase().includes(searchKunci.toLowerCase()) ||
+        k.nama_guru?.toLowerCase().includes(searchKunci.toLowerCase())
+      );
+    }), [kunciList, searchKunci, filterSemester]);
+
+  // ─── Kelengkapan Scan Siswa per Kelas untuk Kunci Aktif ─────────────────────
+  const classScanCoverage = useMemo(() => {
+    if (!selectedKunci || allSiswa.length === 0) return null;
+    const targetKelasId = selectedKunci.id_kelas && selectedKunci.id_kelas !== 'ALL' ? String(selectedKunci.id_kelas) : null;
+    const classStudents = targetKelasId
+      ? allSiswa.filter(s => String(s.id_kelas) === targetKelasId)
+      : allSiswa;
+    if (classStudents.length === 0) return null;
+
+    const savedIds = new Set(
+      existingHasil
+        .filter(h => String(h.id_kunci) === String(selectedKunci.id_kunci) && h.id_siswa)
+        .map(h => String(h.id_siswa))
+    );
+    const queuedIds = new Set(
+      scanItems
+        .filter(i => (i.status === 'done' || i.status === 'saved') && i.selectedSiswaId)
+        .map(i => String(i.selectedSiswaId))
+    );
+
+    const missingSiswa = classStudents.filter(
+      s => !savedIds.has(String(s.id_siswa)) && !queuedIds.has(String(s.id_siswa))
+    );
+    const scannedCount = classStudents.length - missingSiswa.length;
+    const pct = Math.round((scannedCount / classStudents.length) * 100);
+
+    return {
+      totalKelas: classStudents.length,
+      scannedCount,
+      missingSiswa,
+      pct,
+      namaKelas: selectedKunci.nama_kelas || (targetKelasId ? 'Kelas Target' : 'Semua Kelas'),
+    };
+  }, [selectedKunci, allSiswa, existingHasil, scanItems]);
 
   // ─── Scan one ───────────────────────────────────────────────────────────────
   const scanOne = useCallback(async (itemId: string, directFile?: File) => {
@@ -806,11 +850,23 @@ export default function AnalisisPage() {
             {/* Collapsible search and list */}
             {(!selectedKunci || !isKunciCollapsed) && (
               <div className="p-4 transition-all">
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                  <input type="text" placeholder="Cari judul, mapel, guru..."
-                    value={searchKunci} onChange={e => setSearchKunci(e.target.value)}
-                    className="w-full bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400" />
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    <input type="text" placeholder="Cari judul, mapel, guru..."
+                      value={searchKunci} onChange={e => setSearchKunci(e.target.value)}
+                      className="w-full bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400" />
+                  </div>
+                  <select
+                    value={filterSemester}
+                    onChange={e => setFilterSemester(e.target.value as 'ALL' | 'GANJIL' | 'GENAP')}
+                    aria-label="Filter semester kunci ujian"
+                    className={`border rounded-xl px-2.5 py-2 text-[11px] font-bold focus:outline-none cursor-pointer ${filterSemester !== 'ALL' ? 'bg-indigo-500/5 border-indigo-500/50 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}
+                  >
+                    <option value="ALL">Semua Smt</option>
+                    <option value="GANJIL">Smt Ganjil</option>
+                    <option value="GENAP">Smt Genap</option>
+                  </select>
                 </div>
                 <div className="max-h-[260px] overflow-y-auto space-y-1 pr-1 custom-scroll">
                   {filteredKunci.length === 0
@@ -833,7 +889,10 @@ export default function AnalisisPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className={`text-xs font-black truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>{k.judul_ujian}</div>
-                            <div className="text-[9px] text-slate-400 mt-0.5 truncate">{k.nama_mapel} · {k.nama_guru}</div>
+                            <div className="text-[9px] text-slate-400 mt-0.5 truncate">
+                              {k.nama_mapel} · {k.nama_guru}
+                              {k.semester ? ` · Smt ${String(k.semester).toUpperCase().includes('GENAP') || String(k.semester) === '2' ? 'Genap' : 'Ganjil'}` : ''}
+                            </div>
                             <div className="flex gap-1 mt-1 flex-wrap">
                               {Object.keys(dist).length > 0
                                 ? Object.keys(dist).map(t => <TipeBadge key={t} kode={t} />)
@@ -867,6 +926,54 @@ export default function AnalisisPage() {
                   title="Batalkan pilihan kunci">
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+            )}
+
+            {/* Progres Scan Kelas & Checklist Siswa Belum Discan */}
+            {selectedKunci && classScanCoverage && (
+              <div className="px-5 py-3.5 border-t border-slate-100 dark:border-white/[0.05] bg-slate-50/60 dark:bg-white/[0.015] space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                    Progres Kelas ({classScanCoverage.namaKelas})
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${classScanCoverage.missingSiswa.length === 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
+                    {classScanCoverage.scannedCount}/{classScanCoverage.totalKelas} Siswa ({classScanCoverage.pct}%)
+                  </span>
+                </div>
+                <div className="h-1.5 bg-slate-200 dark:bg-white/[0.08] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${classScanCoverage.missingSiswa.length === 0 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                    style={{ width: `${classScanCoverage.pct}%` }}
+                  />
+                </div>
+                {classScanCoverage.missingSiswa.length > 0 ? (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMissingSiswa(v => !v)}
+                      className="w-full flex items-center justify-between text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline pt-0.5"
+                    >
+                      <span>⚠️ {classScanCoverage.missingSiswa.length} siswa belum discan</span>
+                      <span>{showMissingSiswa ? 'Sembunyikan ▲' : 'Lihat Daftar ▼'}</span>
+                    </button>
+                    {showMissingSiswa && (
+                      <div className="mt-2 max-h-32 overflow-y-auto flex flex-wrap gap-1 pr-1">
+                        {classScanCoverage.missingSiswa.map(s => (
+                          <span
+                            key={s.id_siswa}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white dark:bg-white/[0.05] border border-slate-200 dark:border-white/10 text-[10px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            {s.nama} <span className="text-[9px] text-slate-400 font-mono">({s.nis || '—'})</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                    ✓ Seluruh siswa di kelas ini sudah discan!
+                  </div>
+                )}
               </div>
             )}
           </div>

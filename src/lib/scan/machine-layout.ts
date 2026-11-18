@@ -41,6 +41,7 @@ export interface MachineQuestionLayout {
   headerWidth: number;
   columnIndex: number;
   cells: MachineCell[];
+  answerBox?: { x: number; y: number; w: number; h: number };
   textBoxes?: Array<{ x: number; y: number; w: number; h: number; index: number }>;
   rowHeaders?: Array<{ text: string; x: number; y: number }>;
   colHeaders?: Array<{ text: string; x: number; y: number }>;
@@ -61,13 +62,14 @@ export interface MachinePageLayout {
 
 export const MACHINE_PAGE_SIZE = { width: 1000, height: 1414 } as const;
 
-const OBJECTIVE_TOP = 376;
-const CONTENT_BOTTOM = 1248;
+// Ruang jawaban diperluas dari y=338 hingga y=1380 karena QR dipindah ke atas & footer bawah dihapus
+const OBJECTIVE_TOP = 338;
+const CONTENT_BOTTOM = 1380;
 const AREA_X = 44;
 const AREA_W = 912;
-const INNER_PAD_X = 18;
-const INNER_PAD_TOP = 10;
-const INNER_PAD_BOTTOM = 10;
+const INNER_PAD_X = 16;
+const INNER_PAD_TOP = 8;
+const INNER_PAD_BOTTOM = 8;
 
 interface DensitySpec {
   density: MachineLayoutDensity;
@@ -92,41 +94,41 @@ const DENSITY_CANDIDATES: DensitySpec[] = [
     columnGap: 0,
     blockGap: 8,
     headerWidth: 52,
-    simpleHeight: 54,
-    mtfBaseHeight: 42,
-    mtfRowHeight: 28,
-    matchingBaseHeight: 44,
-    matchingRowHeight: 28,
-    bubbleMaxCircle: 23,
-    bubbleMaxSquare: 21,
+    simpleHeight: 48,
+    mtfBaseHeight: 40,
+    mtfRowHeight: 26,
+    matchingBaseHeight: 42,
+    matchingRowHeight: 26,
+    bubbleMaxCircle: 22,
+    bubbleMaxSquare: 20,
     matrixBubbleSize: 18,
   },
   {
     density: 'spacious',
     columns: 2,
-    columnGap: 32,
+    columnGap: 28,
     blockGap: 6,
     headerWidth: 44,
-    simpleHeight: 42,
-    mtfBaseHeight: 34,
-    mtfRowHeight: 22,
-    matchingBaseHeight: 36,
-    matchingRowHeight: 22,
-    bubbleMaxCircle: 21,
-    bubbleMaxSquare: 19,
+    simpleHeight: 38,
+    mtfBaseHeight: 32,
+    mtfRowHeight: 21,
+    matchingBaseHeight: 34,
+    matchingRowHeight: 21,
+    bubbleMaxCircle: 20,
+    bubbleMaxSquare: 18,
     matrixBubbleSize: 15,
   },
   {
     density: 'normal',
     columns: 2,
-    columnGap: 24,
+    columnGap: 22,
     blockGap: 5,
     headerWidth: 42,
-    simpleHeight: 34,
-    mtfBaseHeight: 28,
-    mtfRowHeight: 19,
-    matchingBaseHeight: 30,
-    matchingRowHeight: 19,
+    simpleHeight: 32,
+    mtfBaseHeight: 26,
+    mtfRowHeight: 18,
+    matchingBaseHeight: 28,
+    matchingRowHeight: 18,
     bubbleMaxCircle: 18,
     bubbleMaxSquare: 16,
     matrixBubbleSize: 14,
@@ -134,13 +136,13 @@ const DENSITY_CANDIDATES: DensitySpec[] = [
   {
     density: 'normal',
     columns: 3,
-    columnGap: 20,
+    columnGap: 18,
     blockGap: 5,
-    headerWidth: 38,
-    simpleHeight: 36,
-    mtfBaseHeight: 28,
+    headerWidth: 46,
+    simpleHeight: 34,
+    mtfBaseHeight: 26,
     mtfRowHeight: 18,
-    matchingBaseHeight: 30,
+    matchingBaseHeight: 28,
     matchingRowHeight: 18,
     bubbleMaxCircle: 18,
     bubbleMaxSquare: 16,
@@ -149,14 +151,14 @@ const DENSITY_CANDIDATES: DensitySpec[] = [
   {
     density: 'compact',
     columns: 3,
-    columnGap: 18,
+    columnGap: 16,
     blockGap: 4,
-    headerWidth: 38,
-    simpleHeight: 30,
-    mtfBaseHeight: 25,
-    mtfRowHeight: 17,
-    matchingBaseHeight: 26,
-    matchingRowHeight: 17,
+    headerWidth: 44,
+    simpleHeight: 28,
+    mtfBaseHeight: 24,
+    mtfRowHeight: 16,
+    matchingBaseHeight: 25,
+    matchingRowHeight: 16,
     bubbleMaxCircle: 16,
     bubbleMaxSquare: 15,
     matrixBubbleSize: 13,
@@ -164,14 +166,14 @@ const DENSITY_CANDIDATES: DensitySpec[] = [
   {
     density: 'compact',
     columns: 3,
-    columnGap: 16,
+    columnGap: 14,
     blockGap: 3,
-    headerWidth: 36,
-    simpleHeight: 26,
-    mtfBaseHeight: 22,
-    mtfRowHeight: 15,
-    matchingBaseHeight: 23,
-    matchingRowHeight: 15,
+    headerWidth: 42,
+    simpleHeight: 23,
+    mtfBaseHeight: 20,
+    mtfRowHeight: 14,
+    matchingBaseHeight: 21,
+    matchingRowHeight: 14,
     bubbleMaxCircle: 15,
     bubbleMaxSquare: 14,
     matrixBubbleSize: 12,
@@ -179,14 +181,14 @@ const DENSITY_CANDIDATES: DensitySpec[] = [
   {
     density: 'ultra',
     columns: 4,
-    columnGap: 14,
+    columnGap: 12,
     blockGap: 3,
-    headerWidth: 34,
-    simpleHeight: 24,
-    mtfBaseHeight: 20,
-    mtfRowHeight: 14,
-    matchingBaseHeight: 21,
-    matchingRowHeight: 14,
+    headerWidth: 40,
+    simpleHeight: 22,
+    mtfBaseHeight: 19,
+    mtfRowHeight: 13,
+    matchingBaseHeight: 20,
+    matchingRowHeight: 13,
     bubbleMaxCircle: 14,
     bubbleMaxSquare: 13,
     matrixBubbleSize: 11,
@@ -198,9 +200,9 @@ function normalizeType(raw?: string): MachineQuestionType {
     'A-E': 'single_choice',
     'A-D': 'single_choice_4',
     'Benar-Salah': 'true_false',
-    'BENAR_SALAH': 'true_false',
-    'PG_TUNGGAL': 'single_choice',
-    'PG_KOMPLEKS': 'multiple_select',
+    BENAR_SALAH: 'true_false',
+    PG_TUNGGAL: 'single_choice',
+    PG_KOMPLEKS: 'multiple_select',
     MTF: 'multiple_true_false',
     MENJODOHKAN: 'matching',
     ISIAN: 'short_answer',
@@ -236,10 +238,10 @@ function getShortLabel(type: MachineQuestionType) {
 function getBaseBlockHeight(question: MachineQuestionInput, spec: DensitySpec) {
   const type = normalizeType(question.tipe);
   if (type === 'multiple_true_false') {
-    return spec.mtfBaseHeight + ((question.jumlah_pernyataan || 3) * spec.mtfRowHeight);
+    return spec.mtfBaseHeight + (question.jumlah_pernyataan || 3) * spec.mtfRowHeight;
   }
   if (type === 'matching') {
-    return spec.matchingBaseHeight + ((question.jumlah_pasang || 3) * spec.matchingRowHeight);
+    return spec.matchingBaseHeight + (question.jumlah_pasang || 3) * spec.matchingRowHeight;
   }
   if (type === 'essay') return 0;
   return spec.simpleHeight;
@@ -261,17 +263,16 @@ function buildSimpleChoiceCells(
   const startX = areaX + Math.max(0, (availableWidth - choiceWidth) * 0.35);
   const slotWidth = choiceWidth / Math.max(options.length, 1);
   const maxBubble = square ? spec.bubbleMaxSquare : spec.bubbleMaxCircle;
-  // Izinkan ukuran bulatan sedikit lebih besar bila tinggi baris (h) sangat lega
-  const dynamicMaxBubble = h >= 64 ? maxBubble + 2 : maxBubble;
+  const dynamicMaxBubble = h >= 56 ? maxBubble + 2 : maxBubble;
   const bubbleSize = Math.max(12, Math.min(dynamicMaxBubble, Math.floor(slotWidth * 0.5), h - 8));
   const bubbleY = y + Math.round((h - bubbleSize) / 2);
 
   return options.map((value, index) => {
-    const centerX = startX + (slotWidth * index) + (slotWidth / 2);
+    const centerX = startX + slotWidth * index + slotWidth / 2;
     return {
       id: `${value}-${index}`,
       value,
-      x: Math.round(centerX - (bubbleSize / 2)),
+      x: Math.round(centerX - bubbleSize / 2),
       y: bubbleY,
       w: bubbleSize,
       h: bubbleSize,
@@ -302,7 +303,7 @@ function buildMachineQuestionLayout(
     const availableRowsH = Math.max(count * 12, h - headerBand - 4);
     const rowStep = Math.max(12, Math.min(28, Math.floor(availableRowsH / count)));
     const bubbleSize = Math.max(10, Math.min(spec.matrixBubbleSize + 2, rowStep - 3));
-    const totalMatrixH = headerBand + (count * rowStep);
+    const totalMatrixH = headerBand + count * rowStep;
     const topOffset = Math.max(2, Math.round((h - totalMatrixH) / 2));
 
     const choiceAreaWidth = Math.min(110, Math.max(68, w - headerWidth - 18));
@@ -316,13 +317,13 @@ function buildMachineQuestionLayout(
     const startRowY = y + topOffset + headerBand + Math.round((rowStep - bubbleSize) / 2);
 
     for (let index = 0; index < count; index++) {
-      const rowY = startRowY + (index * rowStep);
+      const rowY = startRowY + index * rowStep;
       rowHeaders.push({ text: String(index + 1), x: x + headerWidth + 4, y: rowY });
       cells.push({
         id: `B-${index + 1}`,
         value: 'B',
         rowKey: String(index + 1),
-        x: Math.round(col1Center - (bubbleSize / 2)),
+        x: Math.round(col1Center - bubbleSize / 2),
         y: rowY,
         w: bubbleSize,
         h: bubbleSize,
@@ -332,7 +333,7 @@ function buildMachineQuestionLayout(
         id: `S-${index + 1}`,
         value: 'S',
         rowKey: String(index + 1),
-        x: Math.round(col2Center - (bubbleSize / 2)),
+        x: Math.round(col2Center - bubbleSize / 2),
         y: rowY,
         w: bubbleSize,
         h: bubbleSize,
@@ -344,12 +345,15 @@ function buildMachineQuestionLayout(
 
   if (type === 'matching') {
     const count = Math.max(1, Math.min(5, question.jumlah_pasang || 3));
-    const letters = (question.opsi && question.opsi.length >= 2 ? question.opsi : ['A', 'B', 'C', 'D', 'E']).slice(0, Math.max(count, 4));
+    const letters = (question.opsi && question.opsi.length >= 2 ? question.opsi : ['A', 'B', 'C', 'D', 'E']).slice(
+      0,
+      Math.max(count, 4)
+    );
     const headerBand = Math.max(14, Math.min(24, Math.round(h * 0.22)));
     const availableRowsH = Math.max(count * 12, h - headerBand - 4);
     const rowStep = Math.max(12, Math.min(28, Math.floor(availableRowsH / count)));
     const bubbleSize = Math.max(10, Math.min(spec.matrixBubbleSize + 2, rowStep - 3));
-    const totalMatrixH = headerBand + (count * rowStep);
+    const totalMatrixH = headerBand + count * rowStep;
     const topOffset = Math.max(2, Math.round((h - totalMatrixH) / 2));
 
     const choiceWidth = Math.min(184, Math.max(92, w - headerWidth - 22));
@@ -358,21 +362,21 @@ function buildMachineQuestionLayout(
     const rowHeaders = [];
     const colHeaders = letters.map((letter, index) => ({
       text: letter,
-      x: startX + (slotWidth * index) + (slotWidth / 2),
+      x: startX + slotWidth * index + slotWidth / 2,
       y: y + topOffset,
     }));
     const cells: MachineCell[] = [];
     const startRowY = y + topOffset + headerBand + Math.round((rowStep - bubbleSize) / 2);
 
     for (let rowIndex = 0; rowIndex < count; rowIndex++) {
-      const rowY = startRowY + (rowIndex * rowStep);
+      const rowY = startRowY + rowIndex * rowStep;
       rowHeaders.push({ text: String(rowIndex + 1), x: x + headerWidth + 4, y: rowY });
       letters.forEach((letter, colIndex) => {
         cells.push({
           id: `${rowIndex + 1}-${letter}`,
           value: letter,
           rowKey: String(rowIndex + 1),
-          x: Math.round(startX + (slotWidth * colIndex) + (slotWidth / 2) - (bubbleSize / 2)),
+          x: Math.round(startX + slotWidth * colIndex + slotWidth / 2 - bubbleSize / 2),
           y: rowY,
           w: bubbleSize,
           h: bubbleSize,
@@ -384,21 +388,25 @@ function buildMachineQuestionLayout(
   }
 
   if (type === 'short_answer') {
-    const count = Math.max(3, Math.min(20, question.panjang_jawaban || 10));
-    const availableW = Math.max(60, w - headerWidth - 10);
-    const slotWidth = Math.min(24, availableW / count);
-    const totalWidth = slotWidth * count;
-    const startX = x + headerWidth + Math.max(0, (availableW - totalWidth) * 0.25);
-    const boxH = Math.min(24, Math.max(14, h - 8));
+    // Area kosong terbuka (open write-in box) untuk angka, rumus matematika, atau kata/frasa singkat
+    const boxX = x + headerWidth + 6;
+    const boxW = Math.max(60, w - headerWidth - 10);
+    const boxH = Math.min(30, Math.max(16, h - 6));
     const boxY = y + Math.round((h - boxH) / 2);
-    const textBoxes = Array.from({ length: count }, (_, index) => ({
-      index,
-      x: startX + (index * slotWidth),
-      y: boxY,
-      w: Math.max(8, slotWidth - 2.5),
-      h: boxH,
-    }));
-    return { no: question.no, type, short, x, y, w, h, headerWidth, columnIndex, cells: [], textBoxes };
+    const answerBox = { x: boxX, y: boxY, w: boxW, h: boxH };
+    return {
+      no: question.no,
+      type,
+      short,
+      x,
+      y,
+      w,
+      h,
+      headerWidth,
+      columnIndex,
+      cells: [],
+      answerBox,
+    };
   }
 
   const cells = buildSimpleChoiceCells(
@@ -413,11 +421,115 @@ function buildMachineQuestionLayout(
       ? Math.min(150, w - headerWidth - 10)
       : type === 'single_choice_4'
         ? Math.min(280, w - headerWidth - 10)
-        : (type === 'single_choice' || type === 'multiple_select')
+        : type === 'single_choice' || type === 'multiple_select'
           ? Math.min(340, w - headerWidth - 10)
           : undefined
   );
   return { no: question.no, type, short, x, y, w, h, headerWidth, columnIndex, cells };
+}
+
+/**
+ * Partisi sekuensial seimbang ke dalam `cols` kolom:
+ * - Jika seluruh butir memiliki tinggi dasar seragam (mis. PG + B/S + PGK + Isian),
+ *   bagi jumlah soal secara merata: ceil(N/cols), sehingga 30 soal di 3 kolom = 10 + 10 + 10.
+ * - Jika terdapat matriks tinggi (MTF / Menjodohkan), gunakan Dynamic Programming Min-Max
+ *   agar tinggi kolom tertinggi seminimal & seseimbang mungkin.
+ */
+function partitionIntoBalancedColumns(
+  objectiveQuestions: MachineQuestionInput[],
+  baseHeights: number[],
+  cols: number,
+  blockGap: number
+): Array<Array<{ question: MachineQuestionInput; baseH: number }>> {
+  const n = objectiveQuestions.length;
+  const result: Array<Array<{ question: MachineQuestionInput; baseH: number }>> = Array.from(
+    { length: cols },
+    () => []
+  );
+  if (n === 0) return result;
+  if (cols <= 1) {
+    result[0] = objectiveQuestions.map((q, i) => ({ question: q, baseH: baseHeights[i] }));
+    return result;
+  }
+
+  const firstH = baseHeights[0];
+  const isUniformHeight = baseHeights.every((h) => Math.abs(h - firstH) <= 1);
+
+  if (isUniformHeight) {
+    const basePerCol = Math.floor(n / cols);
+    const remainder = n % cols;
+    let cursor = 0;
+    for (let c = 0; c < cols; c++) {
+      const take = basePerCol + (c < remainder ? 1 : 0);
+      for (let k = 0; k < take && cursor < n; k++) {
+        result[c].push({
+          question: objectiveQuestions[cursor],
+          baseH: baseHeights[cursor],
+        });
+        cursor++;
+      }
+    }
+    return result;
+  }
+
+  // Dynamic Programming untuk soal campuran dengan tinggi bervariasi (MTF / Menjodohkan)
+  const prefix = new Array<number>(n + 1).fill(0);
+  for (let i = 0; i < n; i++) {
+    prefix[i + 1] = prefix[i] + baseHeights[i];
+  }
+  const segHeight = (start: number, endExclusive: number) => {
+    const count = endExclusive - start;
+    if (count <= 0) return 0;
+    return prefix[endExclusive] - prefix[start] + blockGap * (count - 1);
+  };
+
+  const effectiveCols = Math.min(cols, n);
+  const dp: number[][] = Array.from({ length: effectiveCols + 1 }, () =>
+    new Array<number>(n + 1).fill( Number.POSITIVE_INFINITY )
+  );
+  const splitAt: number[][] = Array.from({ length: effectiveCols + 1 }, () =>
+    new Array<number>(n + 1).fill(0)
+  );
+
+  for (let i = 1; i <= n; i++) {
+    dp[1][i] = segHeight(0, i);
+  }
+
+  for (let c = 2; c <= effectiveCols; c++) {
+    for (let i = c; i <= n; i++) {
+      for (let prev = c - 1; prev < i; prev++) {
+        const lastColH = segHeight(prev, i);
+        const worst = Math.max(dp[c - 1][prev], lastColH);
+        // Penalti sangat kecil bila kolom kanan lebih panjang dari kolom kiri agar kiri terisi mantap dulu
+        const penalty = lastColH > dp[c - 1][prev] ? (lastColH - dp[c - 1][prev]) * 0.01 : 0;
+        const score = worst + penalty;
+        if (score < dp[c][i]) {
+          dp[c][i] = score;
+          splitAt[c][i] = prev;
+        }
+      }
+    }
+  }
+
+  const bounds: Array<[number, number]> = [];
+  let curEnd = n;
+  for (let c = effectiveCols; c >= 2; c--) {
+    const prev = splitAt[c][curEnd];
+    bounds.unshift([prev, curEnd]);
+    curEnd = prev;
+  }
+  bounds.unshift([0, curEnd]);
+
+  bounds.forEach(([start, end], colIdx) => {
+    for (let i = start; i < end; i++) {
+      result[colIdx].push({
+        question: objectiveQuestions[i],
+        baseH: baseHeights[i],
+      });
+    }
+  });
+
+  return result;
 }
 
 function layoutQuestionsForSpec(
@@ -428,7 +540,7 @@ function layoutQuestionsForSpec(
 ): { questions: MachineQuestionLayout[]; maxQuestionBottom: number; fits: boolean } {
   const cols = spec.columns;
   const usableX = objectiveArea.x + INNER_PAD_X;
-  const usableW = objectiveArea.w - (INNER_PAD_X * 2);
+  const usableW = objectiveArea.w - INNER_PAD_X * 2;
   const usableY = objectiveArea.y + INNER_PAD_TOP;
   const usableH = objectiveArea.h - INNER_PAD_TOP - INNER_PAD_BOTTOM;
 
@@ -436,52 +548,14 @@ function layoutQuestionsForSpec(
     return { questions: [], maxQuestionBottom: objectiveArea.y, fits: true };
   }
 
-  const columnWidth = (usableW - (spec.columnGap * (cols - 1))) / cols;
+  const columnWidth = (usableW - spec.columnGap * (cols - 1)) / cols;
   const baseHeights = objectiveQuestions.map((q) => getBaseBlockHeight(q, spec));
+  const colItems = partitionIntoBalancedColumns(objectiveQuestions, baseHeights, cols, spec.blockGap);
 
-  // Partisi soal ke dalam kolom secara seimbang berdasarkan tinggi visual (Height-Balanced Partitioning)
-  const colItems: Array<Array<{ question: MachineQuestionInput; baseH: number }>> = Array.from(
-    { length: cols },
-    () => []
-  );
-  const colRawHeights = new Array<number>(cols).fill(0);
-  let currentCol = 0;
-
-  for (let i = 0; i < objectiveQuestions.length; i++) {
-    const q = objectiveQuestions[i];
-    const bH = baseHeights[i];
-    const remainingQuestions = objectiveQuestions.length - i;
-    const remainingColsAfter = cols - currentCol - 1;
-
-    // Hitung sisa tinggi dari index i hingga akhir
-    let remainingHeight = 0;
-    for (let j = i; j < objectiveQuestions.length; j++) {
-      remainingHeight += baseHeights[j] + spec.blockGap;
-    }
-    const targetRemainingPerCol = remainingHeight / (cols - currentCol);
-
-    const wouldExceedUsable = colRawHeights[currentCol] + bH > usableH;
-    const reachedBalancedHeight =
-      colRawHeights[currentCol] + (bH * 0.55) >= targetRemainingPerCol;
-
-    if (
-      currentCol < cols - 1 &&
-      colItems[currentCol].length > 0 &&
-      remainingQuestions >= remainingColsAfter &&
-      (wouldExceedUsable || reachedBalancedHeight)
-    ) {
-      currentCol++;
-    }
-
-    colItems[currentCol].push({ question: q, baseH: bH });
-    colRawHeights[currentCol] += bH + spec.blockGap;
-  }
-
-  // Hitung tinggi kolom tertinggi (tanpa blockGap terakhir)
   const actualColHeights = colItems.map((items) => {
     if (items.length === 0) return 0;
     const sumH = items.reduce((acc, it) => acc + it.baseH, 0);
-    return sumH + (spec.blockGap * (items.length - 1));
+    return sumH + spec.blockGap * (items.length - 1);
   });
   const maxRawColHeight = Math.max(1, ...actualColHeights);
 
@@ -490,46 +564,61 @@ function layoutQuestionsForSpec(
     return { questions: [], maxQuestionBottom: objectiveArea.y + maxRawColHeight, fits: false };
   }
 
-  // Skala elastis cerdas (Smart Elastic Scaling):
-  // - Jika jumlah soal sedikit (maxRawColHeight < usableH), rentangkan tinggi baris secara proporsional
-  //   agar memenuhi kotak lembar jawaban dengan rapi dan tidak menyisakan ruang kosong kaku di bawah.
-  // - Jika jumlah soal sangat padat & dipilih sebagai fallback terakhir, kompres secara presisi agar 100% muat.
+  const firstH = baseHeights[0];
+  const isUniformHeight = baseHeights.every((h) => Math.abs(h - firstH) <= 1);
+  const maxRowsInAnyCol = Math.max(1, ...colItems.map((c) => c.length));
+
   const heightScale = fitsNaturally
-    ? Math.min(3.2, usableH / maxRawColHeight)
+    ? Math.min(2.2, usableH / maxRawColHeight)
     : usableH / maxRawColHeight;
 
-  const scaledGap = Math.max(2, Math.round(spec.blockGap * Math.min(1.5, heightScale)));
-
+  const scaledGap = Math.max(2, Math.min(8, Math.round(spec.blockGap * Math.min(1.4, heightScale))));
   const questions: MachineQuestionLayout[] = [];
 
-  for (let col = 0; col < cols; col++) {
-    const items = colItems[col];
-    if (items.length === 0) continue;
-
-    const totalBaseH = items.reduce((acc, it) => acc + it.baseH, 0);
-    const totalGaps = scaledGap * (items.length - 1);
-    // Gunakan skala seragam berbasis kolom terpadat agar baris kiri & kanan sejajar rapi
-    const targetContentH = Math.min(
-      usableH - totalGaps,
-      Math.round(totalBaseH * heightScale)
+  if (isUniformHeight) {
+    // Tinggi baris seragam di seluruh kolom agar baris ke-1..N antar kolom sejajar lurus horizontal
+    const totalGapsForMaxCol = scaledGap * Math.max(0, maxRowsInAnyCol - 1);
+    const uniformRowH = Math.max(
+      18,
+      Math.min(52, Math.floor((usableH - totalGapsForMaxCol) / maxRowsInAnyCol))
     );
-    const effectiveScale = totalBaseH > 0 ? targetContentH / totalBaseH : 1;
 
-    const questionX = usableX + (col * (columnWidth + spec.columnGap));
-    let cursorY = usableY;
+    for (let col = 0; col < cols; col++) {
+      const items = colItems[col];
+      if (items.length === 0) continue;
+      const questionX = usableX + col * (columnWidth + spec.columnGap);
 
-    for (let idx = 0; idx < items.length; idx++) {
-      const { question, baseH } = items[idx];
-      const scaledH = Math.max(18, Math.round(baseH * effectiveScale));
-      const finalH =
-        idx === items.length - 1 && Math.abs((cursorY + scaledH) - (usableY + usableH)) <= 8
-          ? (usableY + usableH) - cursorY
-          : scaledH;
+      for (let idx = 0; idx < items.length; idx++) {
+        const { question } = items[idx];
+        const rowY = usableY + idx * (uniformRowH + scaledGap);
+        questions.push(
+          buildMachineQuestionLayout(question, questionX, rowY, columnWidth, uniformRowH, col, spec)
+        );
+      }
+    }
+  } else {
+    // Skala proporsional untuk ujian yang memuat matriks MTF / Menjodohkan
+    const maxColGaps = scaledGap * Math.max(0, maxRowsInAnyCol - 1);
+    const maxBaseSum = Math.max(
+      1,
+      ...colItems.map((items) => items.reduce((acc, it) => acc + it.baseH, 0))
+    );
+    const sharedScale = Math.min(2.0, Math.max(0.65, (usableH - maxColGaps) / maxBaseSum));
 
-      questions.push(
-        buildMachineQuestionLayout(question, questionX, cursorY, columnWidth, finalH, col, spec)
-      );
-      cursorY += finalH + scaledGap;
+    for (let col = 0; col < cols; col++) {
+      const items = colItems[col];
+      if (items.length === 0) continue;
+      const questionX = usableX + col * (columnWidth + spec.columnGap);
+      let cursorY = usableY;
+
+      for (let idx = 0; idx < items.length; idx++) {
+        const { question, baseH } = items[idx];
+        const scaledH = Math.max(18, Math.round(baseH * sharedScale));
+        questions.push(
+          buildMachineQuestionLayout(question, questionX, cursorY, columnWidth, scaledH, col, spec)
+        );
+        cursorY += scaledH + scaledGap;
+      }
     }
   }
 
@@ -545,54 +634,78 @@ export function buildMachinePageLayout(
   options?: string,
   hideEssayArea = false
 ) {
-  const sourceQuestions = questionConfig.length > 0
-    ? questionConfig
-    : Array.from({ length: totalSoal }, (_, index) => ({ no: index + 1, tipe: options || 'single_choice' }));
+  const sourceQuestions =
+    questionConfig.length > 0
+      ? questionConfig
+      : Array.from({ length: totalSoal }, (_, index) => ({
+          no: index + 1,
+          tipe: options || 'single_choice',
+        }));
 
   const objectiveQuestions = sourceQuestions.filter((question) => normalizeType(question.tipe) !== 'essay');
   const essayQuestions = sourceQuestions.filter((question) => normalizeType(question.tipe) === 'essay');
 
-  // Hitung tinggi area esai secara adaptif berdasarkan jumlah soal esai
+  const count = objectiveQuestions.length;
+  const hasTallMatrix = objectiveQuestions.some((q) => {
+    const t = normalizeType(q.tipe);
+    return t === 'multiple_true_false' || t === 'matching';
+  });
+
+  // Hitung tinggi area esai secara adaptif & proporsional agar semua nomor esai muat utuh tanpa terpotong
   let essayArea: { x: number; y: number; w: number; h: number } | null = null;
   let objectiveBottom = CONTENT_BOTTOM;
 
   if (essayQuestions.length > 0 && !hideEssayArea) {
-    const essayHeight = essayQuestions.length === 1
-      ? 130
-      : essayQuestions.length === 2
-        ? 172
-        : essayQuestions.length === 3
-          ? 212
-          : 242;
+    const totalBodyH = CONTENT_BOTTOM - OBJECTIVE_TOP; // 1042 unit
+    const approxCols = count <= 5 ? 1 : count <= 20 ? 2 : count <= 45 ? 3 : 4;
+    const approxRows = Math.max(1, Math.ceil(count / approxCols));
+    const minObjectiveH = count === 0 ? 0 : Math.min(680, Math.max(240, approxRows * (hasTallMatrix ? 48 : 30) + 24));
+
+    const idealEssayH =
+      essayQuestions.length === 1
+        ? 165
+        : essayQuestions.length === 2
+          ? 225
+          : essayQuestions.length === 3
+            ? 280
+            : essayQuestions.length === 4
+              ? 330
+              : essayQuestions.length === 5
+                ? 375
+                : Math.min(470, 50 + essayQuestions.length * 62);
+
+    const maxAllowedEssayH = count === 0 ? totalBodyH : Math.max(200, totalBodyH - minObjectiveH - 12);
+    const essayHeight = Math.min(idealEssayH, maxAllowedEssayH);
     const essayY = CONTENT_BOTTOM - essayHeight;
     essayArea = { x: AREA_X, y: essayY, w: AREA_W, h: essayHeight };
-    objectiveBottom = essayY - 12;
+    objectiveBottom = essayY - 10;
   }
 
   const objectiveArea = {
     x: AREA_X,
     y: OBJECTIVE_TOP,
     w: AREA_W,
-    h: objectiveBottom - OBJECTIVE_TOP,
+    h: Math.max(120, objectiveBottom - OBJECTIVE_TOP),
   };
 
-  // Filter kandidat jumlah kolom vertikal secara cerdas:
-  // - 1..5 soal   : 1 kolom (atau 2 kolom jika matriks panjang)
-  // - 6..20 soal  : 2 kolom vertikal (atau 3 kolom jika matriks AKM sangat padat)
-  // - 21..40 soal : Otomatis 3 kolom vertikal (proporsional seperti LJK Ujian Nasional)
-  // - > 40 soal   : 3 atau 4 kolom vertikal
-  const count = objectiveQuestions.length;
+  // Pilih jumlah kolom cerdas berdasarkan jumlah soal objektif:
+  // - 1..5 soal   : 1 kolom (atau 2 jika matriks panjang)
+  // - 6..20 soal  : 2 kolom (mis. 10 -> 5+5, 20 -> 10+10)
+  // - 21..45 soal : 3 kolom (mis. 30 -> 10+10+10, 35 -> 12+12+11, 40 -> 14+13+13)
+  // - > 45 soal   : 4 kolom (mis. 50 -> 13+13+12+12)
   const validCandidates = DENSITY_CANDIDATES.filter((cand) => {
     if (cand.columns === 1 && count > 5) return false;
-    if (cand.columns === 2 && count > 20) return false;
-    if (cand.columns === 4 && count <= 35) return false;
+    if (cand.columns === 2 && (count <= 5 || count > 20)) return false;
+    if (cand.columns === 3 && (count <= 20 || count > 45) && !hasTallMatrix) return false;
+    if (cand.columns === 4 && count <= 45 && !hasTallMatrix) return false;
     return true;
   });
 
-  let chosenSpec = validCandidates[validCandidates.length - 1];
+  const candidatePool = validCandidates.length > 0 ? validCandidates : DENSITY_CANDIDATES;
+  let chosenSpec = candidatePool[candidatePool.length - 1];
   let chosenResult: { questions: MachineQuestionLayout[]; maxQuestionBottom: number; fits: boolean } | null = null;
 
-  for (const candidate of validCandidates) {
+  for (const candidate of candidatePool) {
     const attempt = layoutQuestionsForSpec(objectiveQuestions, objectiveArea, candidate, false);
     if (attempt.fits) {
       chosenSpec = candidate;
@@ -601,9 +714,27 @@ export function buildMachinePageLayout(
     }
   }
 
-  // Fallback elastis jika jumlah soal sangat banyak & kompleks (menjamin 100% tidak pernah terpotong)
   if (!chosenResult) {
     chosenResult = layoutQuestionsForSpec(objectiveQuestions, objectiveArea, chosenSpec, true);
+  }
+
+  // Jika ada area esai terpadu dan area objektif menyisakan ruang kosong di bawahnya,
+  // rapatkan batas bawah objectiveArea tepat mengikuti baris terakhir dan berikan ruang ekstra ke essayArea!
+  if (essayArea && count > 0 && chosenResult.questions.length > 0) {
+    const tightObjectiveH = Math.max(
+      160,
+      chosenResult.maxQuestionBottom - OBJECTIVE_TOP + INNER_PAD_BOTTOM + 4
+    );
+    if (tightObjectiveH < objectiveArea.h - 10) {
+      objectiveArea.h = tightObjectiveH;
+      const newEssayY = OBJECTIVE_TOP + objectiveArea.h + 10;
+      essayArea = {
+        x: AREA_X,
+        y: newEssayY,
+        w: AREA_W,
+        h: CONTENT_BOTTOM - newEssayY,
+      };
+    }
   }
 
   return {

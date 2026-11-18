@@ -6,12 +6,14 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart2,
+  Bot,
   Check,
   CheckCircle2,
   ClipboardCheck,
   ClipboardPaste,
   Copy,
   FilePlus2,
+  FileSpreadsheet,
   Grid2x2,
   History,
   Info,
@@ -118,6 +120,7 @@ export default function KunciEditorModal({
   const [step2Layout, setStep2Layout] = useState<'detail' | 'grid'>('detail');
   const [showCorrectionTools, setShowCorrectionTools] = useState(false);
   const [showQuickTools, setShowQuickTools] = useState(false);
+  const [quickToolsTab, setQuickToolsTab] = useState<'text' | 'excel' | 'ai'>('text');
 
   const [saving, setSaving] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<any | null>(null);
@@ -142,6 +145,7 @@ export default function KunciEditorModal({
     setStep2Layout('detail');
     setShowCorrectionTools(false);
     setShowQuickTools(false);
+    setQuickToolsTab('text');
     setSaving(false);
 
     if (editingKunci) {
@@ -897,15 +901,28 @@ export default function KunciEditorModal({
                     <span className="text-slate-500 dark:text-slate-400">
                       Label Ujian: <strong className="text-slate-900 dark:text-white">{resolvedJudul}</strong>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowQuickTools(true);
-                        setStep(2);
-                      }}
-                      className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1">
-                      <ClipboardPaste className="w-3 h-3" /> Atau Impor dari Excel / AI →
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickToolsTab('excel');
+                          setShowQuickTools(true);
+                          setStep(2);
+                        }}
+                        className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1">
+                        <FileSpreadsheet className="w-3 h-3" /> Impor Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickToolsTab('ai');
+                          setShowQuickTools(true);
+                          setStep(2);
+                        }}
+                        className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline inline-flex items-center gap-1">
+                        <Bot className="w-3 h-3" /> Ekstrak Soal / Kunci AI →
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1065,15 +1082,26 @@ export default function KunciEditorModal({
                 <BulkPastePanel
                   soalItems={soalItems}
                   defaultOpen={true}
-                  initialTab={soalItems.length === 0 ? 'excel' : 'text'}
+                  initialTab={quickToolsTab}
                   onCloseDrawer={() => setShowQuickTools(false)}
                   onApply={(updated) => {
                     handleApplyQuickPaste(updated);
                     setShowQuickTools(false);
                   }}
-                  onSuggestJudul={(suggested) => {
-                    if (jenisAsesmen === 'KUSTOM' && !customJudul.trim()) setCustomJudul(suggested);
-                    else if (!keterangan.trim()) setKeterangan(suggested.slice(0, 40));
+                  onSuggestMeta={(meta) => {
+                    if (meta.jenisAsesmen && mode === 'create') {
+                      setJenisAsesmen(meta.jenisAsesmen);
+                    }
+                    if (meta.semester && mode === 'create') {
+                      setSemester(meta.semester);
+                    }
+                    if (meta.judul) {
+                      if (jenisAsesmen === 'KUSTOM' && !customJudul.trim()) {
+                        setCustomJudul(meta.judul);
+                      } else if (!keterangan.trim()) {
+                        setKeterangan(meta.judul.slice(0, 48));
+                      }
+                    }
                   }}
                   onAppliedJumpToReview={() => setShowQuickTools(false)}
                 />

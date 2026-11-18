@@ -133,7 +133,7 @@ async function cropToMachinePage(buffer: Buffer): Promise<{
   const areaCoverage = (bounds.width * bounds.height) / Math.max(1, original.width * original.height);
   // A4 portrait aspect ratio is ~0.707 (1000 / 1414). Allow tolerance for digital/flatbed scans.
   const isAspectValid = aspect >= 0.60 && aspect <= 0.82;
-  const isCoverageValid = areaCoverage >= 0.35 && areaCoverage <= 0.995;
+  const isCoverageValid = areaCoverage >= 0.35 && areaCoverage <= 1.0;
 
   const sharp = await getSharp();
   if (!sharp) return null;
@@ -279,7 +279,11 @@ function decodeQrFromRegions(image: ImageDataRaw, candidates: Array<{ x: number;
 }
 
 function decodeQr(croppedImage: ImageDataRaw, originalImage?: ImageDataRaw): ParsedQrData {
+  // Prioritaskan posisi QR baru di kanan-atas (y: 166..304 dari 1414 -> ~0.10..0.24),
+  // serta fallback ke kanan-bawah untuk kompatibilitas lembar LJK cetakan lama.
   const croppedCandidates = [
+    { x: 0.78, y: 0.10, w: 0.20, h: 0.14 },
+    { x: 0.70, y: 0.07, w: 0.29, h: 0.20 },
     { x: 0.72, y: 0.82, w: 0.27, h: 0.17 },
     { x: 0.76, y: 0.86, w: 0.22, h: 0.13 },
     { x: 0.60, y: 0.75, w: 0.40, h: 0.25 },
@@ -290,6 +294,7 @@ function decodeQr(croppedImage: ImageDataRaw, originalImage?: ImageDataRaw): Par
 
   if (originalImage) {
     const originalCandidates = [
+      { x: 0.55, y: 0.02, w: 0.45, h: 0.32 },
       { x: 0.55, y: 0.65, w: 0.45, h: 0.35 },
       { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
     ];

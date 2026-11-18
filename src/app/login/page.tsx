@@ -6,6 +6,7 @@ import { loginAction, getPublicLoginUsersAction } from '@/lib/actions/auth';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { BrandLogo } from '@/components/BrandLogo';
+import { APP_VERSION } from '@/lib/app-version';
 import { Loader2, Eye, EyeOff, Lock, AlertTriangle, ShieldCheck, Zap, BrainCircuit, KeyRound, Users } from 'lucide-react';
 import { withBasePath } from '@/lib/base-path';
 
@@ -126,12 +127,12 @@ export default function LoginPage() {
         {/* Content */}
         <div className="relative z-10 max-w-[490px]">
           {/* Official Brand Logo Showcase */}
-          <div className="inline-flex flex-col gap-2 bg-white/80 dark:bg-[#0e0a2a]/70 backdrop-blur-2xl border border-purple-200/70 dark:border-purple-500/25 rounded-3xl px-6 py-4 mb-10 shadow-2xl shadow-purple-500/10 dark:shadow-black/40 transition-colors duration-300">
-            <BrandLogo variant="horizontal" priority className="h-14 w-auto" />
-            <div className="flex items-center gap-2 pt-1 border-t border-slate-200/70 dark:border-white/10">
+          <div className="inline-flex flex-col gap-2.5 bg-white/80 dark:bg-[#0e0a2a]/70 backdrop-blur-2xl border border-purple-200/70 dark:border-purple-500/25 rounded-3xl px-7 py-5 mb-10 shadow-2xl shadow-purple-500/10 dark:shadow-black/40 transition-colors duration-300">
+            <BrandLogo variant="horizontal" priority className="h-20 w-auto" />
+            <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/70 dark:border-white/10">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
               <span className="text-[10px] text-purple-700 dark:text-cyan-300 font-black uppercase tracking-[0.22em]">
-                Sogokmo · Enterprise Edition v2.0
+                Sogokmo · Enterprise Edition v{APP_VERSION}
               </span>
             </div>
           </div>
@@ -194,9 +195,9 @@ export default function LoginPage() {
           
           {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-start gap-2 mb-10">
-            <BrandLogo variant="horizontal" priority className="h-12 w-auto" />
-            <div className="text-[9px] text-purple-600 dark:text-cyan-400 font-extrabold uppercase tracking-[0.22em]">
-              Sogokmo · Enterprise v2.0
+            <BrandLogo variant="horizontal" priority className="h-16 sm:h-20 w-auto" />
+            <div className="text-[10px] text-purple-600 dark:text-cyan-400 font-extrabold uppercase tracking-[0.22em]">
+              Sogokmo · Enterprise v{APP_VERSION}
             </div>
           </div>
 

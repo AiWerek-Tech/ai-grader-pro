@@ -51,6 +51,7 @@ export default function CetakLJKPage() {
   // ─── Filters ──────────────────────────────────────────────────────────────
   const [filterGuru, setFilterGuru] = useState('ALL');
   const [filterMapel, setFilterMapel] = useState('ALL');
+  const [filterSemester, setFilterSemester] = useState<'ALL' | 'GANJIL' | 'GENAP'>('ALL');
   const [filterKelas, setFilterKelas] = useState('ALL');
   const [searchKunci, setSearchKunci] = useState('');
   const [searchSiswa, setSearchSiswa] = useState('');
@@ -92,7 +93,7 @@ export default function CetakLJKPage() {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
       const [kRes, mRes, sRes, gRes, setRes] = await Promise.all([
-        getKunciListAction(),
+        getKunciListAction(undefined, 'ALL'),
         getMasterData(),
         getSiswaAction(),
         getGuruList(),
@@ -141,8 +142,16 @@ export default function CetakLJKPage() {
     );
     if (filterGuru !== 'ALL') list = list.filter(k => k.id_guru === filterGuru);
     if (filterMapel !== 'ALL') list = list.filter(k => k.id_mapel === filterMapel);
+    if (filterSemester !== 'ALL') {
+      list = list.filter(k => {
+        const smt = String(k.semester || '').toUpperCase();
+        if (filterSemester === 'GANJIL') return smt.includes('GANJIL') || smt === '1';
+        if (filterSemester === 'GENAP') return smt.includes('GENAP') || smt === '2';
+        return true;
+      });
+    }
     return list;
-  }, [kunciList, searchKunci, filterGuru, filterMapel]);
+  }, [kunciList, searchKunci, filterGuru, filterMapel, filterSemester]);
 
   // ─── Enriched & Filtered Siswa ────────────────────────────────────────────
   const allEnrichedSiswa = useMemo(() => {
@@ -466,20 +475,32 @@ export default function CetakLJKPage() {
                   <input type="text" placeholder="Cari judul ujian atau mapel..." value={searchKunci} onChange={e => setSearchKunci(e.target.value)}
                     className="w-full bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                 </div>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="relative">
                     <select value={filterGuru} onChange={e => setFilterGuru(e.target.value)}
+                      aria-label="Filter guru kunci"
                       className="w-full appearance-none bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl pl-3 pr-7 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer">
                       <option value="ALL">Semua Guru</option>
                       {guruList.map(g => <option key={g.id} value={g.id}>{g.nama}</option>)}
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
                   </div>
-                  <div className="relative flex-1">
+                  <div className="relative">
                     <select value={filterMapel} onChange={e => setFilterMapel(e.target.value)}
+                      aria-label="Filter mapel kunci"
                       className="w-full appearance-none bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl pl-3 pr-7 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer">
                       <option value="ALL">Semua Mapel</option>
                       {masterData.mapel.map(m => <option key={m.id_mapel} value={m.id_mapel}>{m.nama_mapel}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                  </div>
+                  <div className="relative">
+                    <select value={filterSemester} onChange={e => setFilterSemester(e.target.value as 'ALL' | 'GANJIL' | 'GENAP')}
+                      aria-label="Filter semester kunci"
+                      className={`w-full appearance-none border rounded-xl pl-3 pr-7 py-2.5 text-xs font-bold focus:outline-none cursor-pointer ${filterSemester !== 'ALL' ? 'bg-indigo-500/5 border-indigo-500/50 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}>
+                      <option value="ALL">Semua Semester</option>
+                      <option value="GANJIL">Smt 1 (Ganjil)</option>
+                      <option value="GENAP">Smt 2 (Genap)</option>
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
                   </div>
@@ -488,7 +509,7 @@ export default function CetakLJKPage() {
             </div>
 
             {/* List Kunci */}
-            <div className="overflow-y-auto max-h-[340px] divide-y divide-slate-100 dark:divide-white/[0.03] touch-scroll">
+            <div className="overflow-y-auto max-h-[340px] divide-y divide-slate-100 dark:divide-white/[0.03]">
               {filteredKunci.length > 0 ? filteredKunci.map(k => {
                 const isSelected = selectedKunci?.id_kunci === k.id_kunci;
                 const tipeDistribusi = getTipeDistribusi(k.data_json || []);
@@ -509,6 +530,11 @@ export default function CetakLJKPage() {
                             <span className="text-[10px] text-slate-400">·</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-bold">{k.nama_kelas}</span>
                           </>
+                        )}
+                        {k.semester && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black uppercase">
+                            Smt {String(k.semester).toUpperCase().includes('GENAP') || String(k.semester) === '2' ? 'Genap' : 'Ganjil'}
+                          </span>
                         )}
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1.5">
@@ -574,7 +600,7 @@ export default function CetakLJKPage() {
             </div>
 
             {/* List Siswa */}
-            <div className="overflow-y-auto max-h-[340px] divide-y divide-slate-50 dark:divide-white/[0.02] touch-scroll">
+            <div className="overflow-y-auto max-h-[340px] divide-y divide-slate-50 dark:divide-white/[0.02]">
               {enrichedSiswa.length > 0 ? enrichedSiswa.map((s, idx) => {
                 const checked = selectedSiswaIds.has(s.id_siswa);
                 return (
@@ -834,36 +860,44 @@ export default function CetakLJKPage() {
             </div>
           )}
 
-          {/* Kanvas Pratinjau Kertas A4 */}
-          <div className="bg-slate-200/70 dark:bg-slate-950/80 p-3 sm:p-8 lg:p-10 flex justify-center overflow-x-auto touch-scroll">
-            {selectedKunci && currentPreviewSiswa && layoutPreview ? (
-              <div
-                className="origin-top transition-transform duration-150"
-                style={{
-                  transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
-                  marginBottom:
-                    zoom < 100
-                      ? `-${Math.round((1 - zoom / 100) * (essayLayoutMode === 'second_page' && layoutPreview.essayCount > 0 ? 2268 : 1122))}px`
-                      : undefined,
-                }}
-              >
-                <LJKSheet
-                  siswa={currentPreviewSiswa}
-                  mapel={selectedKunci.nama_mapel}
-                  title={selectedKunci.judul_ujian}
-                  idKunci={selectedKunci.id_kunci}
-                  examDate={examDate}
-                  totalSoal={layoutPreview.totalSoal}
-                  options={selectedKunci.tipe_soal || 'single_choice'}
-                  pageIndex={safePreviewIndex}
-                  totalPages={printableSheets.length}
-                  settings={settings}
-                  questionConfig={layoutPreview.questionConfig}
-                  showSensorGrid={showSensorGrid}
-                  essayLayoutMode={essayLayoutMode}
-                />
-              </div>
-            ) : (
+          {/* Kanvas Pratinjau Kertas A4 (tanpa overscroll-contain agar scroll halaman utama tidak terkunci) */}
+          <div className="bg-slate-200/70 dark:bg-slate-950/80 p-3 sm:p-8 lg:p-10 overflow-x-auto">
+            {selectedKunci && currentPreviewSiswa && layoutPreview ? (() => {
+              const scale = zoom / 100;
+              const hasSecondPage = essayLayoutMode === 'second_page' && layoutPreview.essayCount > 0;
+              return (
+                <div
+                  className="mx-auto shrink-0 relative"
+                  style={{
+                    width: `calc(210mm * ${scale})`,
+                    height: hasSecondPage ? `calc((594mm + 1.5rem) * ${scale})` : `calc(297mm * ${scale})`,
+                  }}
+                >
+                  <div
+                    className="w-[210mm] origin-top-left transition-transform duration-150"
+                    style={{
+                      transform: zoom !== 100 ? `scale(${scale})` : undefined,
+                    }}
+                  >
+                    <LJKSheet
+                      siswa={currentPreviewSiswa}
+                      mapel={selectedKunci.nama_mapel}
+                      title={selectedKunci.judul_ujian}
+                      idKunci={selectedKunci.id_kunci}
+                      examDate={examDate}
+                      totalSoal={layoutPreview.totalSoal}
+                      options={selectedKunci.tipe_soal || 'single_choice'}
+                      pageIndex={safePreviewIndex}
+                      totalPages={printableSheets.length}
+                      settings={settings}
+                      questionConfig={layoutPreview.questionConfig}
+                      showSensorGrid={showSensorGrid}
+                      essayLayoutMode={essayLayoutMode}
+                    />
+                  </div>
+                </div>
+              );
+            })() : (
               <div className="py-24 text-center text-slate-400">
                 <Printer className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm font-black uppercase tracking-widest">Pilih Kunci Jawaban Untuk Melihat Pratinjau LJK</p>

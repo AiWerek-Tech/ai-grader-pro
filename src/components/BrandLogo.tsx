@@ -50,16 +50,16 @@ export function BrandLogo({
         <Image
           src={withBasePath('/brand/wmvaa_logo_vertical_dark.png')}
           alt="WMVAA AI Grader Pro"
-          width={280}
-          height={350}
+          width={300}
+          height={320}
           priority={priority}
           className={`block dark:hidden object-contain ${className}`}
         />
         <Image
           src={withBasePath('/brand/wmvaa_logo_vertical_light.png')}
           alt="WMVAA AI Grader Pro"
-          width={280}
-          height={350}
+          width={300}
+          height={320}
           priority={priority}
           className={`hidden dark:block object-contain ${className}`}
         />
@@ -73,16 +73,16 @@ export function BrandLogo({
       <Image
         src={withBasePath('/brand/wmvaa_logo_horizontal_dark.png')}
         alt="WMVAA AI Grader Pro"
-        width={340}
-        height={190}
+        width={480}
+        height={154}
         priority={priority}
         className={`block dark:hidden object-contain ${className}`}
       />
       <Image
         src={withBasePath('/brand/wmvaa_logo_horizontal_light.png')}
         alt="WMVAA AI Grader Pro"
-        width={340}
-        height={190}
+        width={480}
+        height={154}
         priority={priority}
         className={`hidden dark:block object-contain ${className}`}
       />
