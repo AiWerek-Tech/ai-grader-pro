@@ -536,7 +536,7 @@ export async function extractKunciWithAIAction(payload: {
       throw new Error('Tempel teks soal/kunci atau unggah file (Foto, PDF, Word .docx, atau TXT) terlebih dahulu.');
     }
 
-    const settingsRes = await getSettingsAction();
+    const settingsRes = await getSettingsAction(true);
     const settings = (settingsRes.data || {}) as Record<string, string>;
 
     const result = await runAiKeyExtraction({

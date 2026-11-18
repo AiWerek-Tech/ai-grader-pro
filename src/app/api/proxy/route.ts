@@ -113,16 +113,33 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: 'Format URL tidak valid.' }, { status: 400 });
     }
 
-    await assertSafeTarget(parsedUrl);
+    const isRawImage = searchParams.get('raw') === '1';
 
-    const res = await fetch(parsedUrl, {
-      redirect: 'error',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+    let currentUrl = parsedUrl;
+    let res: Response | null = null;
+    for (let hop = 0; hop < 4; hop++) {
+      await assertSafeTarget(currentUrl);
+      res = await fetch(currentUrl, {
+        redirect: 'manual',
+        headers: {
+          'User-Agent': 'WMVAA-AI-Grader-ImageProxy/2.0',
+          Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
 
-    if (!res.ok) {
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location');
+        if (!location) break;
+        currentUrl = new URL(location, currentUrl);
+        continue;
+      }
+      break;
+    }
+
+    if (!res || !res.ok) {
       return NextResponse.json(
-        { success: false, message: `Gambar tidak dapat diakses (HTTP ${res.status}).` },
+        { success: false, message: `Gambar tidak dapat diakses (HTTP ${res?.status || 502}).` },
         { status: 502 }
       );
     }
@@ -148,6 +165,16 @@ export async function GET(request: Request) {
         { success: false, message: 'Ukuran gambar melebihi batas maksimum proxy.' },
         { status: 413 }
       );
+    }
+
+    if (isRawImage) {
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'private, max-age=3600',
+        },
+      });
     }
 
     const b64 = Buffer.from(buffer).toString('base64');

@@ -1,11 +1,12 @@
 'use server';
 
-import { dbGetAll, clearSheetCache } from '@/lib/google-sheets';
+import { dbGetAll, clearSheetCache, isMySqlEnabled } from '@/lib/google-sheets';
+import { ensureMySqlTables, getMySqlTableNames } from '@/lib/mysql';
 import { logger } from '@/lib/logger';
 import { google } from 'googleapis';
 import path from 'path';
 import { getAcademicSessionAction, checkAIStatusAction } from '@/lib/actions/settings';
-import { requireAdmin } from '@/lib/session-server';
+import { requireMenuAccess } from '@/lib/rbac-server';
 
 /**
  * System Doctor — adaptasi apiAdminRunSystemDoctor & apiAdminHealSystem dari GAS.
@@ -125,8 +126,23 @@ function getSheetsClient() {
   return google.sheets({ version: 'v4', auth });
 }
 
-// ─── Doctor Check: Integritas Sheet ────────────────────────────
+// ─── Doctor Check: Integritas Sheet / Tabel MySQL ──────────────
 async function doctorCheckIntegrity(): Promise<any> {
+  if (isMySqlEnabled()) {
+    const existingTables = await getMySqlTableNames();
+    const existingUpper = new Set(existingTables.map(t => t.toUpperCase()));
+    const missing = REQUIRED_SHEETS.filter(name => !existingUpper.has(name.toUpperCase()));
+
+    return {
+      name: 'Integritas Struktur Database (MySQL)',
+      status: missing.length === 0 ? 'HEALTHY' : 'WARNING',
+      message: missing.length === 0
+        ? `Semua ${REQUIRED_SHEETS.length} tabel MySQL terdeteksi lengkap.`
+        : `Tabel MySQL berikut HILANG: ${missing.join(', ')}`,
+      details: { driver: 'mysql', total: REQUIRED_SHEETS.length, existing: existingTables.length, missing }
+    };
+  }
+
   const sheets = getSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || '';
 
@@ -217,7 +233,7 @@ async function doctorCheckLogVolume(): Promise<any> {
 // ─── Gabungkan semua pengecekan ────────────────────────────────
 export async function runSystemDoctorAction(adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('doctor');
     adminId = session.id;
     const diagnostics = await Promise.all([
       doctorCheckIntegrity(),
@@ -237,11 +253,21 @@ export async function runSystemDoctorAction(adminId: string = 'SYSTEM') {
 // ─── Auto-Heal: Buat sheet yang hilang & Migrasi Arsitektur ───
 export async function healSystemAction(adminId: string = 'SYSTEM') {
   try {
-    const sessionUser = await requireAdmin();
+    const sessionUser = await requireMenuAccess('doctor');
     adminId = sessionUser.id;
     const { data: session } = await getAcademicSessionAction();
     const tahunAktif = session?.tahunAjaran || '2025/2026';
     const semesterAktif = session?.semester || 'GANJIL';
+
+    if (isMySqlEnabled()) {
+      await ensureMySqlTables();
+      clearSheetCache();
+      await logger.info('SYSTEM_HEAL', 'Verifikasi dan penyembuhan struktur tabel MySQL selesai.', adminId);
+      return {
+        success: true,
+        message: 'Semua 11 tabel MySQL telah diverifikasi dan dipastikan lengkap.'
+      };
+    }
 
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || '';

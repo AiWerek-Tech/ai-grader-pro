@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { dbGetAll, dbAppendRow, dbFindAndDeleteRow, dbUpdateRow, generateId, sanitizeInput } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
-import { requireAdmin, requireAuth } from '@/lib/session-server';
+import { requireAuth } from '@/lib/session-server';
+import { requireMenuAccess } from '@/lib/rbac-server';
 import { calculateIRTAnalysis } from '@/lib/ai/grader-engine';
 import { getAcademicSessionAction } from '@/lib/actions/settings';
 
@@ -105,7 +106,7 @@ export async function getGuruList() {
 
 export async function addGuruAction(reqData: any, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     if (!reqData.username || !reqData.nama) throw new Error('Nama dan Username guru wajib diisi.');
@@ -135,7 +136,7 @@ export async function addGuruAction(reqData: any, adminId: string = 'SYSTEM') {
 
 export async function bulkAddGuruAction(rows: { username: string, nama: string, password?: string, role?: string, profile_url?: string }[], adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     const existing = await dbGetAll('USERS');
@@ -175,7 +176,7 @@ export async function bulkAddGuruAction(rows: { username: string, nama: string, 
 
 export async function deleteGuruBatchAction(ids: string[], adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id; // Override adminId with session ID
 
     let deletedCount = 0;
@@ -195,7 +196,7 @@ export async function deleteGuruBatchAction(ids: string[], adminId: string = 'SY
 
 export async function resetPasswordBatchAction(ids: string[], customPassword?: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     let successCount = 0;
@@ -220,7 +221,7 @@ export async function resetPasswordBatchAction(ids: string[], customPassword?: s
 
 export async function deleteGuruAction(userId: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     if (String(adminId) === String(userId)) {
@@ -249,7 +250,7 @@ export async function deleteGuruAction(userId: string, adminId: string = 'SYSTEM
 
 export async function toggleStatusGuruAction(userId: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     if (String(adminId) === String(userId)) {
@@ -285,7 +286,7 @@ export async function toggleStatusGuruAction(userId: string, adminId: string = '
 
 export async function resetPasswordAction(userId: string, newPassword?: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     const users = await dbGetAll('USERS');
@@ -341,7 +342,7 @@ export async function editNamaAction(
   extra?: { username?: string; password?: string; role?: string }
 ) {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     if (!userId || !namaBaru || namaBaru.trim().length < 2) throw new Error('Nama baru minimal 2 karakter.');
@@ -394,7 +395,7 @@ export async function editNamaAction(
 
 export async function updateProfileUrlAction(userId: string, profileUrl: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAdmin();
+    const session = await requireMenuAccess('guru');
     adminId = session.id;
 
     const users = await dbGetAll('USERS');

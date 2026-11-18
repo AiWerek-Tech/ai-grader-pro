@@ -108,7 +108,18 @@ export default function CetakLJKPage() {
       if (mRes.success) setMasterData(mData);
       if (sRes.success) setAllSiswa(sData);
       if (gRes.success) setGuruList(gRes.data || []);
-      if (setRes.success) setSettings(setRes.data || {});
+      if (setRes.success) {
+        const sObj = setRes.data || {};
+        setSettings(sObj);
+        if (!silent) {
+          const defEssay = sObj.ljk_essay_layout_default;
+          if (defEssay === 'second_page' || defEssay === 'separate') {
+            setEssayLayoutMode('second_page');
+          } else if (defEssay === 'separate_manual') {
+            setEssayLayoutMode('separate_manual');
+          }
+        }
+      }
 
       const requestedKunciId =
         typeof window !== 'undefined'

@@ -2,12 +2,11 @@
 
 import { getCurrentUser } from '@/lib/session-server';
 import { updateMyProfileAction, getMyAccountCredentialsAction } from '@/lib/actions/auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { transformDriveLink } from '@/lib/utils';
+import { buildImageFallbackCandidates, compressImageFileToDataUrl } from '@/lib/utils';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
-import Image from 'next/image';
 import { 
   UserCircle2, 
   Camera, 
@@ -21,19 +20,33 @@ import {
   Sparkles,
   Eye,
   EyeOff,
-  Copy
+  Copy,
+  ImagePlus,
+  Trash2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
+  const [namaInput, setNamaInput] = useState<string>('');
+  const [usernameInput, setUsernameInput] = useState<string>('');
+  const [profileUrlInput, setProfileUrlInput] = useState<string>('');
+  const [avatarCandidateIdx, setAvatarCandidateIdx] = useState<number>(0);
+  const [uploadingPhoto, setUploadingPhoto] = useState<boolean>(false);
   const [currentPassword, setCurrentPassword] = useState<string>('');
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(true);
   const [newPassword, setNewPassword] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const avatarCandidates = useMemo(
+    () => buildImageFallbackCandidates(profileUrlInput, ''),
+    [profileUrlInput]
+  );
+  const activeAvatarUrl = avatarCandidates[avatarCandidateIdx] || '';
 
   useEffect(() => {
     async function fetchUser() {
@@ -43,9 +56,16 @@ export default function ProfilePage() {
         return;
       }
       setUser(u);
+      setNamaInput(u.nama || '');
+      setUsernameInput(u.username || '');
+      setProfileUrlInput(u.profile_url || '');
       const creds = await getMyAccountCredentialsAction();
       if (creds.success && creds.data) {
         setCurrentPassword(creds.data.password_plain);
+        if (creds.data.profile_url) {
+          setProfileUrlInput(creds.data.profile_url);
+          setAvatarCandidateIdx(0);
+        }
       } else {
         setCurrentPassword(u.role === 'ADMIN' ? 'admin123' : 'guru12345');
       }
@@ -53,6 +73,23 @@ export default function ProfilePage() {
     }
     fetchUser();
   }, [router]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const dataUrl = await compressImageFileToDataUrl(file, 220, 36000);
+      setProfileUrlInput(dataUrl);
+      setAvatarCandidateIdx(0);
+      toast.success('Foto profil siap disimpan! Klik Simpan Perubahan Profil.');
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal memproses foto profil.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const copyText = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -62,16 +99,12 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
-    const formData = new FormData(e.currentTarget);
-    const nama = formData.get('nama') as string;
-    const username = formData.get('username') as string;
-    const profile_url = formData.get('profile_url') as string;
 
     try {
       const res = await updateMyProfileAction({
-        nama,
-        username,
-        profile_url,
+        nama: namaInput,
+        username: usernameInput,
+        profile_url: profileUrlInput,
         new_password: newPassword.trim() || undefined,
       });
       if (res.success) {
@@ -81,7 +114,7 @@ export default function ProfilePage() {
           setNewPassword('');
         }
         const updated = await getCurrentUser();
-        if (updated) setUser(updated);
+        if (updated) setUser({ ...updated, profile_url: profileUrlInput });
         router.refresh();
       } else {
         toast.error(res.message);
@@ -117,18 +150,38 @@ export default function ProfilePage() {
            
            <div className="relative mb-6 sm:mb-8">
               <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl sm:rounded-[2.5rem] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center shadow-inner overflow-hidden group">
-                 {user?.profile_url ? (
-                   <Image src={transformDriveLink(user.profile_url)} alt={user.nama} width={128} height={128} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                 {activeAvatarUrl ? (
+                   // eslint-disable-next-line @next/next/no-img-element
+                   <img
+                     src={activeAvatarUrl}
+                     alt={namaInput || user?.nama || 'Profil'}
+                     referrerPolicy="no-referrer"
+                     onError={() => setAvatarCandidateIdx((idx) => idx + 1)}
+                     className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                   />
                  ) : (
                    <UserCircle2 className="w-16 h-16 text-slate-300 dark:text-slate-700" />
                  )}
               </div>
-              <div className="absolute -bottom-2 -right-2 p-2.5 sm:p-3 bg-indigo-600 text-white rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/20 border-2 border-white dark:border-[#0a0e1a]">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                title="Unggah foto profil dari perangkat"
+                className="absolute -bottom-2 -right-2 p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/20 border-2 border-white dark:border-[#0a0e1a] active:scale-95 transition-all"
+              >
                  <Camera className="w-4 h-4" />
-              </div>
+              </button>
            </div>
 
-           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate w-full px-2 sm:px-4">{user?.nama}</h2>
+           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate w-full px-2 sm:px-4">{namaInput || user?.nama}</h2>
            <div className="mt-2 flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20">
               <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{user?.role}</span>
            </div>
@@ -163,27 +216,55 @@ export default function ProfilePage() {
                    <label className="block text-[10px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em] mb-2 sm:mb-3 ml-1 flex items-center gap-2">
                       <UserCheck className="w-3 h-3" /> Nama Lengkap
                    </label>
-                   <input required type="text" name="nama" defaultValue={user?.nama} className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl sm:rounded-2xl px-4 py-3 sm:px-6 sm:py-4 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 shadow-inner" placeholder="Contoh: Budi Santoso, S.Pd" />
+                   <input required type="text" name="nama" value={namaInput} onChange={(e) => setNamaInput(e.target.value)} className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl sm:rounded-2xl px-4 py-3 sm:px-6 sm:py-4 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 shadow-inner" placeholder="Contoh: Budi Santoso, S.Pd" />
                  </div>
                  <div>
                    <label className="block text-[10px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em] mb-2 sm:mb-3 ml-1 flex items-center gap-2">
                       <LayoutDashboard className="w-3 h-3" /> Identitas Login (Username)
                    </label>
-                   <input required type="text" name="username" defaultValue={user?.username} className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl sm:rounded-2xl px-4 py-3 sm:px-6 sm:py-4 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner" />
+                   <input required type="text" name="username" value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)} className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-xl sm:rounded-2xl px-4 py-3 sm:px-6 sm:py-4 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner" />
                  </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em] mb-3 ml-1 flex items-center gap-2">
-                   <Link2 className="w-3 h-3" /> URL Foto Profil
-                </label>
-                <textarea 
-                  name="profile_url" 
-                  defaultValue={user?.profile_url}
-                  className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-2xl px-6 py-4 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 shadow-inner min-h-[100px] resize-none" 
-                  placeholder="Tempel link gambar dari Google Drive, Facebook, atau URL lainnya..."
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 ml-1">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Link2 className="w-3 h-3" /> Foto Profil (Upload File atau Tempel URL / Google Drive)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={uploadingPhoto}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 active:scale-95 transition-all"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      <span>{uploadingPhoto ? 'Memproses...' : 'Upload Foto'}</span>
+                    </button>
+                    {profileUrlInput && (
+                      <button
+                        type="button"
+                        onClick={() => { setProfileUrlInput(''); setAvatarCandidateIdx(0); }}
+                        className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 active:scale-95 transition-all"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Hapus</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  name="profile_url"
+                  value={profileUrlInput.startsWith('data:image/') ? '[Foto Profil Terunggah — Siap Disimpan]' : profileUrlInput}
+                  readOnly={profileUrlInput.startsWith('data:image/')}
+                  onChange={(e) => { setProfileUrlInput(e.target.value); setAvatarCandidateIdx(0); }}
+                  className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-2xl px-5 py-3.5 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 shadow-inner"
+                  placeholder="Tempel link Google Drive, URL gambar publik mana saja, atau klik Upload Foto..."
                 />
-                <p className="text-[10px] text-slate-500 mt-3 font-bold italic">* Disarankan menggunakan URL gambar publik dengan aspek rasio 1:1 untuk hasil optimal.</p>
+                <p className="text-[10px] text-slate-500 mt-2 font-medium">
+                  Mendukung upload file langsung dari HP/komputer maupun link dari Google Drive / website mana pun.
+                </p>
               </div>
             </div>
 

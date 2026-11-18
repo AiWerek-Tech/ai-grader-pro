@@ -101,7 +101,7 @@ const nextConfig = {
           // globals.css meng-import Plus Jakarta Sans dari Google Fonts
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
           // Allow images from self, data URIs (base64), and Google Drive
-          "img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com",
+          "img-src 'self' data: blob: https:",
           // Allow fetching from same origin + websockets on LAN
           "connect-src 'self' ws: wss:",
           "font-src 'self' data: https://fonts.gstatic.com",

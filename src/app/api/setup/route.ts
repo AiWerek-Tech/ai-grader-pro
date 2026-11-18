@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { getIronSession } from 'iron-session';
 import { SessionData, assertSessionSecretConfigured, sessionOptions } from '@/lib/session';
 import { getBootstrapMode, getBootstrapUsers } from '@/lib/bootstrap-users';
+import { dbGetAll, dbBatchAppendRows, dbAppendRow, isMySqlEnabled } from '@/lib/google-sheets';
+import { ensureMySqlTables } from '@/lib/mysql';
 import { google } from 'googleapis';
 import path from 'path';
 import bcrypt from 'bcryptjs';
@@ -128,6 +130,70 @@ export async function POST() {
 
     const authError = await ensureAdminSession();
     if (authError) return authError;
+
+    if (isMySqlEnabled()) {
+      const results: string[] = [];
+      await ensureMySqlTables();
+      results.push('✅ Semua 11 tabel MySQL telah dibuat/diverifikasi.');
+
+      const existingUsers = await dbGetAll('USERS', false);
+      let usersSeeded = 0;
+      if (existingUsers.length === 0) {
+        const bootstrapUsers = getBootstrapUsers();
+        const userRows = bootstrapUsers.map(u => [
+          generateId('USR'),
+          u.username,
+          bcrypt.hashSync(u.password, 10),
+          u.role,
+          u.nama,
+          'Aktif',
+          ''
+        ]);
+        await dbBatchAppendRows('USERS', userRows);
+        usersSeeded = userRows.length;
+        results.push(`✅ USERS: ${userRows.length} akun bootstrap di-seed (${getBootstrapMode()})`);
+      }
+
+      const existingSettings = await dbGetAll('SETTINGS', false);
+      if (existingSettings.length === 0) {
+        await dbBatchAppendRows('SETTINGS', DEFAULT_SETTINGS);
+        results.push(`✅ SETTINGS: ${DEFAULT_SETTINGS.length} konfigurasi default ditulis`);
+      }
+
+      const existingKelas = await dbGetAll('KELAS', false);
+      if (existingKelas.length === 0) {
+        const kelasRows = DEFAULT_KELAS.map(k => [
+          generateId('KLS'),
+          k.nama,
+          k.jenjang,
+          DEFAULT_TAHUN_AJARAN,
+          DEFAULT_SEMESTER
+        ]);
+        await dbBatchAppendRows('KELAS', kelasRows);
+        results.push(`✅ KELAS: ${kelasRows.length} kelas default di-seed`);
+      }
+
+      const existingMapel = await dbGetAll('MAPEL', false);
+      if (existingMapel.length === 0) {
+        const mapelRows = DEFAULT_MAPEL.map(m => [generateId('MPL'), m]);
+        await dbBatchAppendRows('MAPEL', mapelRows);
+        results.push(`✅ MAPEL: ${mapelRows.length} mapel default di-seed`);
+      }
+
+      await dbAppendRow('LOG', [new Date().toISOString(), 'INFO', 'DB_SETUP', 'Database MySQL berhasil di-setup via /api/setup', 'SYSTEM']);
+      results.push('📝 Log setup berhasil dicatat.');
+
+      return NextResponse.json({
+        success: true,
+        message: '🎉 Database MySQL berhasil di-setup!',
+        details: results,
+        summary: {
+          driver: 'mysql',
+          total_tables: Object.keys(SCHEMA).length,
+          users_seeded: usersSeeded,
+        }
+      });
+    }
 
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || '';

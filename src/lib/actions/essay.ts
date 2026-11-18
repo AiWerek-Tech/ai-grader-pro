@@ -35,7 +35,7 @@ export async function automatedEssayScoringAction(
       throw new Error('Data jawaban siswa atau pedoman rubrik tidak lengkap.');
     }
 
-    const settingsRes = await getSettingsAction();
+    const settingsRes = await getSettingsAction(true);
     const settings = (settingsRes.data || {}) as Record<string, string>;
     const keys = resolveApiKeyPool(settings);
     const genAI = new GoogleGenerativeAI(keys[0] || process.env.GEMINI_API_KEY || '');
@@ -111,7 +111,7 @@ export async function scoreStudentEssaysWithAIAction(
       };
     }
 
-    const settingsRes = await getSettingsAction();
+    const settingsRes = await getSettingsAction(true);
     const settings = (settingsRes.data || {}) as Record<string, string>;
     const keys = resolveApiKeyPool(settings);
     const modelName = settings?.['ai_model'] || 'gemini-2.5-flash';

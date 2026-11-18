@@ -3,14 +3,12 @@
 import {
   dbGetAll,
   dbAppendRow,
+  dbBatchAppendRows,
   dbFindAndDeleteRow,
   dbUpdateRow,
   dbBatchUpdateRows,
   generateId,
   sanitizeInput,
-  getSheets,
-  spreadsheetId,
-  clearSheetCache,
 } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
@@ -383,14 +381,7 @@ export async function importSiswaBatchAction(arrSiswa: { nis: string, nama: stri
     }
 
     if (newRowsBatch.length > 0) {
-      const sheets = getSheets();
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: `${sheetName}!A:A`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values: newRowsBatch },
-      });
-      clearSheetCache(sheetName);
+      await dbBatchAppendRows(sheetName, newRowsBatch);
     }
 
     await logger.info('IMPORT_SISWA', `Berhasil import ${inserted} siswa secara massal`, adminId);

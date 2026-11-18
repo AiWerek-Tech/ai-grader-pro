@@ -552,13 +552,15 @@ export async function runAIWithConsensus(
   questionBlueprint: QuestionBlueprintItem[] = []
 ) {
   const [settingsRes, optimizedImg] = await Promise.all([
-    getSettingsAction(),
+    getSettingsAction(true),
     optimizeImageForVision(imageBase64, mimeType),
   ]);
 
   const settings = (settingsRes.data || {}) as Record<string, string>;
   const userSelectedModel = resolveEffectiveVisionModel(settings['ai_model']);
   const minConfidencePct = Number(settings['min_confidence'] || 60);
+  const configuredTemp = Number(settings['ai_temperature']);
+  const effectiveTemp = Number.isFinite(configuredTemp) ? Math.max(0, Math.min(1, configuredTemp)) : 0.1;
   const apiKeyPool = resolveApiKeyPool(settings);
 
   const prompt = buildSystemPrompt(settings, 0, totalSoal, questionBlueprint);
@@ -569,7 +571,7 @@ export async function runAIWithConsensus(
       optimizedImg.mimeType,
       prompt,
       userSelectedModel,
-      0,
+      effectiveTemp,
       50000,
       apiKeyPool
     );
@@ -659,7 +661,7 @@ export async function runAIWithFallbackAndRetry(
 ) {
   let settings = cachedSettings;
   if (!settings) {
-    const result = await getSettingsAction();
+    const result = await getSettingsAction(true);
     settings = (result.data || {}) as Record<string, string>;
   }
 

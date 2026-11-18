@@ -14,8 +14,8 @@ import { APP_VERSION, ANDROID_APK_RELEASE } from '@/lib/app-version';
 import {
   Menu, X, LayoutDashboard, Key, ScanLine, Award,
   ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download,
-  Users, GraduationCap, IdCard, BookOpen, ClipboardList, Printer,
-  ScrollText, Settings, Stethoscope, User
+  Users, GraduationCap, IdCard, BookOpen, ClipboardList, ClipboardCheck, Printer,
+  ScrollText, Settings, Stethoscope, User, CalendarDays
 } from 'lucide-react';
 
 const NAV_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -25,6 +25,8 @@ const NAV_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> 
   '/dashboard/kartu-peserta': IdCard,
   '/dashboard/kelas-mapel': BookOpen,
   '/dashboard/tugas-mengajar': ClipboardList,
+  '/dashboard/jadwal-ujian': CalendarDays,
+  '/dashboard/daftar-hadir': ClipboardCheck,
   '/dashboard/kunci': Key,
   '/dashboard/ljk': Printer,
   '/dashboard/analisis': ScanLine,
@@ -82,7 +84,7 @@ export default function ResponsiveDashboardWrapper({
 
   const pathname = usePathname();
   const isAdmin = user?.role === 'ADMIN';
-  const visibleSections = adminSections.filter(s => !s.adminOnly || isAdmin);
+  const visibleSections = adminSections.filter(s => s.items && s.items.length > 0);
 
   useEffect(() => {
     if (!showLanModal) return;

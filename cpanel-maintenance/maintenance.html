@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#050314" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Sedang Pemeliharaan — WMVAA AI Grader Pro</title>
+  <style>
+    :root {
+      --bg: #050314;
+      --card: rgba(15, 13, 36, 0.84);
+      --border: rgba(139, 92, 246, 0.24);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #7c3aed;
+      --accent-soft: rgba(124, 58, 237, 0.16);
+      --emerald: #10b981;
+      --amber: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(circle at 15% 20%, rgba(124, 58, 237, 0.22), transparent 42%),
+        radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.18), transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.06), transparent 60%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 36px 28px 30px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 24px;
+    }
+
+    .brand-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #e2e8f0;
+    }
+
+    .icon-wrap {
+      width: 84px;
+      height: 84px;
+      margin: 0 auto 22px;
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(124, 58, 237, 0.24), rgba(59, 130, 246, 0.14));
+      border: 1px solid rgba(167, 139, 250, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(124, 58, 237, 0.25);
+    }
+
+    .pulse-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 26px;
+      border: 1.5px solid rgba(167, 139, 250, 0.45);
+      animation: pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .gear-spin {
+      animation: spin 9s linear infinite;
+      transform-origin: center;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; transform: scale(0.98); }
+      50% { opacity: 0.85; transform: scale(1.03); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+
+    .status-pill.online {
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.14);
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .desc {
+      font-size: 14.5px;
+      color: var(--muted);
+      margin-bottom: 22px;
+    }
+
+    .info-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 14px 16px;
+      text-align: left;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #cbd5e1;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .info-box svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px 18px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .countdown-text {
+      font-size: 12.5px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    @media (max-width: 420px) {
+      .card {
+        padding: 28px 20px 24px;
+        border-radius: 20px;
+      }
+      h1 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" rx="6" fill="#7c3aed" fill-opacity="0.25" stroke="#a78bfa" stroke-width="1.6"/>
+        <path d="M7 12.5L10.3 15.5L17 8.5" stroke="#34d399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-title">WMVAA AI GRADER PRO</span>
+    </div>
+
+    <div class="icon-wrap" aria-hidden="true">
+      <div class="pulse-ring"></div>
+      <svg class="gear-spin" width="40" height="40" viewBox="0 0 24 24" fill="none">
+        <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#c4b5fd" stroke-width="1.8"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <div id="statusPill" class="status-pill">
+      <span class="dot"></span>
+      <span id="statusLabel">Pemeliharaan Sistem Berlangsung</span>
+    </div>
+
+    <h1>Aplikasi Sedang Dalam Pemeliharaan</h1>
+    <p class="desc">
+      Server <strong>WMVAA AI Grader Pro</strong> sedang diperbarui atau dioptimalkan sementara waktu agar proses koreksi LJK berjalan lebih cepat dan stabil.
+    </p>
+
+    <div class="info-box">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" stroke="#34d399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 12l2 2 4-4" stroke="#34d399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <strong>Data Anda Tetap Aman:</strong> Seluruh data siswa, kunci jawaban, dan nilai hasil koreksi tersimpan aman di server database sekolah. Halaman ini akan otomatis kembali normal begitu server aktif.
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="retryBtn" class="btn-primary" type="button" onclick="checkServer(true)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="btnText">Coba Muat Ulang Sekarang</span>
+      </button>
+      <p id="countdownText" class="countdown-text">Mengecek status server otomatis dalam 10 detik...</p>
+    </div>
+
+    <div class="footer">
+      Portal Akademik &amp; Asesmen Digital WMVAA &bull; Silakan coba beberapa saat lagi
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var INTERVAL_SECONDS = 10;
+      var secondsLeft = INTERVAL_SECONDS;
+      var isChecking = false;
+
+      var statusPill = document.getElementById('statusPill');
+      var statusLabel = document.getElementById('statusLabel');
+      var countdownText = document.getElementById('countdownText');
+      var retryBtn = document.getElementById('retryBtn');
+      var btnText = document.getElementById('btnText');
+
+      // Deteksi basePath secara otomatis (/ai-grader atau root /)
+      var pathParts = window.location.pathname.split('/').filter(Boolean);
+      var basePath = pathParts[0] === 'ai-grader' ? '/ai-grader' : '';
+      var healthUrl = basePath + '/manifest.webmanifest';
+
+      window.checkServer = function (manual) {
+        if (isChecking) return;
+        isChecking = true;
+        retryBtn.disabled = true;
+        btnText.textContent = 'Memeriksa Server...';
+        if (manual) {
+          countdownText.textContent = 'Menghubungi server WMVAA AI Grader Pro...';
+        }
+
+        var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var timeoutId = controller ? setTimeout(function () { controller.abort(); }, 4500) : null;
+
+        fetch(healthUrl + '?ping=' + Date.now(), {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller ? controller.signal : undefined
+        })
+          .then(function (res) {
+            if (timeoutId) clearTimeout(timeoutId);
+            var ct = (res.headers.get('content-type') || '').toLowerCase();
+            // Manifest Next.js selalu mengembalikan HTTP 200 dengan content-type json
+            if (res.ok && ct.indexOf('json') !== -1) {
+              statusPill.className = 'status-pill online';
+              statusLabel.textContent = 'Server Sudah Aktif!';
+              countdownText.textContent = 'Mengalihkan kembali ke aplikasi...';
+              btnText.textContent = 'Membuka Aplikasi...';
+              setTimeout(function () {
+                if (window.location.pathname.indexOf('maintenance.html') !== -1) {
+                  window.location.replace(basePath + '/login');
+                } else {
+                  window.location.reload();
+                }
+              }, 600);
+              return;
+            }
+            throw new Error('Server belum siap');
+          })
+          .catch(function () {
+            if (timeoutId) clearTimeout(timeoutId);
+            isChecking = false;
+            retryBtn.disabled = false;
+            btnText.textContent = 'Coba Muat Ulang Sekarang';
+            secondsLeft = INTERVAL_SECONDS;
+            if (manual) {
+              countdownText.textContent = 'Server masih dalam pemeliharaan. Cek ulang dalam ' + secondsLeft + ' detik...';
+            }
+          });
+      };
+
+      setInterval(function () {
+        if (isChecking) return;
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+          window.checkServer(false);
+        } else {
+          countdownText.textContent = 'Mengecek status server otomatis dalam ' + secondsLeft + ' detik...';
+        }
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>

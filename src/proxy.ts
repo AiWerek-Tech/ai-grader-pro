@@ -8,13 +8,7 @@ import { assertSessionSecretConfigured, sessionOptions, type SessionData } from 
 // Next.js 16 menggunakan file convention `proxy.ts`
 // ============================================================
 
-const ADMIN_ONLY_ROUTES = [
-  '/dashboard/guru',
-  '/dashboard/settings',
-  '/dashboard/doctor',
-  '/dashboard/logs',
-  '/dashboard/tugas-mengajar',
-];
+const ADMIN_ONLY_ROUTES = ['/dashboard/settings'];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -23,7 +17,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
   assertSessionSecretConfigured();
   const session = await getIronSession<SessionData>(request, response, sessionOptions);
 

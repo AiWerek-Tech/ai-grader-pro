@@ -65,8 +65,15 @@ export async function initializeKurikulumMerdeka2026Core(
     ['auto_sync', 'false'],
     ['smp_kepala_nama', 'Bpk. Daniel Walilo, M.Pd.'],
     ['smp_kepala_nip', '19840512 201001 1 008'],
+    ['smp_panitia_nama', 'Ibu Ester Kogoya, S.Pd.'],
+    ['smp_panitia_nip', '19880314 201403 2 005'],
     ['sma_kepala_nama', 'Pdt. Yohanes Asso, M.Fil.'],
     ['sma_kepala_nip', '19791103 200604 1 003'],
+    ['sma_panitia_nama', 'Ibu Linda Wetapo, S.Pd.'],
+    ['sma_panitia_nip', '19860721 201101 2 004'],
+    ['kota_sekolah', 'Wamena'],
+    ['ljk_essay_layout_default', 'integrated'],
+    ['tampilkan_ttd_panitia', 'false'],
   ];
 
   // 2. KELAS — Full Kurikulum Merdeka dari Kelas 7 SMP (Fase D) s/d 12 SMA (Fase E & F)

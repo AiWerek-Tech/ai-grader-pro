@@ -126,6 +126,9 @@ export async function POST(req: NextRequest) {
           },
         });
 
+    const rawProfileUrl = String(target.profile_url || '');
+    const cookieSafeProfileUrl = rawProfileUrl.length <= 512 ? rawProfileUrl : '';
+
     // 5. Simpan session dengan iron-session via cookieStore dan response headers
     try {
       const cookieStore = await cookies();
@@ -134,7 +137,7 @@ export async function POST(req: NextRequest) {
       session.username = target.username;
       session.role = target.role;
       session.nama = target.nama;
-      session.profile_url = target.profile_url || '';
+      session.profile_url = cookieSafeProfileUrl;
       session.isLoggedIn = true;
       await session.save();
     } catch (sessionErr) {
@@ -146,7 +149,7 @@ export async function POST(req: NextRequest) {
     resSession.username = target.username;
     resSession.role = target.role;
     resSession.nama = target.nama;
-    resSession.profile_url = target.profile_url || '';
+    resSession.profile_url = cookieSafeProfileUrl;
     resSession.isLoggedIn = true;
     await resSession.save();
 

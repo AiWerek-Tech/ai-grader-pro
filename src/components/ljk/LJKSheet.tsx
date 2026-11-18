@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { buildMachinePageLayout, getMachineQuestionOptions, type EssayLayoutMode } from '@/lib/scan/machine-layout';
 import { withBasePath } from '@/lib/base-path';
+import { buildImageFallbackCandidates } from '@/lib/utils';
 
 function FidMarker({ pos }: { pos: string }) {
   let style: React.CSSProperties = { position: 'absolute', display: 'block', zIndex: 20 };
@@ -21,15 +22,6 @@ function FidMarker({ pos }: { pos: string }) {
   );
 }
 
-const parseDriveUrl = (url?: string) => {
-  if (!url) return '';
-  const idMatch = url.match(/\/d\/([^/?]+)/) || url.match(/id=([^/?&]+)/);
-  if (idMatch && idMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
-  }
-  return url;
-};
-
 function SchoolLogo({
   src,
   defaultSrc,
@@ -39,13 +31,19 @@ function SchoolLogo({
   defaultSrc: string;
   alt: string;
 }) {
-  const [useFallback, setUseFallback] = useState(false);
-  const [hideAll, setHideAll] = useState(false);
+  const candidates = useMemo(() => buildImageFallbackCandidates(src, defaultSrc), [src, defaultSrc]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [prevKey, setPrevKey] = useState(`${src || ''}|${defaultSrc}`);
 
-  const primaryUrl = parseDriveUrl(src);
-  const activeUrl = !useFallback && primaryUrl ? primaryUrl : defaultSrc;
+  const currentKey = `${src || ''}|${defaultSrc}`;
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
+    setCandidateIdx(0);
+  }
 
-  if (hideAll || !activeUrl) {
+  const activeUrl = candidates[candidateIdx] || '';
+
+  if (!activeUrl) {
     return <div className="w-[70px] h-[70px]" />;
   }
 
@@ -56,11 +54,7 @@ function SchoolLogo({
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => {
-        if (!useFallback && primaryUrl && primaryUrl !== defaultSrc) {
-          setUseFallback(true);
-        } else {
-          setHideAll(true);
-        }
+        setCandidateIdx((idx) => idx + 1);
       }}
       className="max-w-[70px] max-h-[70px] w-auto h-auto object-contain select-none"
     />

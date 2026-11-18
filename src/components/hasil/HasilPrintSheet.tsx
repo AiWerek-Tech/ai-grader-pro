@@ -2,15 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { withBasePath } from '@/lib/base-path';
-
-const parseDriveUrl = (url?: string) => {
-  if (!url) return '';
-  const idMatch = url.match(/\/d\/([^/?]+)/) || url.match(/id=([^/?&]+)/);
-  if (idMatch && idMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
-  }
-  return url;
-};
+import { buildImageFallbackCandidates } from '@/lib/utils';
 
 function PrintLogo({
   src,
@@ -21,12 +13,19 @@ function PrintLogo({
   defaultSrc: string;
   alt: string;
 }) {
-  const [useFallback, setUseFallback] = useState(false);
-  const [hideAll, setHideAll] = useState(false);
-  const primaryUrl = parseDriveUrl(src);
-  const activeUrl = !useFallback && primaryUrl ? primaryUrl : defaultSrc;
+  const candidates = useMemo(() => buildImageFallbackCandidates(src, defaultSrc), [src, defaultSrc]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [prevKey, setPrevKey] = useState(`${src || ''}|${defaultSrc}`);
 
-  if (hideAll || !activeUrl) {
+  const currentKey = `${src || ''}|${defaultSrc}`;
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
+    setCandidateIdx(0);
+  }
+
+  const activeUrl = candidates[candidateIdx] || '';
+
+  if (!activeUrl) {
     return <div className="w-[64px] h-[64px]" />;
   }
 
@@ -37,11 +36,7 @@ function PrintLogo({
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => {
-        if (!useFallback && primaryUrl && primaryUrl !== defaultSrc) {
-          setUseFallback(true);
-        } else {
-          setHideAll(true);
-        }
+        setCandidateIdx((idx) => idx + 1);
       }}
       className="max-w-[64px] max-h-[64px] w-auto h-auto object-contain select-none"
     />
@@ -122,6 +117,10 @@ export default function HasilPrintSheet({
           settings.nama_kepsek ||
           '';
         const nipKepsek = settings[`${jenjang}_kepala_nip`] || '';
+        const namaPanitia = settings[`${jenjang}_panitia_nama`] || '';
+        const nipPanitia = settings[`${jenjang}_panitia_nip`] || '';
+        const showPanitia = settings.tampilkan_ttd_panitia === 'true' && Boolean(namaPanitia);
+        const kotaSekolah = settings[`${jenjang}_kota`] || settings.kota_sekolah || 'Wamena';
 
         const firstRow = group.rows[0];
         const kInfo = selectedKunciObj || firstRow?.kInfo;
@@ -317,8 +316,8 @@ export default function HasilPrintSheet({
               </tfoot>
             </table>
 
-            {/* 4. BLOK TANDA TANGAN PENGESAHAN */}
-            <div className="grid grid-cols-2 gap-10 text-[10px] mt-6 pt-2 break-inside-avoid">
+            {/* 4. BLOK TANDA TANGAN PENGESAHAN (Otomatis menyesuaikan Unit SMP / SMA) */}
+            <div className={`grid ${showPanitia ? 'grid-cols-3 gap-6' : 'grid-cols-2 gap-10'} text-[10px] mt-6 pt-2 break-inside-avoid`}>
               <div className="text-center">
                 <p>Mengetahui,</p>
                 <p className="font-bold">Kepala {sekolahBaris2}</p>
@@ -336,8 +335,21 @@ export default function HasilPrintSheet({
                   <p className="font-bold text-slate-600">( ........................................ )</p>
                 )}
               </div>
+              {showPanitia && (
+                <div className="text-center">
+                  <p>Diperiksa Oleh,</p>
+                  <p className="font-bold">Ketua Panitia Ujian ({jenjang.toUpperCase()})</p>
+                  <div className="h-16" />
+                  <p className="font-black underline underline-offset-2">{namaPanitia}</p>
+                  {nipPanitia && (
+                    <p className="text-[9px] font-mono text-slate-700 mt-0.5">
+                      NIP/NRG. {nipPanitia}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="text-center">
-                <p>Wamena, {printDate}</p>
+                <p>{kotaSekolah}, {printDate}</p>
                 <p className="font-bold">Guru Mata Pelajaran</p>
                 <div className="h-16" />
                 <p className="font-black underline underline-offset-2">{namaGuru}</p>

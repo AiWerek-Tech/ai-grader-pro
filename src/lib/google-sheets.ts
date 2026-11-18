@@ -1,5 +1,18 @@
 import { google, sheets_v4 } from 'googleapis';
 import path from 'path';
+import {
+  isMySqlEnabled,
+  mysqlGetAll,
+  mysqlAppendRow,
+  mysqlBatchAppendRows,
+  mysqlUpdateRow,
+  mysqlBatchUpdateRows,
+  mysqlFindAndDeleteRow,
+  mysqlDeleteRows,
+  mysqlReplaceTableData,
+} from './mysql';
+
+export { isMySqlEnabled };
 
 // Pastikan GOOGLE_APPLICATION_CREDENTIALS dan GOOGLE_SPREADSHEET_ID telah diset di .env.local
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -44,24 +57,29 @@ export async function dbGetAll(sheetName: string, useCache: boolean = true): Pro
   }
 
   try {
-    const sheets = getSheets();
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: getSpreadsheetId(),
-      range: `${sheetName}!A1:ZZ`,
-    });
+    let result: any[] = [];
 
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) return [];
+    if (isMySqlEnabled()) {
+      result = await mysqlGetAll(sheetName);
+    } else {
+      const sheets = getSheets();
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: getSpreadsheetId(),
+        range: `${sheetName}!A1:ZZ`,
+      });
 
-    const headers = rows[0] as string[];
-    const result = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const obj: Record<string, any> = {};
-      for (let j = 0; j < headers.length; j++) {
-        obj[headers[j]] = row[j] !== undefined ? row[j] : '';
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) return [];
+
+      const headers = rows[0] as string[];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const obj: Record<string, any> = {};
+        for (let j = 0; j < headers.length; j++) {
+          obj[headers[j]] = row[j] !== undefined ? row[j] : '';
+        }
+        result.push(obj);
       }
-      result.push(obj);
     }
 
     // Update cache with size management
@@ -112,20 +130,24 @@ export async function dbBatchAppendRows(sheetName: string, rows: unknown[][]): P
   try {
     if (!rows || rows.length === 0) return true;
     
-    const sheets = getSheets();
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: getSpreadsheetId(),
-      range: `${sheetName}!A:A`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: rows,
-      },
-    });
+    if (isMySqlEnabled()) {
+      await mysqlBatchAppendRows(sheetName, rows);
+    } else {
+      const sheets = getSheets();
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: getSpreadsheetId(),
+        range: `${sheetName}!A:A`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: rows,
+        },
+      });
+    }
     
     clearSheetCache(sheetName);
     return true;
   } catch (error: unknown) {
-    console.error(`[GoogleSheets API Error] dbBatchAppendRows(${sheetName}):`, error instanceof Error ? error.message : String(error));
+    console.error(`[Database API Error] dbBatchAppendRows(${sheetName}):`, error instanceof Error ? error.message : String(error));
     throw new Error('Gagal menambahkan data batch ke Database.');
   }
 }
@@ -135,19 +157,23 @@ export async function dbBatchAppendRows(sheetName: string, rows: unknown[][]): P
  */
 export async function dbAppendRow(sheetName: string, values: unknown[]): Promise<boolean> {
   try {
-    const sheets = getSheets();
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: getSpreadsheetId(),
-      range: `${sheetName}!A:A`, // Akan otomatis ter-append di baris terbawah
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [values],
-      },
-    });
+    if (isMySqlEnabled()) {
+      await mysqlAppendRow(sheetName, values);
+    } else {
+      const sheets = getSheets();
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: getSpreadsheetId(),
+        range: `${sheetName}!A:A`, // Akan otomatis ter-append di baris terbawah
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [values],
+        },
+      });
+    }
     clearSheetCache(sheetName);
     return true;
   } catch (error: unknown) {
-    console.error(`[GoogleSheets API Error] dbAppendRow(${sheetName}):`, error instanceof Error ? error.message : String(error));
+    console.error(`[Database API Error] dbAppendRow(${sheetName}):`, error instanceof Error ? error.message : String(error));
     throw new Error('Gagal menambahkan data ke Database.');
   }
 }
@@ -157,6 +183,17 @@ export async function dbAppendRow(sheetName: string, values: unknown[]): Promise
  * Mitigasi race condition dengan retry mechanism dan validasi setelah update.
  */
 export async function dbUpdateRow(sheetName: string, targetId: string, newValues: unknown[], maxRetries: number = 3) {
+  if (isMySqlEnabled()) {
+    try {
+      const updated = await mysqlUpdateRow(sheetName, targetId, newValues);
+      clearSheetCache(sheetName);
+      return updated;
+    } catch (error: unknown) {
+      console.error(`[MySQL API Error] dbUpdateRow(${sheetName}):`, error instanceof Error ? error.message : String(error));
+      throw new Error('Gagal memperbarui data di Database.');
+    }
+  }
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -226,6 +263,12 @@ export async function dbBatchUpdateRows(sheetName: string, updates: { id: string
   try {
     if (!updates || updates.length === 0) return true;
     
+    if (isMySqlEnabled()) {
+      await mysqlBatchUpdateRows(sheetName, updates);
+      clearSheetCache(sheetName);
+      return true;
+    }
+
     const sheets = getSheets();
     const activeSpreadsheetId = getSpreadsheetId();
     const response = await sheets.spreadsheets.values.get({
@@ -273,6 +316,12 @@ export async function dbBatchUpdateRows(sheetName: string, updates: { id: string
  */
 export async function dbFindAndDeleteRow(sheetName: string, targetId: string) {
   try {
+    if (isMySqlEnabled()) {
+      const deleted = await mysqlFindAndDeleteRow(sheetName, targetId);
+      clearSheetCache(sheetName);
+      return deleted;
+    }
+
     const sheets = getSheets();
     const activeSpreadsheetId = getSpreadsheetId();
     
@@ -333,6 +382,12 @@ export async function dbFindAndDeleteRow(sheetName: string, targetId: string) {
  */
 export async function dbDeleteRows(sheetName: string, startIndex: number, count: number) {
   try {
+    if (isMySqlEnabled()) {
+      await mysqlDeleteRows(sheetName, startIndex, count);
+      clearSheetCache(sheetName);
+      return true;
+    }
+
     const sheets = getSheets();
     const activeSpreadsheetId = getSpreadsheetId();
     const meta = await sheets.spreadsheets.get({ spreadsheetId: activeSpreadsheetId });
@@ -375,6 +430,12 @@ export async function dbReplaceSheetData(
   rows: (string | number | boolean)[][]
 ) {
   try {
+    if (isMySqlEnabled()) {
+      await mysqlReplaceTableData(sheetName, headers, rows);
+      clearSheetCache(sheetName);
+      return true;
+    }
+
     const sheets = getSheets();
     const activeSpreadsheetId = getSpreadsheetId();
     const meta = await sheets.spreadsheets.get({ spreadsheetId: activeSpreadsheetId });

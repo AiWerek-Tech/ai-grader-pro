@@ -4,8 +4,7 @@ import { getGuruList, addGuruAction, deleteGuruAction, toggleStatusGuruAction, r
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { createWorkbook, downloadWorkbook, loadWorkbookFromFile, worksheetToObjects } from '@/lib/utils/excel';
-import { transformDriveLink } from '@/lib/utils';
-import Image from 'next/image';
+import { transformDriveLink, compressImageFileToDataUrl } from '@/lib/utils';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { 
@@ -570,7 +569,8 @@ export default function GuruPage() {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 flex items-center justify-center text-base font-black text-indigo-600 dark:text-indigo-400 shrink-0 overflow-hidden">
                       {guru.profile_url ? (
-                        <Image src={transformDriveLink(guru.profile_url)} alt={guru.nama} width={44} height={44} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={transformDriveLink(guru.profile_url)} alt={guru.nama} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
                       ) : (
                         guru.nama.charAt(0).toUpperCase()
                       )}
@@ -667,7 +667,8 @@ export default function GuruPage() {
                       <div className="relative group/avatar">
                         <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 flex items-center justify-center text-lg font-black text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-all shadow-inner overflow-hidden">
                           {guru.profile_url ? (
-                            <Image src={transformDriveLink(guru.profile_url)} alt={guru.nama} width={48} height={48} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={transformDriveLink(guru.profile_url)} alt={guru.nama} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
                           ) : (
                             guru.nama.charAt(0).toUpperCase()
                           )}
@@ -1132,29 +1133,53 @@ export default function GuruPage() {
           <div className="bg-white dark:bg-[#0a0e1a] border border-slate-200 dark:border-white/10 w-full max-w-md rounded-[3rem] p-10 shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-500">
             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/10 blur-[80px] rounded-full -mr-24 -mt-24" />
             
-            <div className="flex flex-col items-center mb-10 relative z-10">
-              <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center mb-6 shadow-inner overflow-hidden">
+            <div className="flex flex-col items-center mb-8 relative z-10">
+              <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center mb-5 shadow-inner overflow-hidden">
                 {showProfileModal.profile_url ? (
-                  <Image src={transformDriveLink(showProfileModal.profile_url)} alt="Preview" width={96} height={96} className="w-full h-full object-cover" />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={transformDriveLink(showProfileModal.profile_url)} alt="Preview" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 ) : (
                   <UserCircle2 className="w-12 h-12 text-slate-300 dark:text-slate-700" />
                 )}
               </div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{showProfileModal.nama}</h2>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight text-center">{showProfileModal.nama}</h2>
               <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mt-2">Update Identitas Visual</p>
             </div>
 
-            <form onSubmit={handleUpdateProfile} className="space-y-8 relative z-10">
+            <form onSubmit={handleUpdateProfile} className="space-y-6 relative z-10">
               <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1 flex items-center gap-2">
-                  <Link2 className="w-3 h-3" /> URL Foto Profil
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-3 ml-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Link2 className="w-3 h-3" /> Foto Profil (Upload File / URL / Google Drive)
+                  </label>
+                  <label className="cursor-pointer px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 active:scale-95 transition-all">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Upload File</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file) return;
+                        try {
+                          const dataUrl = await compressImageFileToDataUrl(file, 220, 36000);
+                          setShowProfileModal((prev: any) => prev ? { ...prev, profile_url: dataUrl } : prev);
+                          toast.success('Foto siap disimpan! Klik Simpan Foto.');
+                        } catch (err: any) {
+                          toast.error(err.message || 'Gagal memproses foto.');
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
                 <textarea 
                   name="profile_url" 
-                  defaultValue={showProfileModal.profile_url}
-                  className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-2xl px-6 py-4 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 shadow-inner min-h-[100px] resize-none" 
-                  placeholder="Tempel link gambar dari Google Drive, Facebook, atau URL lainnya..."
-                  required
+                  value={showProfileModal.profile_url || ''}
+                  onChange={(e) => setShowProfileModal((prev: any) => prev ? { ...prev, profile_url: e.target.value } : prev)}
+                  className="w-full bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08] rounded-2xl px-6 py-4 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-700 shadow-inner min-h-[90px] resize-none" 
+                  placeholder="Tempel link gambar dari Google Drive, website mana saja, atau klik Upload File..."
                 />
               </div>
 

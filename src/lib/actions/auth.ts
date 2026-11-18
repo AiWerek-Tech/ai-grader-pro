@@ -174,11 +174,12 @@ export async function loginAction(username: string, password: string) {
     clearAttempts(String(target.username || ''));
 
     const session = await getSession();
+    const rawProfileUrl = String(target.profile_url || '');
     session.id = target.id_user;
     session.username = target.username;
     session.role = target.role;
     session.nama = target.nama;
-    session.profile_url = target.profile_url || '';
+    session.profile_url = rawProfileUrl.length <= 512 ? rawProfileUrl : '';
     session.isLoggedIn = true;
     await session.save();
 
@@ -289,7 +290,10 @@ export async function updateMyProfileAction(data: {
     const target = users[targetIndex];
 
     const updatedNama = data.nama ? sanitizeInput(data.nama).trim() : target.nama;
-    const updatedProfileUrl = data.profile_url !== undefined ? sanitizeInput(data.profile_url).trim() : target.profile_url;
+    const rawProfileInput = data.profile_url !== undefined ? String(data.profile_url).trim() : String(target.profile_url || '');
+    const updatedProfileUrl = rawProfileInput.startsWith('data:image/')
+      ? rawProfileInput
+      : sanitizeInput(rawProfileInput).trim();
 
     let updatedUsername = target.username;
     if (data.username && data.username.trim()) {
@@ -328,10 +332,10 @@ export async function updateMyProfileAction(data: {
     
     if (!updated) throw new Error('Gagal memperbarui profil di database.');
 
-    // Update session
+    // Update session (jaga ukuran cookie HTTP di bawah batas 4KB)
     session.nama = updatedNama;
     session.username = updatedUsername;
-    session.profile_url = updatedProfileUrl;
+    session.profile_url = updatedProfileUrl.length <= 512 ? updatedProfileUrl : '';
     await session.save();
 
     await logger.info('UPDATE_MY_PROFILE', `User memperbarui profil/sandi mandiri: ${updatedNama}`, userId);

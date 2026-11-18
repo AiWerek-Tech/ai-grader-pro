@@ -1,0 +1,27 @@
+# ==============================================================================
+# WMVAA AI Grader Pro — Halaman Pemeliharaan Otomatis & Manual (cPanel)
+# Tempelkan blok ini DI BAWAH baris:
+# "# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END"
+# pada file: public_html/ai-grader/.htaccess
+# ==============================================================================
+
+Options -Indexes
+
+# 1. Tangkap otomatis saat Next.js / Node.js App di-Stop, Restart, atau Down
+ErrorDocument 403 /ai-grader/maintenance.html
+ErrorDocument 404 /ai-grader/maintenance.html
+ErrorDocument 500 /ai-grader/maintenance.html
+ErrorDocument 502 /ai-grader/maintenance.html
+ErrorDocument 503 /ai-grader/maintenance.html
+
+# 2. (Opsional) Mode Pemeliharaan Manual 1-Klik:
+#    - Untuk mengaktifkan secara paksa (mis. sebelum mulai upload/update):
+#      buat file kosong bernama "maintenance.on" di folder public_html/ai-grader/
+#    - Untuk menonaktifkan kembali:
+#      ubah nama menjadi "maintenance.off" atau hapus file tersebut.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{DOCUMENT_ROOT}/ai-grader/maintenance.on -f
+  RewriteCond %{REQUEST_URI} !^/ai-grader/maintenance\.html$
+  RewriteRule ^ - [R=503,L]
+</IfModule>

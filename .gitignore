@@ -50,3 +50,7 @@ ljk-*.png
 tmp-*.png
 *.zip
 *.apk
+
+# local database dumps / backups containing live data
+/database/migration_full.sql
+/database/*backup*.sql
