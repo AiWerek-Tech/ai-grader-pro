@@ -27,6 +27,8 @@ const SCHEMA: Record<string, string[]> = {
   TUGAS_GURU: ['id_tugas', 'id_user', 'id_mapel', 'id_kelas', 'tahun_ajaran', 'semester'],
   AI_FEEDBACK: ['id_feedback', 'id_hasil', 'id_guru', 'tipe_koreksi', 'detail_json', 'timestamp'],
   FILES: ['id', 'file_name', 'file_type', 'category', 'drive_file_id', 'url', 'created_at'],
+  TAGIHAN: ['id_tagihan', 'id_siswa', 'tahun_ajaran', 'semester', 'kategori', 'periode_bulan', 'nama_tagihan', 'nominal', 'potongan', 'nominal_akhir', 'terbayar', 'status', 'jatuh_tempo', 'catatan', 'updated_at'],
+  PEMBAYARAN: ['id_pembayaran', 'no_kwitansi', 'id_tagihan', 'id_siswa', 'tanggal_bayar', 'nominal_bayar', 'metode', 'status_transaksi', 'id_petugas', 'nama_petugas', 'catatan', 'timestamp'],
 };
 
 // Default settings

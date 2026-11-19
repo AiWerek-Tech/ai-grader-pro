@@ -44,7 +44,9 @@ const REQUIRED_SHEETS = [
   'SETTINGS',
   'TUGAS_GURU',
   'AI_FEEDBACK',
-  'FILES'
+  'FILES',
+  'TAGIHAN',
+  'PEMBAYARAN'
 ];
 
 // SCHEMA DEFINITION for Migration (Fase 2.1)
@@ -60,6 +62,8 @@ const SCHEMA_MAP: Record<string, string[]> = {
   TUGAS_GURU: ['id_tugas', 'id_user', 'id_mapel', 'id_kelas', 'tahun_ajaran', 'semester'],
   AI_FEEDBACK: ['id_feedback', 'id_hasil', 'id_guru', 'tipe_koreksi', 'detail_json', 'timestamp'],
   FILES: ['id', 'file_name', 'file_type', 'category', 'drive_file_id', 'url', 'created_at'],
+  TAGIHAN: ['id_tagihan', 'id_siswa', 'tahun_ajaran', 'semester', 'kategori', 'periode_bulan', 'nama_tagihan', 'nominal', 'potongan', 'nominal_akhir', 'terbayar', 'status', 'jatuh_tempo', 'catatan', 'updated_at'],
+  PEMBAYARAN: ['id_pembayaran', 'no_kwitansi', 'id_tagihan', 'id_siswa', 'tanggal_bayar', 'nominal_bayar', 'metode', 'status_transaksi', 'id_petugas', 'nama_petugas', 'catatan', 'timestamp'],
 };
 
 const LEGACY_USERS_HEADERS = ['id_user', 'username', 'password_hash', 'role', 'nama', 'status', 'profile_url', 'profile_url'];
@@ -233,7 +237,7 @@ async function doctorCheckLogVolume(): Promise<any> {
 // ─── Gabungkan semua pengecekan ────────────────────────────────
 export async function runSystemDoctorAction(adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('doctor');
+    const session = await requireMenuAccess('doctor', 'read');
     adminId = session.id;
     const diagnostics = await Promise.all([
       doctorCheckIntegrity(),
@@ -253,7 +257,7 @@ export async function runSystemDoctorAction(adminId: string = 'SYSTEM') {
 // ─── Auto-Heal: Buat sheet yang hilang & Migrasi Arsitektur ───
 export async function healSystemAction(adminId: string = 'SYSTEM') {
   try {
-    const sessionUser = await requireMenuAccess('doctor');
+    const sessionUser = await requireMenuAccess('doctor', 'full');
     adminId = sessionUser.id;
     const { data: session } = await getAcademicSessionAction();
     const tahunAktif = session?.tahunAjaran || '2025/2026';

@@ -15,13 +15,14 @@ import {
   Menu, X, LayoutDashboard, Key, ScanLine, Award,
   ChevronRight, QrCode, Smartphone, Wifi, Copy, Check, Download,
   Users, GraduationCap, IdCard, BookOpen, ClipboardList, ClipboardCheck, Printer,
-  ScrollText, Settings, Stethoscope, User, CalendarDays
+  ScrollText, Settings, Stethoscope, User, CalendarDays, Wallet
 } from 'lucide-react';
 
 const NAV_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard': LayoutDashboard,
   '/dashboard/guru': Users,
   '/dashboard/siswa': GraduationCap,
+  '/dashboard/tagihan': Wallet,
   '/dashboard/kartu-peserta': IdCard,
   '/dashboard/kelas-mapel': BookOpen,
   '/dashboard/tugas-mengajar': ClipboardList,

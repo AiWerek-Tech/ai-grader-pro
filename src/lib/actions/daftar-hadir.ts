@@ -1,7 +1,7 @@
 'use server';
 
 import { dbGetAll } from '@/lib/google-sheets';
-import { requireMenuAccess } from '@/lib/rbac-server';
+import { checkUserMenuAccess, requireMenuAccess } from '@/lib/rbac-server';
 import { getSiswaAction } from '@/lib/actions/siswa';
 import {
   getAcademicSessionAction,
@@ -21,11 +21,12 @@ import {
 
 export async function getDaftarHadirBundleAction() {
   try {
-    await requireMenuAccess('daftar-hadir');
+    const auth = await requireMenuAccess('daftar-hadir', 'read');
+    const canSaveConfig = await checkUserMenuAccess(auth, 'daftar-hadir', 'full');
 
     const [siswaRes, kelasRaw, mapelRaw, usersRaw, settingsRes, sessionRes] =
       await Promise.all([
-        getSiswaAction(),
+        getSiswaAction(undefined, 'DELEGATED_ALL'),
         dbGetAll('KELAS', true),
         dbGetAll('MAPEL', true),
         dbGetAll('USERS', true),
@@ -101,7 +102,7 @@ export async function getDaftarHadirBundleAction() {
         kartuOverrides,
         jadwalMaster,
         config,
-        canSaveConfig: true,
+        canSaveConfig,
       },
     };
   } catch (e: any) {
@@ -114,7 +115,7 @@ export async function getDaftarHadirBundleAction() {
 
 export async function saveDaftarHadirConfigAction(config: DaftarHadirConfig) {
   try {
-    const auth = await requireMenuAccess('daftar-hadir');
+    const auth = await requireMenuAccess('daftar-hadir', 'full');
     await persistSettingsUpdates(
       { daftar_hadir_config_json: JSON.stringify(config) },
       auth.id

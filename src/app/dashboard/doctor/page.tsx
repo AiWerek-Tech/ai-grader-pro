@@ -1,24 +1,33 @@
 'use client';
 
 import { runSystemDoctorAction, healSystemAction } from '@/lib/actions/doctor';
+import { getMyMenuAccessAction } from '@/lib/actions/rbac';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageHeader } from '@/components/dashboard/PageHeader';
+import { ReadOnlyBanner } from '@/components/dashboard/ReadOnlyBanner';
 import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
-import { Stethoscope, ShieldAlert, CheckCircle2, AlertTriangle, XCircle, Activity, Zap } from 'lucide-react';
+import { Stethoscope, ShieldAlert, CheckCircle2, AlertTriangle, XCircle, Activity, Zap, Lock } from 'lucide-react';
 
 export default function DoctorPage() {
   const [diagnostics, setDiagnostics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [healing, setHealing] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
   const [showHealConfirm, setShowHealConfirm] = useState(false);
   const [error, setError] = useState('');
 
   const fetchDiagnostics = async () => {
     setLoading(true);
     try {
-      const res = await runSystemDoctorAction();
+      const [res, rbacRes] = await Promise.all([
+        runSystemDoctorAction(),
+        getMyMenuAccessAction(),
+      ]);
+      if (rbacRes.success) {
+        setCanEdit(rbacRes.isAdmin || rbacRes.permissions['doctor'] === 'full');
+      }
       if (res.success) {
         setDiagnostics(res.data || []);
       } else {
@@ -87,14 +96,17 @@ export default function DoctorPage() {
         actions={
           <button 
             onClick={handleHeal}
-            disabled={healing}
+            disabled={healing || !canEdit}
+            title={!canEdit ? 'Dikunci — Mode Read-Only' : 'Jalankan perbaikan otomatis'}
             className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-7 py-3.5 font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 active:scale-95"
           >
-            {healing ? <Activity className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-            {healing ? 'Pembedahan Aktif...' : 'Jalankan Auto-Heal'}
+            {!canEdit ? <Lock className="w-4 h-4" /> : healing ? <Activity className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {!canEdit ? 'Terkunci (Read-Only)' : healing ? 'Pembedahan Aktif...' : 'Jalankan Auto-Heal'}
           </button>
         }
       />
+
+      {!canEdit && <ReadOnlyBanner menuLabel="System Doctor" />}
 
       {error && (
         <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-500 p-5 rounded-2xl font-bold flex items-center gap-4 shadow-sm">

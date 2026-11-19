@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `KUNCI_JAWABAN` (
   `pengaturan_poin` MEDIUMTEXT,
   `data_json` LONGTEXT,
   `timestamp` VARCHAR(64) DEFAULT '',
-  `segmen` VARCHAR(128) DEFAULT '',
+  `segmen` TEXT,
   `tahun_ajaran` VARCHAR(32) DEFAULT '',
   `semester` VARCHAR(32) DEFAULT '',
   PRIMARY KEY (`id_kunci`),
@@ -143,6 +143,51 @@ CREATE TABLE IF NOT EXISTS `FILES` (
   `url` TEXT,
   `created_at` VARCHAR(64) DEFAULT '',
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: TAGIHAN
+CREATE TABLE IF NOT EXISTS `TAGIHAN` (
+  `id_tagihan` VARCHAR(64) NOT NULL,
+  `id_siswa` VARCHAR(64) NOT NULL,
+  `tahun_ajaran` VARCHAR(32) DEFAULT '',
+  `semester` VARCHAR(32) DEFAULT '',
+  `kategori` VARCHAR(64) DEFAULT 'SPP',
+  `periode_bulan` VARCHAR(32) DEFAULT '',
+  `nama_tagihan` VARCHAR(160) NOT NULL,
+  `nominal` BIGINT NOT NULL DEFAULT 0,
+  `potongan` BIGINT NOT NULL DEFAULT 0,
+  `nominal_akhir` BIGINT NOT NULL DEFAULT 0,
+  `terbayar` BIGINT NOT NULL DEFAULT 0,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'BELUM_BAYAR',
+  `jatuh_tempo` VARCHAR(32) DEFAULT '',
+  `catatan` TEXT,
+  `updated_at` VARCHAR(64) DEFAULT '',
+  PRIMARY KEY (`id_tagihan`),
+  INDEX `idx_tagihan_siswa` (`id_siswa`),
+  INDEX `idx_tagihan_tahun_sem` (`tahun_ajaran`, `semester`),
+  INDEX `idx_tagihan_periode` (`periode_bulan`),
+  INDEX `idx_tagihan_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: PEMBAYARAN
+CREATE TABLE IF NOT EXISTS `PEMBAYARAN` (
+  `id_pembayaran` VARCHAR(64) NOT NULL,
+  `no_kwitansi` VARCHAR(64) NOT NULL,
+  `id_tagihan` VARCHAR(64) NOT NULL,
+  `id_siswa` VARCHAR(64) NOT NULL,
+  `tanggal_bayar` VARCHAR(32) DEFAULT '',
+  `nominal_bayar` BIGINT NOT NULL DEFAULT 0,
+  `metode` VARCHAR(32) DEFAULT 'TUNAI',
+  `status_transaksi` VARCHAR(32) NOT NULL DEFAULT 'VALID',
+  `id_petugas` VARCHAR(64) DEFAULT '',
+  `nama_petugas` VARCHAR(128) DEFAULT '',
+  `catatan` TEXT,
+  `timestamp` VARCHAR(64) DEFAULT '',
+  PRIMARY KEY (`id_pembayaran`),
+  INDEX `idx_bayar_kwitansi` (`no_kwitansi`),
+  INDEX `idx_bayar_tagihan` (`id_tagihan`),
+  INDEX `idx_bayar_siswa` (`id_siswa`),
+  INDEX `idx_bayar_tanggal` (`tanggal_bayar`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

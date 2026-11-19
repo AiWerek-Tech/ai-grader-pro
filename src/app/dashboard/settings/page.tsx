@@ -10,9 +10,12 @@ import {
 } from '@/lib/actions/settings';
 import { getGuruList } from '@/lib/actions/admin';
 import {
+  cycleAccessLevel,
   FLEXIBLE_MENU_DEFINITIONS,
   FlexibleMenuKey,
+  MenuAccessLevel,
   parseRbacFromSettings,
+  RBAC_GURU_PRESETS,
   RbacConfig,
 } from '@/lib/rbac-config';
 import {
@@ -51,6 +54,9 @@ import {
   Users,
   PenTool,
   Trash2,
+  Eye,
+  Lock,
+  ClipboardPaste,
 } from 'lucide-react';
 
 const KNOWN_AI_MODELS = [
@@ -317,6 +323,11 @@ export default function SettingsPage() {
   const [guruUsers, setGuruUsers] = useState<{ id_user: string; username: string; nama: string }[]>([]);
   const [rbacSavingKey, setRbacSavingKey] = useState<string>('');
   const [guruRbacSearch, setGuruRbacSearch] = useState<string>('');
+  const [guruRbacFilter, setGuruRbacFilter] = useState<'ALL' | 'WITH_ACCESS' | 'STANDARD'>('ALL');
+  const [copiedRbacPerms, setCopiedRbacPerms] = useState<{
+    fromName: string;
+    perms: Partial<Record<FlexibleMenuKey, MenuAccessLevel>>;
+  } | null>(null);
   const [showGlobalRbac, setShowGlobalRbac] = useState<boolean>(false);
   const [activeJenjangTab, setActiveJenjangTab] = useState<'SMA' | 'SMP'>('SMA');
   const [showBothJenjang, setShowBothJenjang] = useState(false);
@@ -1532,7 +1543,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── CONTENT: TAB HAK AKSES GURU (KONSEP SEDERHANA: PILIH GURU -> CENTANG MENU) ── */}
+      {/* ── CONTENT: TAB HAK AKSES GURU (3-LEVEL: TUTUP → READ-ONLY → FULL AKSES) ── */}
       {activeTab === 'rbac' && (() => {
         const rbac: RbacConfig = parseRbacFromSettings(settings);
 
@@ -1557,27 +1568,65 @@ export default function SettingsPage() {
           }
         };
 
-        // Klik 1x: beri / cabut akses menu untuk SATU guru (langsung tersimpan otomatis)
-        const toggleGuruMenu = (guru: { id_user: string; nama: string }, menuKey: FlexibleMenuKey, label: string) => {
+        const cycleGuruMenu = (
+          guru: { id_user: string; nama: string },
+          def: (typeof FLEXIBLE_MENU_DEFINITIONS)[number]
+        ) => {
           const nextOverrides = { ...rbac.userOverrides };
           const current = { ...(nextOverrides[guru.id_user] || {}) };
-          const isOn = current[menuKey] === true;
-          if (isOn) {
-            delete current[menuKey];
+          const curLvl: MenuAccessLevel = current[def.key] || 'none';
+          const nextLvl = cycleAccessLevel(curLvl, def);
+
+          if (nextLvl === 'none') {
+            delete current[def.key];
           } else {
-            current[menuKey] = true;
+            current[def.key] = nextLvl;
           }
           if (Object.keys(current).length === 0) {
             delete nextOverrides[guru.id_user];
           } else {
             nextOverrides[guru.id_user] = current;
           }
+
+          const lvlLabel =
+            nextLvl === 'full'
+              ? 'Full Akses (Edit)'
+              : nextLvl === 'read'
+                ? 'Read-Only (Lihat Saja)'
+                : 'Ditutup';
+
           persistRbac(
             { ...rbac, userOverrides: nextOverrides },
-            `${guru.id_user}:${menuKey}`,
-            isOn
-              ? `Akses "${label}" dicabut dari ${guru.nama}.`
-              : `Akses "${label}" diberikan ke ${guru.nama}.`
+            `${guru.id_user}:${def.key}`,
+            `${guru.nama} — "${def.label}": ${lvlLabel}.`
+          );
+        };
+
+        const applyPresetToGuru = (
+          guru: { id_user: string; nama: string },
+          preset: (typeof RBAC_GURU_PRESETS)[number]
+        ) => {
+          const nextOverrides = {
+            ...rbac.userOverrides,
+            [guru.id_user]: { ...preset.permissions },
+          };
+          persistRbac(
+            { ...rbac, userOverrides: nextOverrides },
+            `${guru.id_user}:PRESET`,
+            `Preset "${preset.label}" diterapkan untuk ${guru.nama}.`
+          );
+        };
+
+        const pastePermsToGuru = (guru: { id_user: string; nama: string }) => {
+          if (!copiedRbacPerms) return;
+          const nextOverrides = {
+            ...rbac.userOverrides,
+            [guru.id_user]: { ...copiedRbacPerms.perms },
+          };
+          persistRbac(
+            { ...rbac, userOverrides: nextOverrides },
+            `${guru.id_user}:PASTE`,
+            `Hak akses dari ${copiedRbacPerms.fromName} disalin ke ${guru.nama}.`
           );
         };
 
@@ -1591,41 +1640,55 @@ export default function SettingsPage() {
           );
         };
 
-        const toggleGlobalMenu = (menuKey: FlexibleMenuKey, label: string) => {
-          const nextVal = !rbac.globalGuru[menuKey];
+        const cycleGlobalMenu = (def: (typeof FLEXIBLE_MENU_DEFINITIONS)[number]) => {
+          const curLvl: MenuAccessLevel = rbac.globalGuru[def.key] || 'none';
+          const nextLvl = cycleAccessLevel(curLvl, def);
+          const lvlLabel =
+            nextLvl === 'full'
+              ? 'Full Akses untuk SEMUA guru'
+              : nextLvl === 'read'
+                ? 'Read-Only untuk SEMUA guru'
+                : 'Ditutup untuk semua guru';
           persistRbac(
-            { ...rbac, globalGuru: { ...rbac.globalGuru, [menuKey]: nextVal } },
-            `GLOBAL:${menuKey}`,
-            nextVal
-              ? `"${label}" dibuka untuk SEMUA guru.`
-              : `"${label}" ditutup untuk semua guru.`
+            { ...rbac, globalGuru: { ...rbac.globalGuru, [def.key]: nextLvl } },
+            `GLOBAL:${def.key}`,
+            `"${def.label}": ${lvlLabel}.`
           );
         };
 
         const keyword = guruRbacSearch.trim().toLowerCase();
-        const filteredGurus = guruUsers.filter(
-          (g) =>
+        const gurusWithAccess = guruUsers.filter((g) =>
+          Object.values(rbac.userOverrides[g.id_user] || {}).some((v) => v === 'read' || v === 'full')
+        );
+        const filteredGurus = guruUsers.filter((g) => {
+          const matchesSearch =
             !keyword ||
             g.nama.toLowerCase().includes(keyword) ||
-            g.username.toLowerCase().includes(keyword)
-        );
-        const gurusWithAccess = guruUsers.filter(
-          (g) => Object.values(rbac.userOverrides[g.id_user] || {}).some((v) => v === true)
-        );
-        const globalOnCount = FLEXIBLE_MENU_DEFINITIONS.filter((m) => rbac.globalGuru[m.key]).length;
+            g.username.toLowerCase().includes(keyword);
+          if (!matchesSearch) return false;
+          const hasExtra = Object.values(rbac.userOverrides[g.id_user] || {}).some(
+            (v) => v === 'read' || v === 'full'
+          );
+          if (guruRbacFilter === 'WITH_ACCESS') return hasExtra;
+          if (guruRbacFilter === 'STANDARD') return !hasExtra;
+          return true;
+        });
+        const globalOnCount = FLEXIBLE_MENU_DEFINITIONS.filter(
+          (m) => rbac.globalGuru[m.key] && rbac.globalGuru[m.key] !== 'none'
+        ).length;
 
         return (
           <div className="bg-white dark:bg-[#0a0e1a]/80 lg:backdrop-blur-2xl border border-slate-200 dark:border-white/[0.08] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-8 shadow-sm dark:shadow-2xl space-y-6">
-            {/* Header */}
+            {/* Header + Search */}
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-5 border-b border-slate-100 dark:border-white/[0.05]">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-indigo-500" />
-                  <span>Hak Akses Guru</span>
+                  <span>Hak Akses Guru (Read-Only &amp; Full Akses)</span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                  Cari nama guru, lalu <b>klik menu</b> yang ingin diberikan. Langsung tersimpan otomatis —
-                  hanya guru tersebut yang mendapat akses, guru lain tidak terpengaruh.
+                  Klik menu pada kartu guru: <b>Klik 1× = Read-Only (Lihat &amp; Cetak, edit dikunci)</b> ·{' '}
+                  <b>Klik 2× = Full Akses (Bisa Edit)</b> · <b>Klik 3× = Tutup</b>. Langsung tersimpan otomatis.
                 </p>
               </div>
               <div className="relative w-full lg:w-80">
@@ -1640,6 +1703,58 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Legenda 3 Tingkat + Filter Status + Clipboard Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2 text-[10px] font-black">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400">
+                  + Tutup
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-400/40 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1">
+                  <Eye className="w-3 h-3" /> Read-Only (Edit Dikunci)
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Full Akses (Bisa Edit)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[10px] font-black">
+                {[
+                  { id: 'ALL' as const, label: `Semua (${guruUsers.length})` },
+                  { id: 'WITH_ACCESS' as const, label: `Punya Akses (${gurusWithAccess.length})` },
+                  { id: 'STANDARD' as const, label: `Standar (${guruUsers.length - gurusWithAccess.length})` },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setGuruRbacFilter(f.id)}
+                    className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                      guruRbacFilter === f.id
+                        ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {copiedRbacPerms && (
+              <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200 dark:border-indigo-500/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-indigo-900 dark:text-indigo-200 inline-flex items-center gap-1.5">
+                  <Copy className="w-3.5 h-3.5 text-indigo-500" />
+                  Hak akses <b>{copiedRbacPerms.fromName}</b> tersalin. Klik <b>Tempel Akses</b> di kartu guru lain.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCopiedRbacPerms(null)}
+                  className="text-[10px] font-black uppercase text-slate-500 hover:text-rose-500 cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            )}
+
             {/* Ringkasan guru yang sudah punya akses tambahan */}
             {gurusWithAccess.length > 0 && (
               <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25">
@@ -1648,9 +1763,13 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {gurusWithAccess.map((g) => {
-                    const menus = FLEXIBLE_MENU_DEFINITIONS.filter(
-                      (m) => rbac.userOverrides[g.id_user]?.[m.key] === true
-                    ).map((m) => m.label);
+                    const menus = FLEXIBLE_MENU_DEFINITIONS.filter((m) => {
+                      const lvl = rbac.userOverrides[g.id_user]?.[m.key];
+                      return lvl === 'read' || lvl === 'full';
+                    }).map((m) => {
+                      const lvl = rbac.userOverrides[g.id_user]?.[m.key];
+                      return `${m.label} (${lvl === 'read' ? 'Lihat' : 'Full'})`;
+                    });
                     return (
                       <button
                         key={g.id_user}
@@ -1668,30 +1787,33 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Daftar Guru: klik chip menu untuk memberi / mencabut akses */}
+            {/* Daftar Guru */}
             {guruUsers.length === 0 ? (
               <div className="p-6 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 text-xs text-slate-500 text-center">
                 Belum ada akun Guru terdaftar. Tambahkan guru di menu <b>Manajemen Guru</b>.
               </div>
             ) : filteredGurus.length === 0 ? (
               <div className="p-6 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 text-xs text-slate-500 text-center">
-                Tidak ada guru yang cocok dengan &quot;{guruRbacSearch}&quot;.
+                Tidak ada guru yang cocok dengan filter saat ini.
               </div>
             ) : (
-              <div className="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
                 {filteredGurus.map((g) => {
                   const userPerms = rbac.userOverrides[g.id_user] || {};
-                  const extraCount = Object.values(userPerms).filter((v) => v === true).length;
+                  const readCount = Object.values(userPerms).filter((v) => v === 'read').length;
+                  const fullCount = Object.values(userPerms).filter((v) => v === 'full').length;
+                  const extraCount = readCount + fullCount;
+
                   return (
                     <div
                       key={g.id_user}
-                      className={`p-3.5 rounded-2xl border transition-colors ${
+                      className={`p-4 rounded-2xl border transition-colors ${
                         extraCount > 0
-                          ? 'bg-indigo-50/50 dark:bg-indigo-500/[0.07] border-indigo-200 dark:border-indigo-500/30'
+                          ? 'bg-indigo-50/40 dark:bg-indigo-500/[0.07] border-indigo-200 dark:border-indigo-500/30'
                           : 'bg-slate-50/70 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06]'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3 mb-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0">
                             {(g.nama || '?').charAt(0).toUpperCase()}
@@ -1701,59 +1823,128 @@ export default function SettingsPage() {
                               {g.nama}
                             </div>
                             <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                              @{g.username} • {extraCount > 0 ? `${extraCount} akses tambahan` : 'Akses standar guru'}
+                              @{g.username} •{' '}
+                              {extraCount > 0
+                                ? `${fullCount} Full · ${readCount} Read-Only`
+                                : 'Akses standar guru'}
                             </div>
                           </div>
                         </div>
-                        {extraCount > 0 && (
-                          <button
-                            type="button"
-                            disabled={Boolean(rbacSavingKey)}
-                            onClick={() => clearGuruAccess(g)}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-black text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 shrink-0 cursor-pointer disabled:opacity-50"
-                          >
-                            Cabut Semua
-                          </button>
-                        )}
+
+                        {/* Smart Actions per Guru: Presets + Copy/Paste + Cabut */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {RBAC_GURU_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              disabled={Boolean(rbacSavingKey)}
+                              onClick={() => applyPresetToGuru(g, preset)}
+                              title={preset.description}
+                              className="px-2 py-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:border-indigo-400 text-[9.5px] font-black text-slate-600 dark:text-slate-300 hover:text-indigo-600 cursor-pointer disabled:opacity-50"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                          {extraCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCopiedRbacPerms({ fromName: g.nama, perms: { ...userPerms } });
+                                toast.success(`Hak akses ${g.nama} disalin.`);
+                              }}
+                              className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-indigo-500/15 text-[9.5px] font-black text-slate-600 dark:text-slate-300 inline-flex items-center gap-1 cursor-pointer"
+                              title="Salin hak akses guru ini ke guru lain"
+                            >
+                              <Copy className="w-3 h-3" /> Salin
+                            </button>
+                          )}
+                          {copiedRbacPerms && copiedRbacPerms.fromName !== g.nama && (
+                            <button
+                              type="button"
+                              disabled={Boolean(rbacSavingKey)}
+                              onClick={() => pastePermsToGuru(g)}
+                              className="px-2 py-1 rounded-lg bg-indigo-600 text-white text-[9.5px] font-black inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              <ClipboardPaste className="w-3 h-3" /> Tempel
+                            </button>
+                          )}
+                          {extraCount > 0 && (
+                            <button
+                              type="button"
+                              disabled={Boolean(rbacSavingKey)}
+                              onClick={() => clearGuruAccess(g)}
+                              className="px-2 py-1 rounded-lg text-[9.5px] font-black text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 cursor-pointer disabled:opacity-50"
+                            >
+                              Cabut
+                            </button>
+                          )}
+                        </div>
                       </div>
 
+                      {/* 3-Level Cycle Menu Chips */}
                       <div className="flex flex-wrap gap-1.5">
                         {FLEXIBLE_MENU_DEFINITIONS.map((menu) => {
-                          const viaGlobal = Boolean(rbac.globalGuru[menu.key]);
-                          const isOn = userPerms[menu.key] === true;
+                          const globalLvl: MenuAccessLevel = rbac.globalGuru[menu.key] || 'none';
+                          const userLvl: MenuAccessLevel = userPerms[menu.key] || 'none';
                           const isSavingThis = rbacSavingKey === `${g.id_user}:${menu.key}`;
-                          if (viaGlobal) {
+
+                          if (globalLvl === 'full') {
                             return (
                               <span
                                 key={menu.key}
                                 className="px-2.5 py-1.5 rounded-lg text-[10px] font-black bg-slate-200/70 dark:bg-white/10 text-slate-500 dark:text-slate-400 inline-flex items-center gap-1"
-                                title="Sudah dibuka untuk semua guru"
+                                title="Full akses sudah dibuka untuk semua guru"
                               >
                                 <CheckCircle2 className="w-3 h-3" /> {menu.label} (semua guru)
                               </span>
                             );
                           }
+
+                          const chipStyle =
+                            userLvl === 'full'
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                              : userLvl === 'read'
+                                ? 'bg-sky-500/15 border-sky-400 dark:border-sky-400/60 text-sky-800 dark:text-sky-200'
+                                : 'bg-white dark:bg-[#0a0e1a] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-sky-400';
+
+                          const statusBadge =
+                            userLvl === 'full'
+                              ? 'Full'
+                              : userLvl === 'read'
+                                ? 'Lihat'
+                                : '';
+
                           return (
                             <button
                               key={menu.key}
                               type="button"
                               disabled={Boolean(rbacSavingKey)}
-                              onClick={() => toggleGuruMenu(g, menu.key, menu.label)}
-                              title={menu.description}
-                              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black border inline-flex items-center gap-1 transition-all cursor-pointer disabled:cursor-wait ${
-                                isOn
-                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-                                  : 'bg-white dark:bg-[#0a0e1a] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600'
-                              }`}
+                              onClick={() => cycleGuruMenu(g, menu)}
+                              title={`${menu.description} (Klik untuk ganti: Tutup → Read-Only → Full)`}
+                              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black border inline-flex items-center gap-1.5 transition-all cursor-pointer disabled:cursor-wait ${chipStyle}`}
                             >
                               {isSavingThis ? (
                                 <RefreshCw className="w-3 h-3 animate-spin" />
-                              ) : isOn ? (
+                              ) : userLvl === 'full' ? (
                                 <CheckCircle2 className="w-3 h-3" />
+                              ) : userLvl === 'read' ? (
+                                <Eye className="w-3 h-3 text-sky-600 dark:text-sky-300" />
                               ) : (
                                 <span className="text-[11px] leading-none">+</span>
                               )}
-                              {menu.label}
+                              <span>{menu.label}</span>
+                              {statusBadge && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[8.5px] uppercase leading-none ${
+                                    userLvl === 'full'
+                                      ? 'bg-white/20 text-white'
+                                      : 'bg-sky-500/20 text-sky-800 dark:text-sky-200'
+                                  }`}
+                                >
+                                  {statusBadge}
+                                </span>
+                              )}
+                              {userLvl === 'read' && <Lock className="w-2.5 h-2.5 opacity-75" />}
                             </button>
                           );
                         })}
@@ -1779,25 +1970,38 @@ export default function SettingsPage() {
               {showGlobalRbac && (
                 <div className="mt-3 space-y-2">
                   <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
-                    Perhatian: menu yang diaktifkan di sini akan terbuka untuk <b>seluruh akun guru</b>.
+                    Perhatian: klik berulang untuk siklus <b>Tutup → Read-Only (Biru) → Full Akses (Oranye)</b> bagi seluruh akun guru.
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {FLEXIBLE_MENU_DEFINITIONS.map((menu) => {
-                      const on = Boolean(rbac.globalGuru[menu.key]);
+                      const lvl: MenuAccessLevel = rbac.globalGuru[menu.key] || 'none';
                       return (
                         <button
                           key={menu.key}
                           type="button"
                           disabled={Boolean(rbacSavingKey)}
-                          onClick={() => toggleGlobalMenu(menu.key, menu.label)}
+                          onClick={() => cycleGlobalMenu(menu)}
                           className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black border inline-flex items-center gap-1 cursor-pointer disabled:cursor-wait ${
-                            on
+                            lvl === 'full'
                               ? 'bg-amber-500 border-amber-500 text-white'
-                              : 'bg-white dark:bg-[#0a0e1a] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-amber-400'
+                              : lvl === 'read'
+                                ? 'bg-sky-500/15 border-sky-400 text-sky-700 dark:text-sky-300'
+                                : 'bg-white dark:bg-[#0a0e1a] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-amber-400'
                           }`}
                         >
-                          {on ? <CheckCircle2 className="w-3 h-3" /> : <span className="text-[11px] leading-none">+</span>}
-                          {menu.label}
+                          {lvl === 'full' ? (
+                            <CheckCircle2 className="w-3 h-3" />
+                          ) : lvl === 'read' ? (
+                            <Eye className="w-3 h-3" />
+                          ) : (
+                            <span className="text-[11px] leading-none">+</span>
+                          )}
+                          <span>{menu.label}</span>
+                          {lvl !== 'none' && (
+                            <span className="text-[8.5px] uppercase opacity-90">
+                              ({lvl === 'full' ? 'Full' : 'Lihat'})
+                            </span>
+                          )}
                         </button>
                       );
                     })}

@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { dbGetAll, dbAppendRow, dbFindAndDeleteRow, dbUpdateRow, generateId, sanitizeInput } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
-import { requireMenuAccess } from '@/lib/rbac-server';
+import { checkUserMenuAccess, requireMenuAccess } from '@/lib/rbac-server';
 import { calculateIRTAnalysis } from '@/lib/ai/grader-engine';
 import { getAcademicSessionAction } from '@/lib/actions/settings';
 
@@ -71,12 +71,20 @@ export async function getGuruList() {
 
     const allLogs = await dbGetAll('LOG');
 
-    const visibleUsers = authSession.role === 'ADMIN'
+    const canViewAllGuru =
+      authSession.role === 'ADMIN' ||
+      (await checkUserMenuAccess(authSession, 'guru', 'read')) ||
+      (await checkUserMenuAccess(authSession, 'tugas-mengajar', 'read'));
+    const canEditGuru =
+      authSession.role === 'ADMIN' || (await checkUserMenuAccess(authSession, 'guru', 'full'));
+
+    const visibleUsers = canViewAllGuru
       ? users.filter(u => u.role === 'GURU' || u.role === 'ADMIN')
       : users.filter(u => String(u.id_user) === String(authSession.id));
 
     return {
       success: true,
+      canEdit: canEditGuru,
       data: visibleUsers.map(u => {
         const k = stats[u.id_user]?.kunci || 0;
         const s = stats[u.id_user]?.scan || 0;
@@ -94,7 +102,7 @@ export async function getGuruList() {
           total_scan: s,
           score: score,
           profile_url: u.profile_url || '',
-          password_plain: u.password_plain || fallbackPlain,
+          password_plain: canEditGuru ? (u.password_plain || fallbackPlain) : '••••••••',
           activity: userLogs.map(l => ({ t: l.timestamp, a: l.action }))
         };
       })
@@ -106,7 +114,7 @@ export async function getGuruList() {
 
 export async function addGuruAction(reqData: any, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     if (!reqData.username || !reqData.nama) throw new Error('Nama dan Username guru wajib diisi.');
@@ -136,7 +144,7 @@ export async function addGuruAction(reqData: any, adminId: string = 'SYSTEM') {
 
 export async function bulkAddGuruAction(rows: { username: string, nama: string, password?: string, role?: string, profile_url?: string }[], adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     const existing = await dbGetAll('USERS');
@@ -176,7 +184,7 @@ export async function bulkAddGuruAction(rows: { username: string, nama: string, 
 
 export async function deleteGuruBatchAction(ids: string[], adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id; // Override adminId with session ID
 
     let deletedCount = 0;
@@ -196,7 +204,7 @@ export async function deleteGuruBatchAction(ids: string[], adminId: string = 'SY
 
 export async function resetPasswordBatchAction(ids: string[], customPassword?: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     let successCount = 0;
@@ -221,7 +229,7 @@ export async function resetPasswordBatchAction(ids: string[], customPassword?: s
 
 export async function deleteGuruAction(userId: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     if (String(adminId) === String(userId)) {
@@ -250,7 +258,7 @@ export async function deleteGuruAction(userId: string, adminId: string = 'SYSTEM
 
 export async function toggleStatusGuruAction(userId: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     if (String(adminId) === String(userId)) {
@@ -286,7 +294,7 @@ export async function toggleStatusGuruAction(userId: string, adminId: string = '
 
 export async function resetPasswordAction(userId: string, newPassword?: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     const users = await dbGetAll('USERS');
@@ -342,7 +350,7 @@ export async function editNamaAction(
   extra?: { username?: string; password?: string; role?: string }
 ) {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     if (!userId || !namaBaru || namaBaru.trim().length < 2) throw new Error('Nama baru minimal 2 karakter.');
@@ -395,7 +403,7 @@ export async function editNamaAction(
 
 export async function updateProfileUrlAction(userId: string, profileUrl: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('guru');
+    const session = await requireMenuAccess('guru', 'full');
     adminId = session.id;
 
     const users = await dbGetAll('USERS');
@@ -612,7 +620,10 @@ export async function getSystemLogsAction(limit: number = 100) {
       userId: log.userId || log.user_id || 'SYSTEM'
     }));
 
-    const visibleLogs = session.role === 'ADMIN'
+    const canViewAllLogs =
+      session.role === 'ADMIN' || (await checkUserMenuAccess(session, 'logs', 'read'));
+
+    const visibleLogs = canViewAllLogs
       ? normalizedLogs
       : normalizedLogs.filter(log => String(log.userId) === String(session.id));
 

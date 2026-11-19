@@ -79,7 +79,7 @@ export async function getJadwalUjianBundleAction() {
       ])
     ).sort((a, b) => a.localeCompare(b, 'id'));
 
-    const canEdit = await checkUserMenuAccess(auth, 'jadwal-ujian-edit');
+    const canEdit = await checkUserMenuAccess(auth, 'jadwal-ujian-edit', 'full');
 
     return {
       success: true,
@@ -106,7 +106,7 @@ export async function saveJadwalUjianAction(
   config: JadwalUjianUnitConfig
 ) {
   try {
-    const auth = await requireMenuAccess('jadwal-ujian-edit');
+    const auth = await requireMenuAccess('jadwal-ujian-edit', 'full');
     const key = unit === 'SMP' ? 'jadwal_ujian_smp_json' : 'jadwal_ujian_sma_json';
     await persistSettingsUpdates({ [key]: JSON.stringify(config) }, auth.id);
     return { success: true };

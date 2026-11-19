@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { createWorkbook, downloadWorkbook, loadWorkbookFromFile, worksheetToObjects } from '@/lib/utils/excel';
 import { transformDriveLink, compressImageFileToDataUrl } from '@/lib/utils';
 import { PageHeader } from '@/components/dashboard/PageHeader';
+import { ReadOnlyBanner } from '@/components/dashboard/ReadOnlyBanner';
 import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { 
   UserPlus, 
@@ -31,12 +32,14 @@ import {
   Camera,
   Eye,
   EyeOff,
-  Copy
+  Copy,
+  Lock
 } from 'lucide-react';
 
 export default function GuruPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -95,6 +98,7 @@ export default function GuruPage() {
       const res = await getGuruList();
       if (res.success) {
         setData(res.data || []);
+        setCanEdit((res as any).canEdit !== false);
       } else {
         setError(res.message || 'Gagal memuat data');
       }
@@ -437,27 +441,34 @@ export default function GuruPage() {
         actions={
           <>
             <button 
-              onClick={() => setShowAddModal(true)}
-              className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2.5 active:scale-95 transition-all"
+              onClick={() => canEdit && setShowAddModal(true)}
+              disabled={!canEdit}
+              title={!canEdit ? 'Dikunci — Mode Read-Only' : 'Daftarkan Pengajar'}
+              className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 disabled:opacity-45 disabled:cursor-not-allowed text-white px-6 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2.5 active:scale-95 transition-all"
             >
-              <UserPlus className="w-4 h-4" /> Daftarkan Pengajar
+              {canEdit ? <UserPlus className="w-4 h-4" /> : <Lock className="w-4 h-4" />} Daftarkan Pengajar
             </button>
             <button 
-              onClick={exportAllCredentials}
-              className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
-              title="Download Daftar Semua Username & Password Guru (.xlsx)"
+              onClick={() => canEdit && exportAllCredentials()}
+              disabled={!canEdit}
+              className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 disabled:opacity-45 disabled:cursor-not-allowed text-white px-5 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              title={!canEdit ? 'Dikunci — Mode Read-Only' : 'Download Daftar Semua Username & Password Guru (.xlsx)'}
             >
-              <Download className="w-4 h-4" /> Ekspor Akun
+              {canEdit ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4" />} Ekspor Akun
             </button>
             <button 
-              onClick={() => setShowImportModal(true)}
-              className="flex-1 md:flex-none bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/[0.1] px-5 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 dark:hover:bg-white/10 flex items-center justify-center gap-2 shadow-sm active:scale-95"
+              onClick={() => canEdit && setShowImportModal(true)}
+              disabled={!canEdit}
+              title={!canEdit ? 'Dikunci — Mode Read-Only' : 'Impor Guru'}
+              className="flex-1 md:flex-none bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/[0.1] px-5 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-45 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm active:scale-95"
             >
-              <FileUp className="w-4 h-4 text-indigo-500" /> Impor Guru
+              {canEdit ? <FileUp className="w-4 h-4 text-indigo-500" /> : <Lock className="w-4 h-4" />} Impor Guru
             </button>
           </>
         }
       />
+
+      {!canEdit && <ReadOnlyBanner menuLabel="Manajemen Guru" />}
 
       {/* Stats Cards Quick Look */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
@@ -523,13 +534,15 @@ export default function GuruPage() {
       <div className="bg-white dark:bg-[#0a0e1a]/60 lg:backdrop-blur-xl border border-slate-200 dark:border-white/[0.05] rounded-[2.5rem] overflow-hidden shadow-sm dark:shadow-2xl relative">
         <div className="p-8 border-b border-slate-100 dark:border-white/[0.05] flex justify-between items-center bg-slate-50/50 dark:bg-white/[0.02]">
            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedIds(new Set()); }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isSelectionMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400'}`}
-              >
-                {isSelectionMode ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-                {isSelectionMode ? 'Selesai Memilih' : 'Mode Seleksi'}
-              </button>
+              {canEdit && (
+                <button 
+                  onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedIds(new Set()); }}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isSelectionMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400'}`}
+                >
+                  {isSelectionMode ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                  {isSelectionMode ? 'Selesai Memilih' : 'Mode Seleksi'}
+                </button>
+              )}
               
               {isSelectionMode && selectedIds.size > 0 && (
                 <div className="flex items-center gap-2 animate-in slide-in-from-left-4 fade-in duration-300">
@@ -589,8 +602,9 @@ export default function GuruPage() {
                       {guru.role}
                     </span>
                     <button
-                      onClick={() => setConfirmModal({ type: 'STATUS', id: guru.id, name: guru.nama })}
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${guru.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}
+                      disabled={!canEdit}
+                      onClick={() => canEdit && setConfirmModal({ type: 'STATUS', id: guru.id, name: guru.nama })}
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border disabled:opacity-60 disabled:cursor-not-allowed ${guru.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}
                     >
                       {guru.status}
                     </button>
@@ -598,17 +612,17 @@ export default function GuruPage() {
                 </div>
 
                 <div className="grid grid-cols-4 gap-1.5 pt-1">
-                  <button onClick={() => setShowEditModal(guru)} className="py-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
-                    ✏️ Edit
+                  <button disabled={!canEdit} onClick={() => canEdit && setShowEditModal(guru)} title={canEdit ? 'Edit' : 'Dikunci — Mode Read-Only'} className="py-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                    {canEdit ? '✏️ Edit' : <Lock className="w-3.5 h-3.5" />}
                   </button>
-                  <button onClick={() => { setShowPasswordModal(guru); setNewPassInput(plainPass); }} className="py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
-                    🔑 Pass
+                  <button disabled={!canEdit} onClick={() => { if (!canEdit) return; setShowPasswordModal(guru); setNewPassInput(plainPass); }} title={canEdit ? 'Password' : 'Dikunci — Mode Read-Only'} className="py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                    {canEdit ? '🔑 Pass' : <Lock className="w-3.5 h-3.5" />}
                   </button>
-                  <button onClick={() => downloadWelcomeCard(guru)} className="py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
-                    <Contact2 className="w-3.5 h-3.5" /> Kartu
+                  <button disabled={!canEdit} onClick={() => canEdit && downloadWelcomeCard(guru)} title={canEdit ? 'Kartu Login' : 'Dikunci — Mode Read-Only'} className="py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                    {canEdit ? <><Contact2 className="w-3.5 h-3.5" /> Kartu</> : <Lock className="w-3.5 h-3.5" />}
                   </button>
-                  <button onClick={() => setConfirmModal({ type: 'DELETE', id: guru.id, name: guru.nama })} className="py-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95">
-                    🗑️ Hapus
+                  <button disabled={!canEdit} onClick={() => canEdit && setConfirmModal({ type: 'DELETE', id: guru.id, name: guru.nama })} title={canEdit ? 'Hapus' : 'Dikunci — Mode Read-Only'} className="py-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase flex items-center justify-center gap-1 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                    {canEdit ? '🗑️ Hapus' : <Lock className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
@@ -633,14 +647,16 @@ export default function GuruPage() {
                 <th className="px-6 py-6">
                   <div className="flex items-center gap-2">
                     <span>Kredensial Login</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowAllPasswords(!showAllPasswords)}
-                      className="p-1.5 rounded-lg bg-slate-200/70 dark:bg-white/10 hover:bg-indigo-500 hover:text-white transition-all text-slate-600 dark:text-slate-300"
-                      title={showAllPasswords ? 'Sembunyikan Semua Password' : 'Tampilkan Semua Password'}
-                    >
-                      {showAllPasswords ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllPasswords(!showAllPasswords)}
+                        className="p-1.5 rounded-lg bg-slate-200/70 dark:bg-white/10 hover:bg-indigo-500 hover:text-white transition-all text-slate-600 dark:text-slate-300"
+                        title={showAllPasswords ? 'Sembunyikan Semua Password' : 'Tampilkan Semua Password'}
+                      >
+                        {showAllPasswords ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
                   </div>
                 </th>
                 <th className="px-6 py-6 text-center">Akses Role</th>
@@ -674,6 +690,7 @@ export default function GuruPage() {
                           )}
                           <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white dark:border-[#0a0e1a] rounded-full z-10 ${guru.status === 'Aktif' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`} />
                         </div>
+                        {canEdit && (
                         <button 
                           onClick={() => setShowProfileModal(guru)}
                           className="absolute inset-0 bg-indigo-600/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-2xl text-white"
@@ -681,6 +698,7 @@ export default function GuruPage() {
                         >
                           <Camera className="w-4 h-4" />
                         </button>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="font-black text-slate-900 dark:text-white text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{guru.nama}</div>
@@ -709,28 +727,37 @@ export default function GuruPage() {
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-white/5">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Pass:</span>
-                          <span className={`font-mono text-xs font-black truncate ${isPassVisible ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 tracking-widest'}`}>
-                            {isPassVisible ? plainPass : '••••••••'}
+                          <span className={`font-mono text-xs font-black truncate ${canEdit && isPassVisible ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 tracking-widest'}`}>
+                            {canEdit && isPassVisible ? plainPass : '••••••••'}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleSinglePassVisibility(guru.id)}
-                            className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors"
-                            title={isPassVisible ? 'Sembunyikan Password' : 'Lihat Password'}
+                        {canEdit ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleSinglePassVisibility(guru.id)}
+                              className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors"
+                              title={isPassVisible ? 'Sembunyikan Password' : 'Lihat Password'}
+                            >
+                              {isPassVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copyText(plainPass, `Password ${guru.nama}`)}
+                              className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors"
+                              title="Salin Password"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            title="Password disembunyikan pada mode Read-Only"
+                            className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded"
                           >
-                            {isPassVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => copyText(plainPass, `Password ${guru.nama}`)}
-                            className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors"
-                            title="Salin Password"
-                          >
-                            <Copy className="w-3 h-3" />
-                          </button>
-                        </div>
+                            <Lock className="w-2.5 h-2.5" /> Terkunci
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -741,8 +768,9 @@ export default function GuruPage() {
                   </td>
                   <td className="px-6 py-6 text-center">
                     <button 
-                      onClick={() => setConfirmModal({ type: 'STATUS', id: guru.id, name: guru.nama })}
-                      className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest uppercase border transition-all ${guru.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-600 dark:text-rose-500 border-rose-500/20 hover:bg-rose-500/20'}`}
+                      disabled={!canEdit}
+                      onClick={() => canEdit && setConfirmModal({ type: 'STATUS', id: guru.id, name: guru.nama })}
+                      className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest uppercase border transition-all disabled:opacity-60 disabled:cursor-not-allowed ${guru.status === 'Aktif' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-600 dark:text-rose-500 border-rose-500/20 hover:bg-rose-500/20'}`}
                     >
                       {guru.status}
                     </button>
@@ -775,10 +803,10 @@ export default function GuruPage() {
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => downloadWelcomeCard(guru)} className="w-9 h-9 bg-slate-100 dark:bg-white/[0.03] hover:bg-indigo-500/20 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all border border-slate-200 dark:border-white/5 flex items-center justify-center text-sm shadow-inner" title="Download Kartu Login (.xlsx)"><Contact2 className="w-4 h-4" /></button>
-                      <button onClick={() => setShowEditModal(guru)} className="w-9 h-9 bg-slate-100 dark:bg-white/[0.03] hover:bg-indigo-500/20 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all border border-slate-200 dark:border-white/5 flex items-center justify-center text-sm shadow-inner" title="Edit Akun & Password">✏️</button>
-                      <button onClick={() => { setShowPasswordModal(guru); setNewPassInput(plainPass); }} className="w-9 h-9 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl transition-all border border-amber-500/20 flex items-center justify-center text-sm shadow-inner" title="Lihat / Ganti / Reset Password">🔑</button>
-                      <button onClick={() => setConfirmModal({ type: 'DELETE', id: guru.id, name: guru.nama })} className="w-9 h-9 bg-slate-100 dark:bg-white/[0.03] hover:bg-rose-500/20 text-slate-500 hover:text-rose-600 dark:hover:text-rose-500 rounded-xl transition-all border border-slate-200 dark:border-white/5 flex items-center justify-center text-sm shadow-inner" title="Hapus User">🗑️</button>
+                      <button disabled={!canEdit} onClick={() => canEdit && downloadWelcomeCard(guru)} className="w-9 h-9 bg-slate-100 dark:bg-white/[0.03] hover:bg-indigo-500/20 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all border border-slate-200 dark:border-white/5 flex items-center justify-center text-sm shadow-inner disabled:opacity-40 disabled:cursor-not-allowed" title={canEdit ? 'Download Kartu Login (.xlsx)' : 'Dikunci — Mode Read-Only'}>{canEdit ? <Contact2 className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5" />}</button>
+                      <button disabled={!canEdit} onClick={() => canEdit && setShowEditModal(guru)} className="w-9 h-9 bg-slate-100 dark:bg-white/[0.03] hover:bg-indigo-500/20 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all border border-slate-200 dark:border-white/5 flex items-center justify-center text-sm shadow-inner disabled:opacity-40 disabled:cursor-not-allowed" title={canEdit ? 'Edit Akun & Password' : 'Dikunci — Mode Read-Only'}>{canEdit ? '✏️' : <Lock className="w-3.5 h-3.5" />}</button>
+                      <button disabled={!canEdit} onClick={() => { if (!canEdit) return; setShowPasswordModal(guru); setNewPassInput(plainPass); }} className="w-9 h-9 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl transition-all border border-amber-500/20 flex items-center justify-center text-sm shadow-inner disabled:opacity-40 disabled:cursor-not-allowed" title={canEdit ? 'Lihat / Ganti / Reset Password' : 'Dikunci — Mode Read-Only'}>{canEdit ? '🔑' : <Lock className="w-3.5 h-3.5" />}</button>
+                      <button disabled={!canEdit} onClick={() => canEdit && setConfirmModal({ type: 'DELETE', id: guru.id, name: guru.nama })} className="w-9 h-9 bg-slate-100 dark:bg-white/[0.03] hover:bg-rose-500/20 text-slate-500 hover:text-rose-600 dark:hover:text-rose-500 rounded-xl transition-all border border-slate-200 dark:border-white/5 flex items-center justify-center text-sm shadow-inner disabled:opacity-40 disabled:cursor-not-allowed" title={canEdit ? 'Hapus User' : 'Dikunci — Mode Read-Only'}>{canEdit ? '🗑️' : <Lock className="w-3.5 h-3.5" />}</button>
                     </div>
                   </td>
                 </tr>

@@ -12,6 +12,7 @@ import {
 } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
+import { checkUserMenuAccess, requireMenuAccess } from '@/lib/rbac-server';
 import { getAcademicSessionAction } from '@/lib/actions/settings';
 
 function resolveKelasId(rawInput: string, allKelas: any[], activeTahunAjaran?: string): string | null {
@@ -53,7 +54,10 @@ function resolveKelasId(rawInput: string, allKelas: any[], activeTahunAjaran?: s
   return null;
 }
 
-export async function getSiswaAction(kelasId?: string) {
+export async function getSiswaAction(
+  kelasId?: string,
+  scope: 'PERSONAL' | 'DELEGATED_ALL' = 'PERSONAL'
+) {
   try {
     const authSession = await requireAuth();
     const { data: session } = await getAcademicSessionAction();
@@ -75,8 +79,20 @@ export async function getSiswaAction(kelasId?: string) {
 
     let filtered = kelasId ? semuaSiswa.filter(s => String(s.id_kelas) === String(kelasId)) : semuaSiswa;
 
-    // Guru Specific Filter (Personal Guru Isolation)
-    if (authSession.role === 'GURU') {
+    // Cek apakah guru memiliki hak akses delegasi penuh atas daftar seluruh siswa sekolah
+    let hasDelegatedAllAccess = false;
+    if (authSession.role === 'GURU' && scope === 'DELEGATED_ALL') {
+      const [canSiswa, canKelas, canKartu, canDaftarHadir] = await Promise.all([
+        checkUserMenuAccess(authSession, 'siswa', 'read'),
+        checkUserMenuAccess(authSession, 'kelas-mapel', 'read'),
+        checkUserMenuAccess(authSession, 'kartu-peserta', 'read'),
+        checkUserMenuAccess(authSession, 'daftar-hadir', 'read'),
+      ]);
+      hasDelegatedAllAccess = canSiswa || canKelas || canKartu || canDaftarHadir;
+    }
+
+    // Guru Specific Filter (Personal Guru Isolation hanya jika bukan akses delegasi)
+    if (authSession.role === 'GURU' && !hasDelegatedAllAccess) {
       const tugas = await dbGetAll('TUGAS_GURU', true);
       const myTugas = tugas.filter(t => {
         const matchUser = String(t.id_user) === String(authSession.id);
@@ -105,7 +121,7 @@ export async function getSiswaAction(kelasId?: string) {
 
 export async function addSiswaAction(nis: string, nama: string, kelasId: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('siswa', 'full');
     adminId = session.id; // Override adminId with session ID
 
     if (!nis || !nama || !kelasId) throw new Error('NIS, Nama, dan Kelas wajib diisi.');
@@ -142,7 +158,7 @@ export async function addSiswaAction(nis: string, nama: string, kelasId: string,
 
 export async function editSiswaAction(idSiswa: string, nis: string, nama: string, kelasId: string, adminId: string = 'SYSTEM') {
     try {
-        const session = await requireAuth();
+        const session = await requireMenuAccess('siswa', 'full');
         adminId = session.id; // Override adminId with session ID
 
         if (!idSiswa || !nis || !nama || !kelasId) throw new Error('Semua field wajib diisi.');
@@ -183,7 +199,7 @@ export async function bulkAddSiswaAction(rows: { nis: string, nama: string, id_k
 
 export async function deleteSiswaBatchAction(ids: string[], adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('siswa', 'full');
     adminId = session.id; // Override adminId with session ID
     let deletedCount = 0;
     let errorCount = 0;
@@ -202,7 +218,7 @@ export async function deleteSiswaBatchAction(ids: string[], adminId: string = 'S
 
 export async function deleteSiswaAction(idSiswa: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('siswa', 'full');
     adminId = session.id; // Override adminId with session ID
 
     // SECURITY: Cascading Anti-Orphan Check (Fase 9.1)
@@ -229,7 +245,7 @@ export async function deleteSiswaAction(idSiswa: string, adminId: string = 'SYST
  */
 export async function cleanDuplicateSiswaAction(adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('siswa', 'full');
     adminId = session.id; // Override adminId with session ID
     const allSiswa = await dbGetAll('SISWA');
     if (allSiswa.length === 0) return { success: true, message: 'Tidak ada data siswa.' };
@@ -274,6 +290,13 @@ export async function bulkAssignKelasAction(
 ): Promise<{ success: boolean; updated: number; errors: string[]; message: string }> {
   try {
     const session = await requireAuth();
+    const [canSiswaFull, canKelasFull] = await Promise.all([
+      checkUserMenuAccess(session, 'siswa', 'full'),
+      checkUserMenuAccess(session, 'kelas-mapel', 'full'),
+    ]);
+    if (!canSiswaFull && !canKelasFull) {
+      throw new Error('Forbidden: Mode Read-Only atau Anda tidak memiliki akses penuh untuk memindahkan rombel siswa.');
+    }
     const adminId = session.id;
 
     if (!targetKelasId || !siswaIds || siswaIds.length === 0) {
@@ -330,7 +353,7 @@ export async function bulkAssignKelasAction(
  */
 export async function importSiswaBatchAction(arrSiswa: { nis: string, nama: string, id_kelas: string }[], adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('siswa', 'full');
     adminId = session.id; // Override adminId with session ID
 
     if (!Array.isArray(arrSiswa) || arrSiswa.length === 0) throw new Error('Data import kosong.');

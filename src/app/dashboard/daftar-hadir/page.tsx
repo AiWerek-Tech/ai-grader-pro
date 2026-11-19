@@ -14,8 +14,10 @@ import {
   ChevronRight,
   ExternalLink,
   Layers,
+  Lock,
 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/PageHeader';
+import { ReadOnlyBanner } from '@/components/dashboard/ReadOnlyBanner';
 import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import DaftarHadirSheet from '@/components/daftar-hadir/DaftarHadirSheet';
 import {
@@ -45,6 +47,7 @@ import {
 export default function DaftarHadirPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
 
   const [students, setStudents] = useState<KartuStudentItem[]>([]);
   const [mapelList, setMapelList] = useState<string[]>([]);
@@ -96,6 +99,7 @@ export default function DaftarHadirPage() {
         setKartuOverrides(d.kartuOverrides || {});
         setJadwalMaster(d.jadwalMaster);
         setConfig(d.config);
+        setCanEdit(d.canSaveConfig !== false);
       } else {
         toast.error(res.message || 'Gagal memuat data Daftar Hadir.');
       }
@@ -229,11 +233,12 @@ export default function DaftarHadirPage() {
               <button
                 type="button"
                 onClick={handleSaveConfig}
-                disabled={saving}
-                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
+                disabled={saving || !canEdit}
+                title={!canEdit ? 'Dikunci — Mode Read-Only' : 'Simpan preferensi Daftar Hadir'}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                <Save className="w-4 h-4" />
-                <span>{saving ? 'Menyimpan...' : 'Simpan Opsi'}</span>
+                {canEdit ? <Save className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                <span>{!canEdit ? 'Terkunci (Read-Only)' : saving ? 'Menyimpan...' : 'Simpan Opsi'}</span>
               </button>
               <button
                 type="button"
@@ -247,6 +252,8 @@ export default function DaftarHadirPage() {
             </div>
           }
         />
+
+        {!canEdit && <ReadOnlyBanner menuLabel="Daftar Hadir & Berita Acara" />}
 
         <datalist id="pengawas-guru-suggestions">
           {guruList.map((g) => (

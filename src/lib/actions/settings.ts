@@ -4,6 +4,7 @@ import { dbGetAll, dbReplaceSheetData, clearSheetCache } from '@/lib/google-shee
 import { MYSQL_TABLE_SCHEMAS } from '@/lib/mysql';
 import { logger } from '@/lib/logger';
 import { getCurrentUser, requireAdmin } from '@/lib/session-server';
+import { requireMenuAccess } from '@/lib/rbac-server';
 import { persistSettingsUpdates } from '@/lib/settings-server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -225,7 +226,7 @@ export async function getKkmForMapelAction(mapelName: string) {
 export async function checkAIStatusAction() {
   let modelName = 'gemini-3-flash-preview';
   try {
-    await requireAdmin();
+    await requireMenuAccess('doctor', 'read');
     const res = await getSettingsAction(true);
     const settings = res.success && res.data ? res.data : {};
     if (settings['ai_model']) {

@@ -28,9 +28,11 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Lock,
 } from 'lucide-react';
 import { withBasePath } from '@/lib/base-path';
 import { PageHeader } from '@/components/dashboard/PageHeader';
+import { ReadOnlyBanner } from '@/components/dashboard/ReadOnlyBanner';
 import { DashboardLoadingState } from '@/components/dashboard/DashboardLoadingState';
 import { KartuPesertaSheet } from '@/components/kartu/KartuPesertaSheet';
 import { JadwalUjianUnitConfig } from '@/lib/jadwal-ujian-utils';
@@ -54,10 +56,12 @@ import {
   KartuThemeMode,
   normalizePortalBaseUrl,
 } from '@/lib/kartu-peserta-utils';
+import { formatRupiah, StudentExamEligibility } from '@/lib/tagihan-utils';
 
 export default function KartuPesertaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -90,6 +94,18 @@ export default function KartuPesertaPage() {
   const [activeTab, setActiveTab] = useState<'PESERTA' | 'PENGATURAN' | 'JADWAL'>('PESERTA');
   const [filterJenjang, setFilterJenjang] = useState<'ALL' | 'SMP' | 'SMA'>('ALL');
   const [filterKelas, setFilterKelas] = useState<string>('ALL');
+  const [filterBiaya, setFilterBiaya] = useState<'ALL' | 'ELIGIBLE' | 'BLOCKED'>('ALL');
+  const [keuanganGate, setKeuanganGate] = useState<{
+    enforceOnKartuPeserta: boolean;
+    minPercentForExamCard: number;
+    hasActiveBills: boolean;
+    eligibilityMap: Record<string, StudentExamEligibility>;
+  }>({
+    enforceOnKartuPeserta: true,
+    minPercentForExamCard: 50,
+    hasActiveBills: false,
+    eligibilityMap: {},
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -125,6 +141,7 @@ export default function KartuPesertaPage() {
       setAcademicSession(d.academicSession);
       setConfig(d.config);
       setOverrides(d.overrides);
+      setCanEdit((d as any).canEdit !== false);
       if ((d as any).jadwalMaster) {
         setJadwalMaster((d as any).jadwalMaster);
       }
@@ -133,7 +150,21 @@ export default function KartuPesertaPage() {
         setSuggestedUrls(d.suggestedUrls);
       }
 
-      setSelectedIds(new Set(d.students.map((s) => s.id_siswa)));
+      const kInfo = (d as any).keuangan || {
+        enforceOnKartuPeserta: true,
+        minPercentForExamCard: 50,
+        hasActiveBills: false,
+        eligibilityMap: {},
+      };
+      setKeuanganGate(kInfo);
+
+      const gateActive = Boolean(kInfo.enforceOnKartuPeserta && kInfo.hasActiveBills);
+      const initialSelected = gateActive
+        ? d.students
+            .filter((s) => kInfo.eligibilityMap?.[s.id_siswa]?.eligibleForExamCard !== false)
+            .map((s) => s.id_siswa)
+        : d.students.map((s) => s.id_siswa);
+      setSelectedIds(new Set(initialSelected));
       setLoading(false);
     }
 
@@ -172,18 +203,42 @@ export default function KartuPesertaPage() {
     return kelasList.filter((k) => k.jenjang === filterJenjang);
   }, [kelasList, filterJenjang]);
 
+  const paymentGateActive = Boolean(
+    keuanganGate.enforceOnKartuPeserta && keuanganGate.hasActiveBills
+  );
+
+  const isStudentLockedByFee = (idSiswa: string) => {
+    if (!paymentGateActive) return false;
+    const el = keuanganGate.eligibilityMap[idSiswa];
+    return Boolean(el && !el.eligibleForExamCard);
+  };
+
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return students.filter((s) => {
       if (filterJenjang !== 'ALL' && s.jenjang !== filterJenjang) return false;
       if (filterKelas !== 'ALL' && s.id_kelas !== filterKelas) return false;
+      const el = keuanganGate.eligibilityMap[s.id_siswa];
+      if (filterBiaya === 'ELIGIBLE' && el && !el.eligibleForExamCard) return false;
+      if (filterBiaya === 'BLOCKED' && (!el || el.eligibleForExamCard)) return false;
       if (q) {
         const hay = `${s.nama} ${s.nis} ${s.nama_kelas}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [students, filterJenjang, filterKelas, searchQuery]);
+  }, [students, filterJenjang, filterKelas, filterBiaya, searchQuery, keuanganGate.eligibilityMap]);
+
+  const feeSummaryStats = useMemo(() => {
+    let eligible = 0;
+    let blocked = 0;
+    for (const s of filteredStudents) {
+      const el = keuanganGate.eligibilityMap[s.id_siswa];
+      if (el && !el.eligibleForExamCard) blocked++;
+      else eligible++;
+    }
+    return { eligible, blocked };
+  }, [filteredStudents, keuanganGate.eligibilityMap]);
 
   const selectedStudents = useMemo(() => {
     return students.filter((s) => selectedIds.has(s.id_siswa));
@@ -211,6 +266,14 @@ export default function KartuPesertaPage() {
   }, [selectedStudents, previewMode, previewPageIdx, studentsPerPage]);
 
   const toggleStudent = (id: string) => {
+    if (isStudentLockedByFee(id) && !selectedIds.has(id)) {
+      const el = keuanganGate.eligibilityMap[id];
+      showToast(
+        'error',
+        `Kartu terkunci: biaya sekolah terbayar ${el?.persentaseTerbayar ?? 0}% (minimal ${keuanganGate.minPercentForExamCard}%). Kurang minimal ${formatRupiah(el?.minimalAgarLayak || 0)} atau aktifkan Dispensasi di menu Tagihan & SPP.`
+      );
+      return;
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -220,11 +283,24 @@ export default function KartuPesertaPage() {
   };
 
   const selectAllFiltered = () => {
+    let skippedBlocked = 0;
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      filteredStudents.forEach((s) => next.add(s.id_siswa));
+      filteredStudents.forEach((s) => {
+        if (isStudentLockedByFee(s.id_siswa)) {
+          skippedBlocked++;
+          return;
+        }
+        next.add(s.id_siswa);
+      });
       return next;
     });
+    if (skippedBlocked > 0) {
+      showToast(
+        'error',
+        `${skippedBlocked} siswa dilewati karena belum memenuhi syarat biaya minimal ${keuanganGate.minPercentForExamCard}% (tanpa dispensasi).`
+      );
+    }
   };
 
   const deselectAllFiltered = () => {
@@ -247,6 +323,10 @@ export default function KartuPesertaPage() {
   };
 
   const openEditStudent = (s: KartuStudentItem) => {
+    if (!canEdit) {
+      showToast('error', 'Mode Hanya Lihat (Read-Only): Anda tidak memiliki izin mengedit peserta.');
+      return;
+    }
     setEditingStudent(s);
     setEditDraft(overrides[s.id_siswa] || {});
   };
@@ -443,8 +523,9 @@ export default function KartuPesertaPage() {
               <button
                 type="button"
                 onClick={() => handleSaveSettings(overrides)}
-                disabled={saving}
-                className="px-4 py-2.5 rounded-xl bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 text-xs font-extrabold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/10 transition disabled:opacity-60 cursor-pointer"
+                disabled={saving || !canEdit}
+                title={!canEdit ? 'Dikunci — Mode Read-Only' : 'Simpan Pengaturan Kartu'}
+                className="px-4 py-2.5 rounded-xl bg-white dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 text-xs font-extrabold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Save className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 {saving ? 'Menyimpan...' : 'Simpan Default'}
@@ -461,6 +542,8 @@ export default function KartuPesertaPage() {
             </>
           }
         />
+
+        {!canEdit && <ReadOnlyBanner menuLabel="Kartu Peserta" />}
 
         {/* Toast Feedback */}
         {toast && (
@@ -629,6 +712,44 @@ export default function KartuPesertaPage() {
                   </div>
                 </div>
 
+                {keuanganGate.hasActiveBills && (
+                  <div
+                    className={`p-3 rounded-2xl border text-[11px] flex flex-wrap items-center justify-between gap-2 ${
+                      paymentGateActive
+                        ? 'bg-emerald-50/80 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-950 dark:text-emerald-200'
+                        : 'bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-black flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        Validasi Biaya Ujian ({paymentGateActive ? `Kunci Aktif ≥${keuanganGate.minPercentForExamCard}%` : 'Mode Info'})
+                      </div>
+                      <div className="text-[10px] font-semibold opacity-85 mt-0.5">
+                        Layak Cetak: <strong>{feeSummaryStats.eligible}</strong> • Terkunci / Belum Layak:{' '}
+                        <strong className="text-rose-600 dark:text-rose-400">{feeSummaryStats.blocked}</strong>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={filterBiaya}
+                        onChange={(e) => setFilterBiaya(e.target.value as 'ALL' | 'ELIGIBLE' | 'BLOCKED')}
+                        className="px-2 py-1 rounded-lg bg-white dark:bg-white/10 border border-slate-200 dark:border-white/15 text-[10px] font-bold"
+                      >
+                        <option value="ALL">Semua Status Biaya</option>
+                        <option value="ELIGIBLE">Layak Ujian Saja</option>
+                        <option value="BLOCKED">Terkunci (&lt;{keuanganGate.minPercentForExamCard}%)</option>
+                      </select>
+                      <Link
+                        href="/dashboard/tagihan"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black"
+                      >
+                        Kelola SPP →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -682,11 +803,15 @@ export default function KartuPesertaPage() {
                       const checked = selectedIds.has(s.id_siswa);
                       const hasOv = Boolean(overrides[s.id_siswa]);
                       const theme = getCardTheme(s.jenjang, config.themeMode);
+                      const el = keuanganGate.eligibilityMap[s.id_siswa];
+                      const lockedByFee = isStudentLockedByFee(s.id_siswa);
                       return (
                         <div
                           key={s.id_siswa}
                           className={`flex items-center gap-3 px-3 py-2.5 transition ${
-                            checked
+                            lockedByFee
+                              ? 'bg-rose-50/40 dark:bg-rose-500/[0.05] opacity-80'
+                              : checked
                               ? 'bg-indigo-50/40 dark:bg-indigo-500/[0.07]'
                               : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'
                           }`}
@@ -698,12 +823,18 @@ export default function KartuPesertaPage() {
                           >
                             <div
                               className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${
-                                checked
+                                lockedByFee
+                                  ? 'bg-rose-100 dark:bg-rose-500/20 border-rose-300 text-rose-600'
+                                  : checked
                                   ? 'bg-indigo-600 border-indigo-600 text-white'
                                   : 'border-slate-300 dark:border-white/20 bg-white dark:bg-transparent'
                               }`}
                             >
-                              {checked && <CheckSquare className="w-3.5 h-3.5" />}
+                              {lockedByFee ? (
+                                <Lock className="w-3 h-3" />
+                              ) : (
+                                checked && <CheckSquare className="w-3.5 h-3.5" />
+                              )}
                             </div>
                             <div
                               className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black shrink-0 shadow-xs text-white"
@@ -736,17 +867,56 @@ export default function KartuPesertaPage() {
                                     Custom
                                   </span>
                                 )}
+                                {keuanganGate.hasActiveBills && el && el.status !== 'BELUM_ADA_TAGIHAN' && (
+                                  <span
+                                    className={`px-1.5 py-0.2 rounded text-[9px] font-black ${
+                                      el.status === 'LUNAS'
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                        : el.status === 'MEMENUHI_SYARAT'
+                                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300'
+                                        : el.status === 'DISPENSASI'
+                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300'
+                                        : 'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300'
+                                    }`}
+                                    title={
+                                      el.status === 'BELUM_LAYAK'
+                                        ? `Minimal bayar ${formatRupiah(el.minimalAgarLayak)} untuk capai ${el.minPercentRequired}%`
+                                        : el.dispensasi?.alasan || `Terbayar ${el.persentaseTerbayar}%`
+                                    }
+                                  >
+                                    {el.status === 'LUNAS'
+                                      ? 'SPP Lunas'
+                                      : el.status === 'MEMENUHI_SYARAT'
+                                      ? `SPP ${el.persentaseTerbayar}%`
+                                      : el.status === 'DISPENSASI'
+                                      ? 'Dispensasi'
+                                      : `Terkunci (${el.persentaseTerbayar}%)`}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </button>
 
                           <button
                             type="button"
+                            disabled={!canEdit}
                             onClick={() => openEditStudent(s)}
-                            title="Atur No. Peserta / Ruang / Meja khusus siswa ini"
-                            className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/15 transition shrink-0 cursor-pointer"
+                            title={
+                              canEdit
+                                ? 'Atur No. Peserta / Ruang / Meja khusus siswa ini'
+                                : 'Dikunci — Mode Hanya Lihat (Read-Only)'
+                            }
+                            className={`p-2 rounded-xl transition shrink-0 ${
+                              canEdit
+                                ? 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/15 cursor-pointer'
+                                : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                            }`}
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            {canEdit ? (
+                              <Edit3 className="w-3.5 h-3.5" />
+                            ) : (
+                              <Lock className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         </div>
                       );
@@ -1272,7 +1442,7 @@ export default function KartuPesertaPage() {
                         )}
                         <button
                           type="button"
-                          disabled={rotatingEpoch}
+                          disabled={rotatingEpoch || !canEdit}
                           onClick={handleRotateQrEpoch}
                           className="py-1.5 px-3 rounded-xl bg-white dark:bg-white/10 border border-amber-300 dark:border-amber-500/30 text-[11px] font-black text-amber-800 dark:text-amber-300 hover:bg-amber-50 inline-flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                           title="Cabut seluruh QR cetakan lama agar hanya kartu baru yang berlaku"
@@ -1316,7 +1486,7 @@ export default function KartuPesertaPage() {
                 <button
                   type="button"
                   onClick={() => handleSaveSettings(overrides)}
-                  disabled={saving}
+                  disabled={saving || !canEdit}
                   className="w-full py-2.5 rounded-xl btn-indigo text-xs font-black flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
@@ -1420,7 +1590,7 @@ export default function KartuPesertaPage() {
                       <button
                         type="button"
                         onClick={() => handleSaveSettings(overrides)}
-                        disabled={saving}
+                        disabled={saving || !canEdit}
                         className="py-2.5 px-3 rounded-xl btn-indigo text-xs font-black flex items-center justify-center gap-1.5 disabled:opacity-60 cursor-pointer"
                       >
                         <Save className="w-3.5 h-3.5" />
@@ -1488,7 +1658,7 @@ export default function KartuPesertaPage() {
                   <button
                     type="button"
                     onClick={() => handleSaveSettings(overrides)}
-                    disabled={saving}
+                    disabled={saving || !canEdit}
                     className="flex-1 py-2 rounded-xl btn-indigo text-xs font-black flex items-center justify-center gap-1.5 disabled:opacity-60 cursor-pointer"
                   >
                     <Save className="w-3.5 h-3.5" />

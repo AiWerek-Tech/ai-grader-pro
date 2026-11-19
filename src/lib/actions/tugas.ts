@@ -11,7 +11,7 @@ import { getAcademicSessionAction } from '@/lib/actions/settings';
 
 export async function getTugasAction() {
   try {
-    await requireMenuAccess('tugas-mengajar');
+    await requireMenuAccess('tugas-mengajar', 'read');
     const { data: session } = await getAcademicSessionAction();
     const tahunAjaran = String(session?.tahunAjaran || '').trim();
     const semester = String(session?.semester || '').trim().toUpperCase();
@@ -107,7 +107,7 @@ export async function getTugasForGuruAction(guruId: string, _userRole: string = 
 
 export async function saveTugasAction(idGuru: string, idMapel: string, idKelas: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('tugas-mengajar');
+    const session = await requireMenuAccess('tugas-mengajar', 'full');
     adminId = session.id; // Override adminId with session ID
 
     if (!idGuru || !idMapel || !idKelas) throw new Error('Guru, Mata Pelajaran, dan Kelas wajib dipilih.');
@@ -145,7 +145,7 @@ export async function saveTugasBatchAction(
   adminId: string = 'SYSTEM'
 ) {
   try {
-    const session = await requireMenuAccess('tugas-mengajar');
+    const session = await requireMenuAccess('tugas-mengajar', 'full');
     adminId = session.id;
 
     if (!idGuru || !idMapel || !Array.isArray(idKelasList) || idKelasList.length === 0) {
@@ -195,7 +195,7 @@ export async function saveTugasBatchAction(
 
 export async function updateTugasAction(idTugas: string, idGuru: string, idMapel: string, idKelas: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('tugas-mengajar');
+    const session = await requireMenuAccess('tugas-mengajar', 'full');
     adminId = session.id; // Override adminId with session ID
 
     if (!idTugas || !idGuru || !idMapel || !idKelas) throw new Error('Data tidak lengkap.');
@@ -227,7 +227,7 @@ export async function updateTugasAction(idTugas: string, idGuru: string, idMapel
 
 export async function deleteTugasAction(idTugas: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireMenuAccess('tugas-mengajar');
+    const session = await requireMenuAccess('tugas-mengajar', 'full');
     adminId = session.id; // Override adminId with session ID
     const deleted = await dbFindAndDeleteRow('TUGAS_GURU', idTugas);
     if (!deleted) throw new Error('Tugas tidak ditemukan.');

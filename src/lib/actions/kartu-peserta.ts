@@ -3,7 +3,7 @@
 import os from 'os';
 import { headers } from 'next/headers';
 import { dbGetAll } from '@/lib/google-sheets';
-import { requireMenuAccess } from '@/lib/rbac-server';
+import { checkUserMenuAccess, requireMenuAccess } from '@/lib/rbac-server';
 import { BASE_PATH } from '@/lib/base-path';
 import { getSiswaAction } from '@/lib/actions/siswa';
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/lib/kartu-peserta-utils';
 import { signKartuQrToken } from '@/lib/kartu-qr-token';
 import { parseJadwalUnitFromSettings } from '@/lib/jadwal-ujian-utils';
+import { getExamEligibilityForStudents } from '@/lib/actions/tagihan';
 
 async function detectSuggestedPortalBaseUrls(): Promise<{
   recommendedUrl: string;
@@ -110,11 +111,12 @@ function buildQrTokenMap(
 
 export async function getKartuPesertaBundleAction() {
   try {
-    await requireMenuAccess('kartu-peserta');
+    const auth = await requireMenuAccess('kartu-peserta', 'read');
+    const canEdit = await checkUserMenuAccess(auth, 'kartu-peserta', 'full');
 
     const [siswaRes, kelasRaw, mapelRaw, settingsRes, sessionRes, suggestedUrls] =
       await Promise.all([
-        getSiswaAction(),
+        getSiswaAction(undefined, 'DELEGATED_ALL'),
         dbGetAll('KELAS'),
         dbGetAll('MAPEL'),
         getSettingsAction(),
@@ -184,6 +186,12 @@ export async function getKartuPesertaBundleAction() {
       semester,
       config.qrTokenEpoch
     );
+    const keuanganRes = await getExamEligibilityForStudents(
+      students.map((s) => s.id_siswa),
+      tahunAjaran,
+      semester,
+      settings
+    );
 
     return {
       success: true,
@@ -201,6 +209,13 @@ export async function getKartuPesertaBundleAction() {
         jadwalMaster,
         qrTokensByStudentId,
         suggestedUrls,
+        canEdit,
+        keuangan: {
+          enforceOnKartuPeserta: keuanganRes.config.enforceOnKartuPeserta,
+          minPercentForExamCard: keuanganRes.config.minPercentForExamCard,
+          hasActiveBills: keuanganRes.totalBillsCount > 0,
+          eligibilityMap: keuanganRes.eligibilityMap,
+        },
       },
     };
   } catch (e: any) {
@@ -216,7 +231,7 @@ export async function saveKartuPesertaSettingsAction(
   overrides: Record<string, KartuStudentOverride> = {}
 ) {
   try {
-    const auth = await requireMenuAccess('kartu-peserta');
+    const auth = await requireMenuAccess('kartu-peserta', 'full');
     const updates = serializeKartuConfigToSettings(config, overrides);
     await persistSettingsUpdates(updates, auth.id);
     return { success: true };
@@ -230,9 +245,9 @@ export async function saveKartuPesertaSettingsAction(
 
 export async function rotateKartuQrEpochAction() {
   try {
-    const auth = await requireMenuAccess('kartu-peserta');
+    const auth = await requireMenuAccess('kartu-peserta', 'full');
     const [siswaRes, settingsRes, sessionRes] = await Promise.all([
-      getSiswaAction(),
+      getSiswaAction(undefined, 'DELEGATED_ALL'),
       getSettingsAction(),
       getAcademicSessionAction(),
     ]);

@@ -3,6 +3,7 @@
 import { dbGetAll, dbAppendRow, dbFindAndDeleteRow, dbUpdateRow, generateId, sanitizeInput } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
+import { checkUserMenuAccess, requireMenuAccess } from '@/lib/rbac-server';
 
 // Schema KELAS: [id_kelas, nama_kelas, jenjang]
 // Schema MAPEL: [id_mapel, nama_mapel]
@@ -20,7 +21,7 @@ function getGradeSortOrder(namaKelas: string): number {
   return 99;
 }
 
-export async function getMasterData() {
+export async function getMasterData(scope: 'PERSONAL' | 'DELEGATED_ALL' = 'PERSONAL') {
   try {
     const authSession = await requireAuth();
     const { data: session } = await getAcademicSessionAction();
@@ -41,8 +42,20 @@ export async function getMasterData() {
     });
     let filteredMapel = [...mapel];
 
-    // Guru Specific Filter (Personal Guru Isolation)
-    if (authSession.role === 'GURU') {
+    let hasDelegatedAllAccess = false;
+    if (authSession.role === 'GURU' && scope === 'DELEGATED_ALL') {
+      const [canKelas, canSiswa, canTugas, canKartu, canDaftarHadir] = await Promise.all([
+        checkUserMenuAccess(authSession, 'kelas-mapel', 'read'),
+        checkUserMenuAccess(authSession, 'siswa', 'read'),
+        checkUserMenuAccess(authSession, 'tugas-mengajar', 'read'),
+        checkUserMenuAccess(authSession, 'kartu-peserta', 'read'),
+        checkUserMenuAccess(authSession, 'daftar-hadir', 'read'),
+      ]);
+      hasDelegatedAllAccess = canKelas || canSiswa || canTugas || canKartu || canDaftarHadir;
+    }
+
+    // Guru Specific Filter (Personal Guru Isolation hanya jika bukan akses delegasi)
+    if (authSession.role === 'GURU' && !hasDelegatedAllAccess) {
       const myTugas = tugas.filter(t => {
         const matchUser = String(t.id_user) === String(authSession.id);
         const tTahun = String(t.tahun_ajaran || '').trim();
@@ -97,7 +110,7 @@ export async function getMasterData() {
 
 export async function saveMasterAction(type: 'KELAS' | 'MAPEL', nama: string, jenjang?: string, adminId: string = 'SYSTEM') {
   try {
-    const authSession = await requireAuth();
+    const authSession = await requireMenuAccess('kelas-mapel', 'full');
     adminId = authSession.id; // Override adminId with session ID
 
     if (!nama || nama.trim().length < 2) throw new Error('Nama minimal 2 karakter.');
@@ -139,7 +152,7 @@ export async function saveMasterAction(type: 'KELAS' | 'MAPEL', nama: string, je
 
 export async function updateMasterAction(type: 'KELAS' | 'MAPEL', id: string, newName: string, jenjang?: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('kelas-mapel', 'full');
     adminId = session.id; // Override adminId with session ID
 
     if (!newName || newName.trim().length < 2) throw new Error('Nama minimal 2 karakter.');
@@ -169,7 +182,7 @@ export async function updateMasterAction(type: 'KELAS' | 'MAPEL', id: string, ne
 
 export async function deleteMasterAction(type: 'KELAS' | 'MAPEL', id: string, adminId: string = 'SYSTEM') {
   try {
-    const session = await requireAuth();
+    const session = await requireMenuAccess('kelas-mapel', 'full');
     adminId = session.id; // Override adminId with session ID
     if (type === 'KELAS') {
       const allSiswa = await dbGetAll('SISWA');

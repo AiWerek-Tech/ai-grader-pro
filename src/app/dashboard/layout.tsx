@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { getCurrentUser } from "@/lib/session-server";
 import { getAcademicSessionAction } from "@/lib/actions/settings";
 import { getRbacConfigServer } from "@/lib/rbac-server";
-import { hasMenuAccess, ROUTE_TO_MENU_KEY } from "@/lib/rbac-config";
+import { hasDashboardRouteAccess, ROUTE_TO_MENU_KEY } from "@/lib/rbac-config";
 import { redirect } from 'next/navigation';
 import ResponsiveDashboardWrapper from '@/components/dashboard/ResponsiveDashboardWrapper';
 
@@ -19,6 +19,7 @@ const adminSections = [
     items: [
       { href: "/dashboard/guru", icon: "👤", label: "Manajemen Guru" },
       { href: "/dashboard/siswa", icon: "🎓", label: "Direktori Siswa" },
+      { href: "/dashboard/tagihan", icon: "💳", label: "Tagihan & SPP" },
       { href: "/dashboard/kartu-peserta", icon: "🪪", label: "Kartu Peserta" },
       { href: "/dashboard/kelas-mapel", icon: "📚", label: "Kelas & Mapel" },
       { href: "/dashboard/tugas-mengajar", icon: "📋", label: "Tugas Mengajar" },
@@ -74,11 +75,8 @@ export default async function DashboardLayout({
     const matchedRoute = Object.keys(ROUTE_TO_MENU_KEY).find((route) =>
       currentPath.startsWith(route)
     );
-    if (matchedRoute) {
-      const menuKey = ROUTE_TO_MENU_KEY[matchedRoute];
-      if (!hasMenuAccess(user.role, user.id, menuKey, rbac)) {
-        redirect('/dashboard');
-      }
+    if (matchedRoute && !hasDashboardRouteAccess(user.role, user.id, matchedRoute, rbac)) {
+      redirect('/dashboard');
     }
   }
 
@@ -89,7 +87,7 @@ export default async function DashboardLayout({
         if (item.href === '/dashboard/settings') return false;
         const menuKey = ROUTE_TO_MENU_KEY[item.href];
         if (menuKey) {
-          return hasMenuAccess(user.role, user.id, menuKey, rbac);
+          return hasDashboardRouteAccess(user.role, user.id, item.href, rbac);
         }
         return !section.adminOnly;
       });

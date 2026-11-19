@@ -476,6 +476,42 @@ export function generateId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 }
 
+const ensuredGoogleTabs = new Set<string>();
+
+/**
+ * Memastikan sheet/tabel sudah tersedia sebelum dibaca atau ditulis.
+ * - Mode MySQL: menggunakan ensureMySqlTables() otomatis.
+ * - Mode Google Sheets: mengecek apakah tab sudah ada sebelum membuatnya beserta baris header.
+ */
+export async function dbEnsureTableExists(sheetName: string, headers: string[]): Promise<void> {
+  if (isMySqlEnabled()) return;
+  if (ensuredGoogleTabs.has(sheetName)) return;
+
+  const sheets = getSheets();
+  const activeSpreadsheetId = getSpreadsheetId();
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId: activeSpreadsheetId,
+    fields: 'sheets.properties.title',
+  });
+  const exists = meta.data.sheets?.some((s) => s.properties?.title === sheetName);
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: activeSpreadsheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: sheetName } } }],
+      },
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: activeSpreadsheetId,
+      range: `${sheetName}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [headers] },
+    });
+    clearSheetCache(sheetName);
+  }
+  ensuredGoogleTabs.add(sheetName);
+}
+
 /**
  * sanitizeInput(val, maxLength)
  * Sesuai dengan keamanan AdminService.gs lama, mencegah formula injection
