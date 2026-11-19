@@ -18,6 +18,7 @@ import { getAcademicSessionAction, getSettingsAction } from '@/lib/actions/setti
 import { persistSettingsUpdates } from '@/lib/settings-server';
 import {
   allocatePaymentFifo,
+  buildDefaultPostingPeriode,
   computeExamEligibilityMap,
   computeTagihanStatus,
   formatRupiah,
@@ -919,6 +920,193 @@ export async function setStudentDispensasiAction(input: {
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Gagal mengubah status dispensasi.',
+    };
+  }
+}
+
+export interface PostTagihanTersisaItemInput {
+  id_siswa: string;
+  nominal: number;
+  potongan?: number;
+  nama_tagihan?: string;
+  catatan?: string;
+  /** Jika true dan nominal=0, tetap buat baris saldo Rp 0 berstatus LUNAS agar terbedakan dari "Belum Diposting". */
+  markZeroAsLunas?: boolean;
+}
+
+/**
+ * Posting massal Tagihan Tersisa / Saldo Tunggakan Awal (dari Excel manual Bendahara atau input grid cepat per kelas).
+ * Mendukung upsert aman (update bila belum melebihi nominal yang sudah terbayar di kasir, tidak menimbulkan duplikat).
+ */
+export async function postTagihanTersisaBatchAction(input: {
+  periodeKey?: string;
+  defaultNamaTagihan?: string;
+  jatuhTempo?: string;
+  replaceExistingMode?: 'UPDATE_UNPAID' | 'APPEND_NEW';
+  items: PostTagihanTersisaItemInput[];
+}) {
+  try {
+    const auth = await requireBendaharaAccess();
+    await ensureKeuanganTables();
+
+    const items = Array.isArray(input.items) ? input.items.filter((i) => i && i.id_siswa) : [];
+    if (items.length === 0) {
+      return { success: false, message: 'Tidak ada data siswa yang dikirim untuk diposting.' };
+    }
+
+    const [sessionRes, settingsRes, rawBills] = await Promise.all([
+      getAcademicSessionAction(),
+      getSettingsAction(),
+      dbGetAll('TAGIHAN', false),
+    ]);
+
+    const settings = settingsRes.data || {};
+    const tahunAjaran = sessionRes.data?.tahunAjaran || settings['tahun_ajaran'] || '2026/2027';
+    const semester = sessionRes.data?.semester || settings['semester'] || 'GANJIL';
+
+    const periodeKey =
+      sanitizeInput(input.periodeKey || '', 32) || buildDefaultPostingPeriode(tahunAjaran, semester);
+    const defaultNama =
+      sanitizeInput(input.defaultNamaTagihan || '', 150) ||
+      `Sisa Tagihan Biaya Sekolah (${semester} ${tahunAjaran})`;
+    const jatuhTempo = sanitizeInput(input.jatuhTempo || '', 32);
+    const mode = input.replaceExistingMode || 'UPDATE_UNPAID';
+
+    const existingBills = rawBills.map((r) => normalizeTagihanRow(r)).filter((b) => b.id_tagihan);
+    // Index tagihan yang sudah ada di periode posting yang sama untuk upsert anti-duplikat
+    const existingByStudent = new Map<string, TagihanRecord>();
+    for (const b of existingBills) {
+      if (
+        b.tahun_ajaran === tahunAjaran &&
+        b.semester.toUpperCase() === semester.toUpperCase() &&
+        b.periode_bulan.toUpperCase() === periodeKey.toUpperCase()
+      ) {
+        existingByStudent.set(b.id_siswa, b);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const rowsToAppend: string[][] = [];
+    const rowsToUpdate: Array<{ id: string; values: string[] }> = [];
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let lunasZeroCount = 0;
+    let protectedCount = 0;
+    let skippedCount = 0;
+
+    // Deduplikasi input per id_siswa (ambil baris terakhir bila ganda)
+    const dedupMap = new Map<string, PostTagihanTersisaItemInput>();
+    for (const item of items) {
+      dedupMap.set(String(item.id_siswa).trim(), item);
+    }
+
+    for (const [sid, item] of dedupMap.entries()) {
+      const nominal = Math.max(0, Math.round(Number(item.nominal) || 0));
+      const potongan = Math.max(0, Math.min(nominal, Math.round(Number(item.potongan) || 0)));
+      const nominalAkhir = Math.max(0, nominal - potongan);
+      const customNama = sanitizeInput(item.nama_tagihan || '', 150);
+      const customCatatan = sanitizeInput(item.catatan || '', 240);
+
+      const finalNama =
+        customNama ||
+        (nominalAkhir === 0 ? 'Bebas Tunggakan / Lunas (Posting Excel)' : defaultNama);
+      const finalCatatan =
+        customCatatan ||
+        (nominalAkhir === 0 ? 'Lunas di catatan Bendahara (Posting Saldo)' : 'Posting Sisa Tagihan Pra-Ujian');
+
+      const existing = mode === 'UPDATE_UNPAID' ? existingByStudent.get(sid) : undefined;
+
+      if (existing) {
+        if (nominalAkhir < existing.terbayar) {
+          // Proteksi kas: siswa sudah membayar lebih besar dari angka baru di loket kasir
+          protectedCount++;
+          continue;
+        }
+        const updated: TagihanRecord = {
+          ...existing,
+          kategori: 'SALDO_AWAL',
+          nama_tagihan: finalNama,
+          nominal,
+          potongan,
+          nominal_akhir: nominalAkhir,
+          status: computeTagihanStatus(nominalAkhir, existing.terbayar),
+          jatuh_tempo: jatuhTempo || existing.jatuh_tempo,
+          catatan: finalCatatan,
+          updated_at: nowIso,
+        };
+        rowsToUpdate.push({ id: updated.id_tagihan, values: tagihanToDbRow(updated) });
+        updatedCount++;
+        if (nominalAkhir === 0) lunasZeroCount++;
+      } else {
+        if (nominalAkhir === 0 && !item.markZeroAsLunas) {
+          skippedCount++;
+          continue;
+        }
+        const bill: TagihanRecord = {
+          id_tagihan: generateId('TGH'),
+          id_siswa: sanitizeInput(sid, 64),
+          tahun_ajaran: tahunAjaran,
+          semester,
+          kategori: 'SALDO_AWAL',
+          periode_bulan: periodeKey,
+          nama_tagihan: finalNama,
+          nominal,
+          potongan,
+          nominal_akhir: nominalAkhir,
+          terbayar: 0,
+          status: computeTagihanStatus(nominalAkhir, 0),
+          jatuh_tempo: jatuhTempo,
+          catatan: finalCatatan,
+          updated_at: nowIso,
+        };
+        rowsToAppend.push(tagihanToDbRow(bill));
+        createdCount++;
+        if (nominalAkhir === 0) lunasZeroCount++;
+      }
+    }
+
+    if (rowsToAppend.length > 0) {
+      await dbBatchAppendRows('TAGIHAN', rowsToAppend);
+    }
+    if (rowsToUpdate.length > 0) {
+      await dbBatchUpdateRows('TAGIHAN', rowsToUpdate);
+    }
+
+    await appendKeuanganLog(
+      'INFO',
+      'POST_TAGIHAN_TERSISA',
+      `Posting saldo tagihan (${periodeKey}): ${createdCount} baru, ${updatedCount} diperbarui, ${lunasZeroCount} lunas Rp 0, ${protectedCount} dilindungi kas.`,
+      auth.id
+    );
+
+    const parts: string[] = [];
+    if (createdCount > 0) parts.push(`${createdCount} tagihan baru diposting`);
+    if (updatedCount > 0) parts.push(`${updatedCount} tagihan diperbarui`);
+    if (lunasZeroCount > 0) parts.push(`${lunasZeroCount} siswa ditandai Lunas Rp 0`);
+    if (protectedCount > 0) {
+      parts.push(`${protectedCount} dilewati karena sudah ada pembayaran kasir lebih besar`);
+    }
+
+    return {
+      success: true,
+      data: {
+        createdCount,
+        updatedCount,
+        lunasZeroCount,
+        protectedCount,
+        skippedCount,
+        periodeKey,
+      },
+      message:
+        parts.length > 0
+          ? `Berhasil: ${parts.join(' • ')}.`
+          : 'Tidak ada perubahan tagihan yang perlu disimpan.',
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Gagal memposting tagihan tersisa.',
     };
   }
 }

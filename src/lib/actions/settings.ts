@@ -52,6 +52,8 @@ const ALLOWED_BACKUP_SHEETS = [
   'AI_FEEDBACK',
   'FILES',
   'LOG',
+  'TAGIHAN',
+  'PEMBAYARAN',
 ] as const;
 
 export async function getSettingsAction(includeSecrets: boolean = false) {

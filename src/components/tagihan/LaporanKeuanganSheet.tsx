@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { withBasePath } from '@/lib/base-path';
 import {
   formatDateIdShort,
   formatRupiah,
@@ -9,11 +8,21 @@ import {
   KeuanganConfig,
   PembayaranRecord,
   StudentExamEligibility,
+  summarizeCashierHandover,
   TagihanRecord,
 } from '@/lib/tagihan-utils';
 import type { TagihanKelasItem, TagihanStudentItem } from '@/lib/actions/tagihan';
+import {
+  KeuanganKopSurat,
+  KeuanganSignatureImg,
+  resolveKeuanganLeaderSigner,
+} from './KeuanganKopSurat';
 
-export type LaporanKeuanganMode = 'KAS_MASUK' | 'REKAP_KELAS' | 'KESIAPAN_UJIAN';
+export type LaporanKeuanganMode =
+  | 'REKAP_KELAS'
+  | 'KAS_MASUK'
+  | 'KESIAPAN_UJIAN'
+  | 'RINCIAN_TUNGGAKAN';
 
 export function LaporanKeuanganSheet({
   mode,
@@ -43,35 +52,10 @@ export function LaporanKeuanganSheet({
   academicSession: { tahunAjaran: string; semester: string };
 }) {
   const today = getTodayYmd();
-  const prefix = jenjangFilter === 'SMP' ? 'smp_' : jenjangFilter === 'SMA' ? 'sma_' : '';
-  const yayasan = settings['nama_yayasan'] || 'YAYASAN PENDIDIKAN ADVENT PAPUA';
-  const akademi =
-    (prefix ? settings[prefix + 'nama_sekolah_1'] : '') ||
-    settings['nama_sekolah_1'] ||
-    'WAMENA MOUNTAIN VIEW ADVENTIST ACADEMY';
-  const sekolah =
-    (prefix ? settings[prefix + 'nama_sekolah_2'] : '') ||
-    settings['nama_sekolah_2'] ||
-    'SMP & SMA ADVENT SOGOKMO';
-  const alamat =
-    settings['alamat_sekolah'] ||
-    'Jl. Wamena – Kurima, Kampung Sogokmo, Kec. Asotipo, Kab. Jayawijaya';
   const kota = settings['kota_sekolah'] || 'Sogokmo';
-  const logoKiri = settings['logo_kiri_url'] || withBasePath('/logo/logo_advent.png');
-  const logoKanan = settings['logo_kanan_url'] || withBasePath('/logo/tut_wuri.png');
 
-  const kepalaNama =
-    jenjangFilter === 'SMP'
-      ? settings['smp_kepala_nama'] || settings['kepala_nama'] || ''
-      : jenjangFilter === 'SMA'
-      ? settings['sma_kepala_nama'] || settings['kepala_nama'] || ''
-      : settings['kepala_nama'] || settings['sma_kepala_nama'] || settings['smp_kepala_nama'] || '';
-  const kepalaTtd =
-    jenjangFilter === 'SMP'
-      ? settings['smp_kepala_ttd_url'] || ''
-      : jenjangFilter === 'SMA'
-      ? settings['sma_kepala_ttd_url'] || ''
-      : '';
+  // Penandatangan Pimpinan: SMP -> Kepsek SMP, SMA -> Kepsek SMA, Gabung SMP-SMA -> Direktur (Kepsek tertinggi SMA)
+  const leaderSigner = resolveKeuanganLeaderSigner(jenjangFilter, settings);
 
   const filteredStudents = students.filter(
     (s) => jenjangFilter === 'ALL' || s.jenjang === jenjangFilter
@@ -79,7 +63,7 @@ export function LaporanKeuanganSheet({
   const studentMap = new Map(students.map((s) => [s.id_siswa, s]));
   const billMap = new Map(bills.map((b) => [b.id_tagihan, b]));
 
-  // Data untuk KAS_MASUK
+  // Data untuk KAS_MASUK + Rekap Setoran per Kasir
   const validPayments = payments.filter((p) => {
     if (p.status_transaksi !== 'VALID') return false;
     const stu = studentMap.get(p.id_siswa);
@@ -98,6 +82,7 @@ export function LaporanKeuanganSheet({
     .filter((p) => p.metode === 'LAINNYA')
     .reduce((acc, p) => acc + p.nominal_bayar, 0);
   const totalKasMasuk = totalTunai + totalTransfer + totalLain;
+  const cashierSummary = summarizeCashierHandover(validPayments);
 
   // Data untuk REKAP_KELAS
   const filteredKelas = kelasList.filter(
@@ -146,43 +131,39 @@ export function LaporanKeuanganSheet({
   const grandLayak = kelasSummary.reduce((a, b) => a + b.layakCount, 0);
   const grandBelumLayak = kelasSummary.reduce((a, b) => a + b.belumLayakCount, 0);
 
+  // Data untuk RINCIAN_TUNGGAKAN (hanya siswa yang masih punya sisa tunggakan)
+  const tunggakanStudents = filteredStudents.filter(
+    (s) => (eligibilityMap[s.id_siswa]?.sisaTunggakan || 0) > 0
+  );
+
   const reportTitle =
     mode === 'KAS_MASUK'
-      ? 'LAPORAN PEMASUKAN KAS BIAYA SEKOLAH'
+      ? 'LAPORAN PEMASUKAN KAS & SETORAN KASIR'
       : mode === 'REKAP_KELAS'
       ? 'REKAPITULASI TAGIHAN & TUNGGAKAN PER KELAS'
+      : mode === 'RINCIAN_TUNGGAKAN'
+      ? 'DAFTAR RINCIAN SISA TUNGGAKAN BIAYA SEKOLAH'
       : 'LAPORAN KESIAPAN ADMINISTRASI KARTU PESERTA UJIAN';
 
   return (
     <div
-      className="tagihan-print-page bg-white text-slate-900 mx-auto box-border"
+      className="tagihan-print-page bg-white text-black mx-auto box-border"
       style={{
         width: '210mm',
-        minHeight: '295mm',
+        minHeight: '292mm',
         padding: '12mm 14mm',
         fontFamily: "'Plus Jakarta Sans', Arial, sans-serif",
       }}
     >
-      {/* Kop Resmi */}
-      <div className="flex items-center justify-between gap-3 border-b-2 border-slate-900 pb-3 mb-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoKiri} alt="Logo" className="w-14 h-14 object-contain shrink-0" />
-        <div className="flex-1 text-center leading-tight">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">{yayasan}</div>
-          <div className="text-xs font-black uppercase text-slate-900">{akademi}</div>
-          <div className="text-base font-black uppercase text-slate-950">{sekolah}</div>
-          <div className="text-[10px] text-slate-600 mt-0.5">{alamat}</div>
-        </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoKanan} alt="Logo Kemendikbud" className="w-14 h-14 object-contain shrink-0" />
-      </div>
+      {/* Kop Resmi Sekolah (Standar WMVAA: Logo Kiri + Kanan + Garis Ganda + NPSN) */}
+      <KeuanganKopSurat unit={jenjangFilter} settings={settings} />
 
       {/* Judul Laporan */}
       <div className="text-center mb-4">
-        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">{reportTitle}</h2>
-        <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+        <h2 className="text-sm font-black uppercase tracking-wide text-black">{reportTitle}</h2>
+        <p className="text-[11px] font-semibold text-slate-700 mt-0.5">
           Tahun Ajaran {academicSession.tahunAjaran} • Semester {academicSession.semester}
-          {jenjangFilter !== 'ALL' ? ` • Unit ${jenjangFilter}` : ' • Semua Unit (SMP & SMA)'}
+          {jenjangFilter !== 'ALL' ? ` • Unit ${jenjangFilter}` : ' • Gabungan Unit SMP & SMA'}
           {mode === 'KAS_MASUK' && (dateFrom || dateTo)
             ? ` • Periode ${formatDateIdShort(dateFrom)} s.d. ${formatDateIdShort(dateTo)}`
             : ''}
@@ -191,17 +172,17 @@ export function LaporanKeuanganSheet({
 
       {mode === 'KAS_MASUK' && (
         <>
-          <div className="grid grid-cols-3 gap-2.5 mb-4 text-xs">
-            <div className="p-2.5 rounded border border-slate-300 bg-slate-50">
-              <div className="text-[10px] font-bold uppercase text-slate-500">Total Tunai</div>
-              <div className="text-sm font-black font-mono text-slate-950 mt-0.5">
+          <div className="grid grid-cols-3 gap-2.5 mb-3.5 text-xs">
+            <div className="p-2.5 rounded border border-slate-400 bg-slate-50">
+              <div className="text-[10px] font-bold uppercase text-slate-600">Total Tunai</div>
+              <div className="text-sm font-black font-mono text-black mt-0.5">
                 {formatRupiah(totalTunai)}
               </div>
             </div>
-            <div className="p-2.5 rounded border border-slate-300 bg-slate-50">
-              <div className="text-[10px] font-bold uppercase text-slate-500">Total Transfer</div>
-              <div className="text-sm font-black font-mono text-slate-950 mt-0.5">
-                {formatRupiah(totalTransfer)}
+            <div className="p-2.5 rounded border border-slate-400 bg-slate-50">
+              <div className="text-[10px] font-bold uppercase text-slate-600">Total Transfer / Lain</div>
+              <div className="text-sm font-black font-mono text-black mt-0.5">
+                {formatRupiah(totalTransfer + totalLain)}
               </div>
             </div>
             <div className="p-2.5 rounded border border-slate-900 bg-slate-900 text-white">
@@ -212,22 +193,60 @@ export function LaporanKeuanganSheet({
             </div>
           </div>
 
-          <table className="w-full border-collapse border border-slate-300 text-[10.5px]">
+          {/* Rekap Setoran per Petugas Kasir */}
+          {cashierSummary.length > 0 && (
+            <div className="mb-4">
+              <div className="text-[10.5px] font-black uppercase tracking-wider text-slate-800 mb-1">
+                A. Ringkasan Setoran per Petugas Kasir / Bendahara
+              </div>
+              <table className="w-full border-collapse border border-slate-400 text-[10px]">
+                <thead>
+                  <tr className="bg-slate-200 text-black font-black">
+                    <th className="border border-slate-400 py-1 px-2 text-left">Nama Petugas</th>
+                    <th className="border border-slate-400 py-1 px-2 text-center w-20">Kwitansi</th>
+                    <th className="border border-slate-400 py-1 px-2 text-right w-28">Tunai</th>
+                    <th className="border border-slate-400 py-1 px-2 text-right w-28">Transfer / Lain</th>
+                    <th className="border border-slate-400 py-1 px-2 text-right w-32">Total Setoran</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cashierSummary.map((c) => (
+                    <tr key={c.namaPetugas}>
+                      <td className="border border-slate-400 py-1 px-2 font-bold">{c.namaPetugas}</td>
+                      <td className="border border-slate-400 py-1 px-2 text-center font-mono">{c.receiptCount}</td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono">{formatRupiah(c.tunai)}</td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono">
+                        {formatRupiah(c.transfer + c.lainnya)}
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono font-black">
+                        {formatRupiah(c.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="text-[10.5px] font-black uppercase tracking-wider text-slate-800 mb-1">
+            {cashierSummary.length > 0 ? 'B. Rincian Transaksi Pembayaran Valid' : 'Rincian Transaksi Pembayaran Valid'}
+          </div>
+          <table className="w-full border-collapse border border-slate-400 text-[10px]">
             <thead>
               <tr className="bg-slate-900 text-white font-bold">
-                <th className="border border-slate-300 py-1.5 px-1.5 text-center w-8">No</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-left w-24">Tanggal</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-left w-28">No. Kwitansi</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-left">Siswa &amp; Kelas</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-left">Uraian Tagihan</th>
-                <th className="border border-slate-300 py-1.5 px-1.5 text-center w-16">Metode</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-right w-24">Nominal</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-7">No</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-left w-20">Tanggal</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-left w-28">No. Kwitansi</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-left">Siswa &amp; Kelas</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-left">Uraian &amp; Petugas</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-16">Metode</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-right w-24">Nominal</th>
               </tr>
             </thead>
             <tbody>
               {validPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="border border-slate-300 py-6 text-center text-slate-500 italic">
+                  <td colSpan={7} className="border border-slate-400 py-6 text-center text-slate-500 italic">
                     Tidak ada transaksi pembayaran valid pada periode ini.
                   </td>
                 </tr>
@@ -237,16 +256,25 @@ export function LaporanKeuanganSheet({
                   const bl = billMap.get(p.id_tagihan);
                   return (
                     <tr key={p.id_pembayaran} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                      <td className="border border-slate-300 py-1 px-1.5 text-center font-mono">{idx + 1}</td>
-                      <td className="border border-slate-300 py-1 px-2 whitespace-nowrap">{formatDateIdShort(p.tanggal_bayar)}</td>
-                      <td className="border border-slate-300 py-1 px-2 font-mono font-bold">{p.no_kwitansi}</td>
-                      <td className="border border-slate-300 py-1 px-2">
-                        <div className="font-bold">{st?.nama || p.id_siswa}</div>
-                        <div className="text-[9.5px] text-slate-500">{st?.nama_kelas || '-'}</div>
+                      <td className="border border-slate-400 py-1 px-1.5 text-center font-mono">{idx + 1}</td>
+                      <td className="border border-slate-400 py-1 px-1.5 whitespace-nowrap">
+                        {formatDateIdShort(p.tanggal_bayar)}
                       </td>
-                      <td className="border border-slate-300 py-1 px-2">{bl?.nama_tagihan || p.id_tagihan}</td>
-                      <td className="border border-slate-300 py-1 px-1.5 text-center font-semibold">{p.metode}</td>
-                      <td className="border border-slate-300 py-1 px-2 text-right font-mono font-bold">
+                      <td className="border border-slate-400 py-1 px-1.5 font-mono font-bold">
+                        {p.no_kwitansi}
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2">
+                        <div className="font-bold uppercase">{st?.nama || p.id_siswa}</div>
+                        <div className="text-[9px] text-slate-600">{st?.nama_kelas || '-'}</div>
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2">
+                        <div className="font-semibold">{bl?.nama_tagihan || p.id_tagihan}</div>
+                        <div className="text-[9px] text-slate-500">Kasir: {p.nama_petugas || '-'}</div>
+                      </td>
+                      <td className="border border-slate-400 py-1 px-1.5 text-center font-semibold">
+                        {p.metode}
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono font-bold">
                         {formatRupiah(p.nominal_bayar)}
                       </td>
                     </tr>
@@ -256,10 +284,10 @@ export function LaporanKeuanganSheet({
             </tbody>
             <tfoot>
               <tr className="bg-slate-100 font-black text-xs">
-                <td colSpan={6} className="border border-slate-300 py-1.5 px-2 text-right uppercase">
+                <td colSpan={6} className="border border-slate-400 py-1.5 px-2 text-right uppercase">
                   Total Pemasukan ({validPayments.length} Item)
                 </td>
-                <td className="border border-slate-300 py-1.5 px-2 text-right font-mono">
+                <td className="border border-slate-400 py-1.5 px-2 text-right font-mono">
                   {formatRupiah(totalKasMasuk)}
                 </td>
               </tr>
@@ -269,46 +297,70 @@ export function LaporanKeuanganSheet({
       )}
 
       {mode === 'REKAP_KELAS' && (
-        <table className="w-full border-collapse border border-slate-300 text-[10.5px]">
+        <table className="w-full border-collapse border border-slate-400 text-[10.5px]">
           <thead>
             <tr className="bg-slate-900 text-white font-bold">
-              <th className="border border-slate-300 py-1.5 px-1.5 text-center w-8">No</th>
-              <th className="border border-slate-300 py-1.5 px-2 text-left">Kelas / Unit</th>
-              <th className="border border-slate-300 py-1.5 px-1.5 text-center w-14">Siswa</th>
-              <th className="border border-slate-300 py-1.5 px-2 text-right">Target Tagihan</th>
-              <th className="border border-slate-300 py-1.5 px-2 text-right">Terkumpul</th>
-              <th className="border border-slate-300 py-1.5 px-2 text-right">Sisa Tunggakan</th>
-              <th className="border border-slate-300 py-1.5 px-1.5 text-center w-14">%</th>
-              <th className="border border-slate-300 py-1.5 px-1.5 text-center w-24">Layak / Belum</th>
+              <th className="border border-slate-400 py-1.5 px-1.5 text-center w-8">No</th>
+              <th className="border border-slate-400 py-1.5 px-2 text-left">Kelas / Unit</th>
+              <th className="border border-slate-400 py-1.5 px-1.5 text-center w-14">Siswa</th>
+              <th className="border border-slate-400 py-1.5 px-2 text-right">Target Tagihan</th>
+              <th className="border border-slate-400 py-1.5 px-2 text-right">Terkumpul</th>
+              <th className="border border-slate-400 py-1.5 px-2 text-right">Sisa Tunggakan</th>
+              <th className="border border-slate-400 py-1.5 px-1.5 text-center w-14">%</th>
+              <th className="border border-slate-400 py-1.5 px-1.5 text-center w-24">Layak / Belum</th>
             </tr>
           </thead>
           <tbody>
             {kelasSummary.map((row, idx) => (
               <tr key={row.kelas.id_kelas} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                <td className="border border-slate-300 py-1.5 px-1.5 text-center font-mono">{idx + 1}</td>
-                <td className="border border-slate-300 py-1.5 px-2 font-bold">
-                  {row.kelas.nama_kelas} <span className="text-slate-500 font-semibold">({row.kelas.jenjang})</span>
+                <td className="border border-slate-400 py-1.5 px-1.5 text-center font-mono">{idx + 1}</td>
+                <td className="border border-slate-400 py-1.5 px-2 font-bold">
+                  {row.kelas.nama_kelas}{' '}
+                  <span className="text-slate-600 font-semibold">({row.kelas.jenjang})</span>
                 </td>
-                <td className="border border-slate-300 py-1.5 px-1.5 text-center font-mono">{row.studentCount}</td>
-                <td className="border border-slate-300 py-1.5 px-2 text-right font-mono">{formatRupiah(row.totalTagihan)}</td>
-                <td className="border border-slate-300 py-1.5 px-2 text-right font-mono font-bold text-emerald-700">{formatRupiah(row.totalTerbayar)}</td>
-                <td className="border border-slate-300 py-1.5 px-2 text-right font-mono font-bold text-rose-700">{formatRupiah(row.totalSisa)}</td>
-                <td className="border border-slate-300 py-1.5 px-1.5 text-center font-mono font-bold">{row.pct}%</td>
-                <td className="border border-slate-300 py-1.5 px-1.5 text-center font-mono font-bold">
-                  <span className="text-emerald-700">{row.layakCount}</span> / <span className="text-rose-700">{row.belumLayakCount}</span>
+                <td className="border border-slate-400 py-1.5 px-1.5 text-center font-mono">
+                  {row.studentCount}
+                </td>
+                <td className="border border-slate-400 py-1.5 px-2 text-right font-mono">
+                  {formatRupiah(row.totalTagihan)}
+                </td>
+                <td className="border border-slate-400 py-1.5 px-2 text-right font-mono font-bold text-emerald-700">
+                  {formatRupiah(row.totalTerbayar)}
+                </td>
+                <td className="border border-slate-400 py-1.5 px-2 text-right font-mono font-bold text-rose-700">
+                  {formatRupiah(row.totalSisa)}
+                </td>
+                <td className="border border-slate-400 py-1.5 px-1.5 text-center font-mono font-bold">
+                  {row.pct}%
+                </td>
+                <td className="border border-slate-400 py-1.5 px-1.5 text-center font-mono font-bold">
+                  <span className="text-emerald-700">{row.layakCount}</span> /{' '}
+                  <span className="text-rose-700">{row.belumLayakCount}</span>
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="bg-slate-100 font-black text-xs">
-              <td colSpan={2} className="border border-slate-300 py-2 px-2 text-right uppercase">Grand Total</td>
-              <td className="border border-slate-300 py-2 px-1.5 text-center font-mono">{filteredStudents.length}</td>
-              <td className="border border-slate-300 py-2 px-2 text-right font-mono">{formatRupiah(grandTagihan)}</td>
-              <td className="border border-slate-300 py-2 px-2 text-right font-mono text-emerald-800">{formatRupiah(grandTerbayar)}</td>
-              <td className="border border-slate-300 py-2 px-2 text-right font-mono text-rose-800">{formatRupiah(grandSisa)}</td>
-              <td className="border border-slate-300 py-2 px-1.5 text-center font-mono">{grandPct}%</td>
-              <td className="border border-slate-300 py-2 px-1.5 text-center font-mono">
+              <td colSpan={2} className="border border-slate-400 py-2 px-2 text-right uppercase">
+                Grand Total
+              </td>
+              <td className="border border-slate-400 py-2 px-1.5 text-center font-mono">
+                {filteredStudents.length}
+              </td>
+              <td className="border border-slate-400 py-2 px-2 text-right font-mono">
+                {formatRupiah(grandTagihan)}
+              </td>
+              <td className="border border-slate-400 py-2 px-2 text-right font-mono text-emerald-800">
+                {formatRupiah(grandTerbayar)}
+              </td>
+              <td className="border border-slate-400 py-2 px-2 text-right font-mono text-rose-800">
+                {formatRupiah(grandSisa)}
+              </td>
+              <td className="border border-slate-400 py-2 px-1.5 text-center font-mono">
+                {grandPct}%
+              </td>
+              <td className="border border-slate-400 py-2 px-1.5 text-center font-mono">
                 {grandLayak} / {grandBelumLayak}
               </td>
             </tr>
@@ -316,9 +368,72 @@ export function LaporanKeuanganSheet({
         </table>
       )}
 
+      {mode === 'RINCIAN_TUNGGAKAN' && (
+        <>
+          <div className="mb-3 p-2.5 rounded border border-slate-400 bg-slate-50 text-[11px] flex flex-wrap justify-between gap-2">
+            <span>
+              Siswa Masih Memiliki Tunggakan: <strong className="text-rose-700">{tunggakanStudents.length} siswa</strong>
+            </span>
+            <span>
+              Total Sisa Tunggakan:{' '}
+              <strong className="font-mono text-rose-700">{formatRupiah(grandSisa)}</strong>
+            </span>
+          </div>
+          <table className="w-full border-collapse border border-slate-400 text-[10px]">
+            <thead>
+              <tr className="bg-slate-900 text-white font-bold">
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-7">No</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-left">Nama Siswa</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-20">Kelas</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-right w-24">Tagihan</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-right w-24">Terbayar</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-right w-24">Sisa</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-left">Keterangan / Syarat Kartu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tunggakanStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="border border-slate-400 py-6 text-center text-emerald-700 font-bold">
+                    Seluruh siswa pada unit ini sudah melunasi tagihannya!
+                  </td>
+                </tr>
+              ) : (
+                tunggakanStudents.map((st, idx) => {
+                  const el = eligibilityMap[st.id_siswa];
+                  return (
+                    <tr key={st.id_siswa} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                      <td className="border border-slate-400 py-1 px-1.5 text-center font-mono">{idx + 1}</td>
+                      <td className="border border-slate-400 py-1 px-2 font-bold uppercase">{st.nama}</td>
+                      <td className="border border-slate-400 py-1 px-1.5 text-center">{st.nama_kelas}</td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono">
+                        {formatRupiah(el?.totalTagihan || 0)}
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono text-emerald-700">
+                        {formatRupiah(el?.totalTerbayar || 0)}
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2 text-right font-mono font-black text-rose-700">
+                        {formatRupiah(el?.sisaTunggakan || 0)}
+                      </td>
+                      <td className="border border-slate-400 py-1 px-2 text-slate-700">
+                        {el?.status === 'DISPENSASI'
+                          ? `Dispensasi (${el.dispensasi?.alasan})`
+                          : el?.eligibleForExamCard
+                          ? `Layak (${el.persentaseTerbayar}%)`
+                          : `Belum Layak • Min. ${formatRupiah(el?.minimalAgarLayak || 0)}`}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </>
+      )}
+
       {mode === 'KESIAPAN_UJIAN' && (
         <>
-          <div className="mb-3 p-2.5 rounded border border-slate-300 bg-slate-50 text-[11px] flex flex-wrap justify-between gap-2">
+          <div className="mb-3 p-2.5 rounded border border-slate-400 bg-slate-50 text-[11px] flex flex-wrap justify-between gap-2">
             <span>
               Ambang Syarat Kartu Ujian: <strong>Minimal {config.minPercentForExamCard}%</strong>
             </span>
@@ -328,17 +443,17 @@ export function LaporanKeuanganSheet({
             </span>
           </div>
 
-          <table className="w-full border-collapse border border-slate-300 text-[10px]">
+          <table className="w-full border-collapse border border-slate-400 text-[10px]">
             <thead>
               <tr className="bg-slate-900 text-white font-bold">
-                <th className="border border-slate-300 py-1.5 px-1.5 text-center w-8">No</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-left">Nama Siswa</th>
-                <th className="border border-slate-300 py-1.5 px-1.5 text-center w-20">Kelas</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-right w-24">Tagihan</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-right w-24">Terbayar</th>
-                <th className="border border-slate-300 py-1.5 px-1.5 text-center w-12">%</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-center w-28">Status Kartu</th>
-                <th className="border border-slate-300 py-1.5 px-2 text-left">Keterangan / Min. Bayar</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-7">No</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-left">Nama Siswa</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-20">Kelas</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-right w-24">Tagihan</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-right w-24">Terbayar</th>
+                <th className="border border-slate-400 py-1.5 px-1.5 text-center w-12">%</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-center w-28">Status Kartu</th>
+                <th className="border border-slate-400 py-1.5 px-2 text-left">Keterangan / Min. Bayar</th>
               </tr>
             </thead>
             <tbody>
@@ -352,32 +467,36 @@ export function LaporanKeuanganSheet({
                     : el?.status === 'DISPENSASI'
                     ? 'DISPENSASI'
                     : el?.status === 'BELUM_ADA_TAGIHAN'
-                    ? 'BELUM DITAGIH'
+                    ? 'BELUM DIPOSTING'
                     : 'BELUM LAYAK';
                 return (
                   <tr key={st.id_siswa} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                    <td className="border border-slate-300 py-1 px-1.5 text-center font-mono">{idx + 1}</td>
-                    <td className="border border-slate-300 py-1 px-2 font-bold uppercase">{st.nama}</td>
-                    <td className="border border-slate-300 py-1 px-1.5 text-center">{st.nama_kelas}</td>
-                    <td className="border border-slate-300 py-1 px-2 text-right font-mono">{formatRupiah(el?.totalTagihan || 0)}</td>
-                    <td className="border border-slate-300 py-1 px-2 text-right font-mono">{formatRupiah(el?.totalTerbayar || 0)}</td>
-                    <td className="border border-slate-300 py-1 px-1.5 text-center font-mono font-bold">{el?.persentaseTerbayar ?? 0}%</td>
-                    <td className="border border-slate-300 py-1 px-2 text-center font-black">
-                      <span
-                        className={
-                          el?.eligibleForExamCard ? 'text-emerald-700' : 'text-rose-700'
-                        }
-                      >
+                    <td className="border border-slate-400 py-1 px-1.5 text-center font-mono">{idx + 1}</td>
+                    <td className="border border-slate-400 py-1 px-2 font-bold uppercase">{st.nama}</td>
+                    <td className="border border-slate-400 py-1 px-1.5 text-center">{st.nama_kelas}</td>
+                    <td className="border border-slate-400 py-1 px-2 text-right font-mono">
+                      {formatRupiah(el?.totalTagihan || 0)}
+                    </td>
+                    <td className="border border-slate-400 py-1 px-2 text-right font-mono">
+                      {formatRupiah(el?.totalTerbayar || 0)}
+                    </td>
+                    <td className="border border-slate-400 py-1 px-1.5 text-center font-mono font-bold">
+                      {el?.persentaseTerbayar ?? 0}%
+                    </td>
+                    <td className="border border-slate-400 py-1 px-2 text-center font-black">
+                      <span className={el?.eligibleForExamCard ? 'text-emerald-700' : 'text-rose-700'}>
                         {statusLabel}
                       </span>
                     </td>
-                    <td className="border border-slate-300 py-1 px-2 text-slate-600">
+                    <td className="border border-slate-400 py-1 px-2 text-slate-700">
                       {el?.status === 'DISPENSASI'
                         ? `Dispensasi: ${el.dispensasi?.alasan}`
                         : !el?.eligibleForExamCard && el?.minimalAgarLayak
                         ? `Min. bayar ${formatRupiah(el.minimalAgarLayak)} utk ${el.minPercentRequired}%`
                         : el?.sisaTunggakan
                         ? `Sisa ${formatRupiah(el.sisaTunggakan)}`
+                        : el?.status === 'BELUM_ADA_TAGIHAN'
+                        ? 'Belum diposting'
                         : 'Selesai'}
                     </td>
                   </tr>
@@ -388,43 +507,44 @@ export function LaporanKeuanganSheet({
         </>
       )}
 
-      {/* Pengesahan Kepala Sekolah & Bendahara */}
-      <div className="grid grid-cols-2 gap-12 mt-8 text-xs text-center">
+      {/* Pengesahan Pimpinan (Direktur bila SMP-SMA gabung; Kepala Sekolah bila per unit) & Bendahara */}
+      <div className="grid grid-cols-2 gap-12 mt-8 text-xs text-center break-inside-avoid">
         <div>
-          <div className="text-slate-600">Mengetahui,</div>
-          <div className="font-bold text-slate-900 mt-0.5">Kepala Sekolah,</div>
-          {kepalaTtd ? (
-            <div className="h-14 flex items-center justify-center my-0.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={kepalaTtd} alt="TTD Kepala Sekolah" className="max-h-14 w-auto object-contain mix-blend-multiply" />
-            </div>
-          ) : (
-            <div className="h-14" />
-          )}
-          <div className="font-black underline underline-offset-2">
-            {kepalaNama || '( ............................ )'}
+          <div className="text-slate-700">Mengetahui,</div>
+          <div className="font-bold text-black mt-0.5">{leaderSigner.jabatan}</div>
+          <KeuanganSignatureImg
+            src={leaderSigner.ttdUrl}
+            alt={`TTD ${leaderSigner.jabatan}`}
+            heightClass="h-14"
+          />
+          <div className="font-black text-black underline underline-offset-2">
+            {leaderSigner.nama || '( ............................ )'}
           </div>
+          {leaderSigner.nip && (
+            <div className="text-[10px] font-mono text-slate-600 mt-0.5">
+              NIP/NRG. {leaderSigner.nip}
+            </div>
+          )}
         </div>
         <div>
-          <div className="text-slate-600">
+          <div className="text-slate-700">
             {kota}, {formatDateIdShort(today)}
           </div>
-          <div className="font-bold text-slate-900 mt-0.5">
+          <div className="font-bold text-black mt-0.5">
             {config.bendaharaJabatan || 'Bendahara Sekolah'},
           </div>
-          {config.bendaharaTtdUrl ? (
-            <div className="h-14 flex items-center justify-center my-0.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={config.bendaharaTtdUrl} alt="TTD Bendahara" className="max-h-14 w-auto object-contain mix-blend-multiply" />
-            </div>
-          ) : (
-            <div className="h-14" />
-          )}
-          <div className="font-black underline underline-offset-2">
+          <KeuanganSignatureImg
+            src={config.bendaharaTtdUrl}
+            alt="TTD Bendahara"
+            heightClass="h-14"
+          />
+          <div className="font-black text-black underline underline-offset-2">
             {config.bendaharaNama || '( ............................ )'}
           </div>
           {config.bendaharaNip && (
-            <div className="text-[10px] font-mono text-slate-600 mt-0.5">NIP/NRG. {config.bendaharaNip}</div>
+            <div className="text-[10px] font-mono text-slate-600 mt-0.5">
+              NIP/NRG. {config.bendaharaNip}
+            </div>
           )}
         </div>
       </div>

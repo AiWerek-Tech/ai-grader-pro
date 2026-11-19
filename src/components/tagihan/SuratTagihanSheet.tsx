@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { withBasePath } from '@/lib/base-path';
 import {
   formatDateIdShort,
   formatRupiah,
@@ -11,6 +10,7 @@ import {
   TagihanRecord,
 } from '@/lib/tagihan-utils';
 import type { TagihanStudentItem } from '@/lib/actions/tagihan';
+import { KeuanganKopSurat, KeuanganSignatureImg } from './KeuanganKopSurat';
 
 export interface SuratTagihanItem {
   student: TagihanStudentItem;
@@ -30,6 +30,7 @@ export function SuratTagihanSheet({
   academicSession: { tahunAjaran: string; semester: string };
 }) {
   const today = getTodayYmd();
+  const kota = settings['kota_sekolah'] || 'Sogokmo';
 
   // Paginasi 2 surat pemberitahuan per lembar A4 agar hemat kertas saat cetak massal
   const pages: SuratTagihanItem[][] = [];
@@ -44,67 +45,43 @@ export function SuratTagihanSheet({
           key={`surat-page-${pageIdx}`}
           className="tagihan-print-page bg-white mx-auto box-border flex flex-col justify-between"
           style={{
-            width: '210mm',
-            minHeight: '295mm',
-            padding: '10mm 12mm',
-            gap: '8mm',
+            width: '204mm',
+            minHeight: '286mm',
+            padding: '6mm 6mm',
+            gap: '4mm',
             fontFamily: "'Plus Jakarta Sans', Arial, sans-serif",
           }}
         >
-          {pair.map((entry, idx) => {
-            const prefix = entry.student.jenjang === 'SMP' ? 'smp_' : 'sma_';
-            const yayasan = settings['nama_yayasan'] || 'YAYASAN PENDIDIKAN ADVENT PAPUA';
-            const akademi =
-              settings[prefix + 'nama_sekolah_1'] ||
-              settings['nama_sekolah_1'] ||
-              'WAMENA MOUNTAIN VIEW ADVENTIST ACADEMY';
-            const sekolah =
-              settings[prefix + 'nama_sekolah_2'] ||
-              settings['nama_sekolah_2'] ||
-              (entry.student.jenjang === 'SMP' ? 'SMP ADVENT SOGOKMO' : 'SMA ADVENT SOGOKMO');
-            const alamat =
-              settings['alamat_sekolah'] ||
-              'Jl. Wamena – Kurima, Kampung Sogokmo, Kec. Asotipo, Kab. Jayawijaya';
-            const kota = settings['kota_sekolah'] || 'Sogokmo';
-            const logoKiri =
-              settings[prefix + 'logo_kiri_url'] ||
-              settings['logo_kiri_url'] ||
-              withBasePath('/logo/logo_advent.png');
-
-            return (
+          {pair.map((entry, idx) => (
+            <React.Fragment key={entry.student.id_siswa}>
               <div
-                key={entry.student.id_siswa}
-                className={`bg-white text-slate-900 border border-slate-400 rounded-lg p-5 box-border flex flex-col justify-between ${
-                  idx === 0 && pair.length === 2 ? 'relative' : ''
-                }`}
+                className="bg-white text-slate-900 border border-slate-500 rounded-md p-4 box-border flex flex-col justify-between"
                 style={{ minHeight: '132mm' }}
               >
                 <div>
-                  {/* Kop Mini Resmi */}
-                  <div className="flex items-center gap-3 border-b-2 border-slate-900 pb-2 mb-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoKiri} alt="Logo" className="w-11 h-11 object-contain shrink-0" />
-                    <div className="flex-1 leading-tight">
-                      <div className="text-[9px] font-bold uppercase text-slate-600">{yayasan}</div>
-                      <div className="text-[11px] font-black uppercase text-slate-900">{akademi}</div>
-                      <div className="text-sm font-black uppercase text-slate-950">{sekolah}</div>
-                      <div className="text-[9px] text-slate-600">{alamat}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-[10px] font-black uppercase px-2.5 py-1 rounded bg-slate-900 text-white">
-                        PEMBERITAHUAN TAGIHAN
+                  {/* Kop Surat Resmi Sekolah (Logo Kiri + Kanan + Garis Ganda) */}
+                  <KeuanganKopSurat unit={entry.student.jenjang} settings={settings} compact />
+
+                  {/* Judul & Periode */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-wide text-black">
+                        SURAT PEMBERITAHUAN TAGIHAN BIAYA SEKOLAH
                       </div>
-                      <div className="text-[9.5px] font-semibold text-slate-600 mt-1">
-                        TA {academicSession.tahunAjaran} • Sem. {academicSession.semester}
+                      <div className="text-[10px] font-semibold text-slate-600">
+                        Persiapan Administrasi Ujian • TA {academicSession.tahunAjaran} (Semester {academicSession.semester})
                       </div>
                     </div>
+                    <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-white shrink-0">
+                      UNIT {entry.student.jenjang}
+                    </span>
                   </div>
 
-                  {/* Kepada & Data Siswa */}
-                  <div className="flex items-start justify-between gap-4 text-[11px] mb-2.5">
-                    <div>
+                  {/* Kepada & Ringkasan Nominal */}
+                  <div className="flex items-start justify-between gap-3 text-[10.5px] mb-2">
+                    <div className="min-w-0">
                       <div className="text-slate-600">Kepada Yth. Bapak/Ibu Orang Tua / Wali dari:</div>
-                      <div className="text-sm font-black uppercase text-slate-950 mt-0.5">
+                      <div className="text-sm font-black uppercase text-black mt-0.5">
                         {entry.student.nama}
                       </div>
                       <div className="font-semibold text-slate-700">
@@ -112,101 +89,131 @@ export function SuratTagihanSheet({
                         {entry.student.nis || '-'}
                       </div>
                     </div>
-                    <div className="text-right text-[10.5px] bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5">
+                    <div className="text-right text-[10px] bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 shrink-0">
                       <div>
-                        Total Tagihan: <strong className="font-mono">{formatRupiah(entry.eligibility.totalTagihan)}</strong>
+                        Total Tagihan:{' '}
+                        <strong className="font-mono text-black">
+                          {formatRupiah(entry.eligibility.totalTagihan)}
+                        </strong>
                       </div>
                       <div>
-                        Terbayar: <strong className="font-mono text-emerald-700">{formatRupiah(entry.eligibility.totalTerbayar)}</strong> ({entry.eligibility.persentaseTerbayar}%)
+                        Sudah Dibayar:{' '}
+                        <strong className="font-mono text-emerald-700">
+                          {formatRupiah(entry.eligibility.totalTerbayar)}
+                        </strong>{' '}
+                        ({entry.eligibility.persentaseTerbayar}%)
                       </div>
-                      <div className="border-t border-slate-200 mt-0.5 pt-0.5 text-rose-700 font-black">
-                        Sisa Tunggakan: <span className="font-mono">{formatRupiah(entry.eligibility.sisaTunggakan)}</span>
+                      <div className="border-t border-slate-300 mt-0.5 pt-0.5 text-rose-700 font-black">
+                        Sisa Tunggakan:{' '}
+                        <span className="font-mono">{formatRupiah(entry.eligibility.sisaTunggakan)}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Tabel Rincian Bulan Belum Lunas */}
-                  <table className="w-full border-collapse border border-slate-300 text-[10.5px] mb-2.5">
+                  {/* Tabel Rincian Tagihan Belum Lunas */}
+                  <table className="w-full border-collapse border border-slate-400 text-[10px] mb-2">
                     <thead>
-                      <tr className="bg-slate-800 text-white font-bold">
-                        <th className="border border-slate-300 py-1 px-2 text-center w-8">No</th>
-                        <th className="border border-slate-300 py-1 px-2 text-left">Tagihan Belum Lunas</th>
-                        <th className="border border-slate-300 py-1 px-2 text-right w-28">Tagihan</th>
-                        <th className="border border-slate-300 py-1 px-2 text-right w-28">Terbayar</th>
-                        <th className="border border-slate-300 py-1 px-2 text-right w-28">Sisa</th>
+                      <tr className="bg-slate-900 text-white font-bold">
+                        <th className="border border-slate-400 py-1 px-1.5 text-center w-7">No</th>
+                        <th className="border border-slate-400 py-1 px-2 text-left">Uraian Tagihan / Keterangan</th>
+                        <th className="border border-slate-400 py-1 px-2 text-right w-24">Tagihan</th>
+                        <th className="border border-slate-400 py-1 px-2 text-right w-24">Terbayar</th>
+                        <th className="border border-slate-400 py-1 px-2 text-right w-24">Sisa</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {entry.unpaidBills.slice(0, 6).map((b, bIdx) => (
+                      {entry.unpaidBills.slice(0, 5).map((b, bIdx) => (
                         <tr key={b.id_tagihan} className={bIdx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                          <td className="border border-slate-300 py-1 px-2 text-center font-mono">{bIdx + 1}</td>
-                          <td className="border border-slate-300 py-1 px-2 font-bold">{b.nama_tagihan}</td>
-                          <td className="border border-slate-300 py-1 px-2 text-right font-mono">{formatRupiah(b.nominal_akhir)}</td>
-                          <td className="border border-slate-300 py-1 px-2 text-right font-mono text-emerald-700">{formatRupiah(b.terbayar)}</td>
-                          <td className="border border-slate-300 py-1 px-2 text-right font-mono font-black text-rose-700">
+                          <td className="border border-slate-400 py-1 px-1.5 text-center font-mono">{bIdx + 1}</td>
+                          <td className="border border-slate-400 py-1 px-2 font-bold text-black">
+                            {b.nama_tagihan}
+                            {b.catatan && b.catatan !== b.nama_tagihan && !b.catatan.startsWith('Posting Sisa') && (
+                              <span className="font-normal text-slate-600"> — {b.catatan}</span>
+                            )}
+                          </td>
+                          <td className="border border-slate-400 py-1 px-2 text-right font-mono">
+                            {formatRupiah(b.nominal_akhir)}
+                          </td>
+                          <td className="border border-slate-400 py-1 px-2 text-right font-mono text-emerald-700">
+                            {formatRupiah(b.terbayar)}
+                          </td>
+                          <td className="border border-slate-400 py-1 px-2 text-right font-mono font-black text-rose-700">
                             {formatRupiah(Math.max(0, b.nominal_akhir - b.terbayar))}
                           </td>
                         </tr>
                       ))}
-                      {entry.unpaidBills.length > 6 && (
+                      {entry.unpaidBills.length > 5 && (
                         <tr>
-                          <td colSpan={5} className="border border-slate-300 py-1 px-2 text-center italic text-slate-500">
-                            + {entry.unpaidBills.length - 6} tagihan lainnya terakumulasi pada total sisa di atas.
+                          <td colSpan={5} className="border border-slate-400 py-1 px-2 text-center italic text-slate-500">
+                            + {entry.unpaidBills.length - 5} item tagihan lainnya terakumulasi pada total sisa di atas.
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
 
-                  {/* Kotak Informasi Syarat Kartu Ujian */}
-                  {!entry.eligibility.eligibleForExamCard && entry.eligibility.minimalAgarLayak > 0 && (
-                    <div className="p-2.5 rounded-md bg-amber-50 border border-amber-300 text-[10.5px] text-amber-950 mb-2">
+                  {/* Kotak Syarat Kartu Peserta Ujian */}
+                  {!entry.eligibility.eligibleForExamCard && entry.eligibility.minimalAgarLayak > 0 ? (
+                    <div className="p-2 rounded bg-amber-50 border border-amber-400 text-[10px] text-amber-950 leading-snug">
                       <strong>Syarat Pengambilan Kartu Peserta Ujian:</strong> Siswa wajib melunasi penuh atau minimal{' '}
-                      <strong>{entry.eligibility.minPercentRequired}%</strong> dari tagihan periode ujian. Agar memenuhi syarat kartu ujian, mohon pembayaran minimal sebesar{' '}
-                      <strong className="font-mono underline">{formatRupiah(entry.eligibility.minimalAgarLayak)}</strong>.
+                      <strong>{entry.eligibility.minPercentRequired}%</strong> dari tagihan tersisa. Untuk mendapatkan Kartu Ujian, mohon melakukan pembayaran minimal sebesar{' '}
+                      <strong className="font-mono underline">{formatRupiah(entry.eligibility.minimalAgarLayak)}</strong> di Loket Keuangan Sekolah.
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded bg-emerald-50 border border-emerald-300 text-[10px] text-emerald-950 leading-snug">
+                      <strong>Status Kartu Ujian:</strong> Memenuhi syarat ({entry.eligibility.persentaseTerbayar}%). Mohon pelunasan sisa sebesar{' '}
+                      <strong className="font-mono">{formatRupiah(entry.eligibility.sisaTunggakan)}</strong> dapat diselesaikan sesuai jadwal.
                     </div>
                   )}
                 </div>
 
                 {/* Footer Rekening & TTD Bendahara */}
-                <div className="flex items-end justify-between gap-4 pt-1 border-t border-slate-200">
-                  <div className="text-[9.5px] text-slate-600 max-w-[60%] leading-snug">
+                <div className="flex items-end justify-between gap-4 pt-1.5 border-t border-slate-300 mt-1.5">
+                  <div className="text-[9px] text-slate-600 max-w-[60%] leading-snug">
                     {config.rekeningInfo ? (
                       <>
-                        <div className="font-bold text-slate-800">Informasi Pembayaran / Transfer:</div>
+                        <div className="font-bold text-slate-900">Informasi Pembayaran / Transfer:</div>
                         <div className="whitespace-pre-line">{config.rekeningInfo}</div>
                       </>
                     ) : (
                       <div className="italic">
-                        Pembayaran dapat dilakukan langsung ke bagian Keuangan / Bendahara Sekolah pada jam kerja.
+                        Pembayaran dapat dilakukan langsung di Loket Kasir / Bendahara Sekolah pada jam kerja. Bawa surat ini saat melakukan pembayaran.
                       </div>
                     )}
                   </div>
-                  <div className="text-center text-[10.5px] min-w-[155px]">
-                    <div>
+                  <div className="text-center text-[10px] min-w-[160px]">
+                    <div className="text-slate-700">
                       {kota}, {formatDateIdShort(today)}
                     </div>
-                    <div className="font-bold">{config.bendaharaJabatan || 'Bendahara Sekolah'},</div>
-                    {config.bendaharaTtdUrl ? (
-                      <div className="h-10 flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={config.bendaharaTtdUrl}
-                          alt="TTD Bendahara"
-                          className="max-h-10 w-auto object-contain mix-blend-multiply"
-                        />
-                      </div>
-                    ) : (
-                      <div className="h-9" />
-                    )}
-                    <div className="font-black underline underline-offset-2">
+                    <div className="font-bold text-black">
+                      {config.bendaharaJabatan || 'Bendahara Sekolah'},
+                    </div>
+                    <KeuanganSignatureImg
+                      src={config.bendaharaTtdUrl}
+                      alt="TTD Bendahara"
+                      heightClass="h-9"
+                    />
+                    <div className="font-black text-black underline underline-offset-2">
                       {config.bendaharaNama || '( ............................ )'}
                     </div>
+                    {config.bendaharaNip && (
+                      <div className="text-[8.5px] font-mono text-slate-600">
+                        NIP/NRG. {config.bendaharaNip}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            );
-          })}
+
+              {idx === 0 && pair.length === 2 && (
+                <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 select-none">
+                  <div className="flex-1 border-t border-dashed border-slate-400" />
+                  <span>✂ POTONG DI SINI</span>
+                  <div className="flex-1 border-t border-dashed border-slate-400" />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
         </div>
       ))}
     </>

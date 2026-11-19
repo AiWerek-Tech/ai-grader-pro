@@ -1,4 +1,4 @@
-export type TagihanKategori = 'SPP' | 'UJIAN' | 'ASRAMA' | 'LAINNYA';
+export type TagihanKategori = 'SALDO_AWAL' | 'SPP' | 'UJIAN' | 'ASRAMA' | 'LAINNYA';
 export type TagihanStatus = 'BELUM_BAYAR' | 'CICILAN' | 'LUNAS';
 export type MetodePembayaran = 'TUNAI' | 'TRANSFER' | 'LAINNYA';
 export type TransaksiStatus = 'VALID' | 'BATAL';
@@ -169,6 +169,114 @@ export function formatRupiah(amount: number, withPrefix: boolean = true): string
   return withPrefix ? `${sign}Rp ${formatted}` : `${sign}${formatted}`;
 }
 
+/**
+ * Mengurai nominal Rupiah dari berbagai format Excel / input manual:
+ * "Rp 450.000", "450,000", "450.000,00", 450000, "", "-", "Lunas" -> angka bulat >= 0.
+ */
+export function parseRupiahNumber(raw: unknown): number {
+  if (raw === null || raw === undefined) return 0;
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+  }
+  const str = String(raw).trim();
+  if (!str || str === '-' || /^lunas$/i.test(str)) return 0;
+
+  // Hilangkan prefix Rp / IDR dan spasi
+  let cleaned = str.replace(/^(rp\.?|idr)\s*/i, '').replace(/\s+/g, '');
+
+  // Tangani desimal gaya Indonesia (",00") atau Inggris (".00") di akhir string
+  if (/,\d{1,2}$/.test(cleaned) && cleaned.includes('.')) {
+    cleaned = cleaned.replace(/\./g, '').replace(/,\d{1,2}$/, '');
+  } else if (/\.\d{1,2}$/.test(cleaned) && cleaned.includes(',')) {
+    cleaned = cleaned.replace(/,/g, '').replace(/\.\d{1,2}$/, '');
+  } else if (/,\d{1,2}$/.test(cleaned) && !cleaned.includes('.')) {
+    cleaned = cleaned.replace(/,\d{1,2}$/, '');
+  } else if (/\.\d{1,2}$/.test(cleaned) && !cleaned.includes(',')) {
+    // Jika format 150000.00 (2 digit di belakang titik tunggal), ambil bagian bulatnya
+    const parts = cleaned.split('.');
+    if (parts.length === 2 && parts[1].length <= 2) {
+      cleaned = parts[0];
+    }
+  }
+
+  const digits = cleaned.replace(/[^\d]/g, '');
+  const n = Number(digits);
+  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+}
+
+/**
+ * Menghasilkan kode periode default untuk Posting Sisa Tagihan (dari Excel) per semester aktif.
+ */
+export function buildDefaultPostingPeriode(
+  tahunAjaran: string = '2026/2027',
+  semester: string = 'GANJIL'
+): string {
+  const parts = String(tahunAjaran || '2026/2027').split('/');
+  const semUpper = String(semester || 'GANJIL').trim().toUpperCase() === 'GENAP' ? 'GENAP' : 'GANJIL';
+  const yr = semUpper === 'GENAP' ? (parts[1] || parts[0] || '2027') : (parts[0] || '2026');
+  return `SALDO-${yr}-${semUpper}`;
+}
+
+export interface CashierHandoverSummary {
+  namaPetugas: string;
+  idPetugas: string;
+  receiptCount: number;
+  tunai: number;
+  transfer: number;
+  lainnya: number;
+  total: number;
+}
+
+/**
+ * Rekap setoran kas per petugas kasir untuk tutup kas harian / laporan pemasukan.
+ */
+export function summarizeCashierHandover(
+  validPayments: PembayaranRecord[]
+): CashierHandoverSummary[] {
+  const byCashier = new Map<
+    string,
+    CashierHandoverSummary & { receiptSet: Set<string> }
+  >();
+
+  for (const p of validPayments) {
+    if (p.status_transaksi !== 'VALID') continue;
+    const name = (p.nama_petugas || 'Petugas Keuangan').trim();
+    const key = name.toLowerCase();
+    let entry = byCashier.get(key);
+    if (!entry) {
+      entry = {
+        namaPetugas: name,
+        idPetugas: p.id_petugas || '',
+        receiptCount: 0,
+        tunai: 0,
+        transfer: 0,
+        lainnya: 0,
+        total: 0,
+        receiptSet: new Set<string>(),
+      };
+      byCashier.set(key, entry);
+    }
+    if (p.no_kwitansi) entry.receiptSet.add(p.no_kwitansi);
+    if (p.metode === 'TUNAI') entry.tunai += p.nominal_bayar;
+    else if (p.metode === 'TRANSFER') entry.transfer += p.nominal_bayar;
+    else entry.lainnya += p.nominal_bayar;
+    entry.total += p.nominal_bayar;
+    entry.receiptCount = entry.receiptSet.size;
+  }
+
+  return Array.from(byCashier.values())
+    .map((e) => ({
+      namaPetugas: e.namaPetugas,
+      idPetugas: e.idPetugas,
+      receiptCount: e.receiptCount,
+      tunai: e.tunai,
+      transfer: e.transfer,
+      lainnya: e.lainnya,
+      total: e.total,
+    }))
+    .sort((a, b) => b.total - a.total);
+}
+
 export function formatDateIdShort(isoOrYmd?: string): string {
   if (!isoOrYmd) return '-';
   const clean = String(isoOrYmd).trim();
@@ -306,7 +414,10 @@ export function normalizeTagihanRow(raw: Record<string, unknown>): TagihanRecord
   const terbayar = Math.max(0, Math.round(Number(raw.terbayar) || 0));
   const kategoriRaw = String(raw.kategori || 'SPP').toUpperCase();
   const kategori: TagihanKategori =
-    kategoriRaw === 'UJIAN' || kategoriRaw === 'ASRAMA' || kategoriRaw === 'LAINNYA'
+    kategoriRaw === 'SALDO_AWAL' ||
+    kategoriRaw === 'UJIAN' ||
+    kategoriRaw === 'ASRAMA' ||
+    kategoriRaw === 'LAINNYA'
       ? (kategoriRaw as TagihanKategori)
       : 'SPP';
 
@@ -413,11 +524,15 @@ export function computeStudentEligibility(
     return taOk && semOk;
   });
 
-  // Jika bendahara memilih bulan syarat ujian tertentu, hitung syarat hanya dari bulan tsb (+ kategori UJIAN)
+  // Jika bendahara memilih bulan syarat ujian tertentu, hitung syarat dari bulan tsb + kategori UJIAN + posting SALDO_AWAL
   const scopedBills =
     requiredSet.size > 0
       ? activeBills.filter(
-          (b) => requiredSet.has(b.periode_bulan) || b.kategori === 'UJIAN'
+          (b) =>
+            requiredSet.has(b.periode_bulan) ||
+            b.kategori === 'UJIAN' ||
+            b.kategori === 'SALDO_AWAL' ||
+            b.periode_bulan.toUpperCase().startsWith('SALDO-')
         )
       : activeBills;
 
