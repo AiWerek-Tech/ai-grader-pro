@@ -2,9 +2,11 @@ import zlib from 'zlib';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { resolveApiKeyPool } from '@/lib/ai/gemini-fallback';
 import {
+  buildMatchingSingleOptions,
   getTipeMeta,
   JENIS_ASESMEN_KM,
   JenisAsesmenKode,
+  MATCHING_SINGLE_LETTERS,
   SemesterKode,
   TipeSoalKode,
 } from '@/lib/constants/tipe-soal';
@@ -300,6 +302,12 @@ function normalizeAiTipe(rawTipe: unknown): TipeSoalKode {
     bs_majemuk: 'multiple_true_false',
     jdh: 'matching',
     menjodohkan: 'matching',
+    'jdh-1': 'matching_single',
+    jdh1: 'matching_single',
+    jdh_1: 'matching_single',
+    matching_single: 'matching_single',
+    menjodohkan_tunggal: 'matching_single',
+    menjodohkan_klasik: 'matching_single',
     isn: 'short_answer',
     isian: 'short_answer',
     isian_singkat: 'short_answer',
@@ -450,6 +458,19 @@ export function sanitizeExtractedAiResult(
         item.jawaban = Array.from({ length: jp }, (_, i) => arr[i] || '');
         if ((item.jawaban as string[]).some((v) => !v)) uncertainNumbers.push(idx + 1);
       }
+    } else if (meta.kode === 'matching_single') {
+      const validSet = new Set<string>(MATCHING_SINGLE_LETTERS);
+      const rawOpsi = Array.isArray(it?.opsi)
+        ? it.opsi.map((o: any) => String(o || '').trim().toUpperCase()).filter((o: string) => validSet.has(o))
+        : [];
+      const rawVal = isEmptyOrUncertainValue(it?.jawaban)
+        ? ''
+        : String(it.jawaban).trim().toUpperCase().replace(/[^A-L]/g, '').charAt(0);
+      const ansIdx = rawVal ? MATCHING_SINGLE_LETTERS.indexOf(rawVal as any) : -1;
+      const minCount = Math.max(5, rawOpsi.length || 10, ansIdx >= 0 ? ansIdx + 1 : 5);
+      item.opsi = buildMatchingSingleOptions(minCount);
+      item.jawaban = rawVal && item.opsi.includes(rawVal) ? rawVal : '';
+      if (!item.jawaban) uncertainNumbers.push(idx + 1);
     } else if (meta.kode === 'matching') {
       const cleanMap: Record<string, string> = {};
       if (it?.jawaban && typeof it.jawaban === 'object' && !Array.isArray(it.jawaban)) {
@@ -570,7 +591,8 @@ Aturan Skema Kode Tipe Soal (WAJIB gunakan kode persis ini):
 - "true_false": Benar / Salah tunggal -> jawaban: "B" | "S" | ""
 - "multiple_select": PG Kompleks (>1 jawaban benar) -> jawaban array huruf: ["A","C"]
 - "multiple_true_false": B/S Majemuk per pernyataan -> jawaban array: ["B","S","B"], wajib sertakan "jumlah_pernyataan" (2..10)
-- "matching": Menjodohkan -> jawaban objek: {"1":"A","2":"B"}, wajib sertakan "jumlah_pasang" (2..5)
+- "matching": Menjodohkan Matriks AKM (beberapa pasangan dalam 1 nomor soal) -> jawaban objek: {"1":"A","2":"B"}, wajib sertakan "jumlah_pasang" (2..5)
+- "matching_single": Menjodohkan Klasik 1-ke-1 (setiap nomor soal mencocokkan 1 item ke daftar pilihan huruf bersama, misal No. 16–25 pilih huruf a–j) -> jawaban 1 huruf kapital: "J", sertakan "opsi": ["A","B",...,"J"] (5 sampai 12 huruf sesuai jumlah pilihan di kolom kanan)
 - "short_answer": Isian Singkat -> jawaban teks/angka ringkas (pisahkan variasi sinonim dengan " | ", contoh: "Soekarno | Ir. Soekarno")
 - "essay": Uraian / Esai -> jawaban berupa kata kunci penilaian ringkas dipisah " | ", atau "" bila penilaian manual guru
 

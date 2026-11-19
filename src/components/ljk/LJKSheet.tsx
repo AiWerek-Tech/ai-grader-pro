@@ -199,7 +199,13 @@ function MachineQuestionBlock({
               >
                 <span
                   className={`${
-                    isCompact ? 'text-[6.8px]' : 'text-[8px]'
+                    question.cells.length >= 8
+                      ? isCompact
+                        ? 'text-[6px]'
+                        : 'text-[7px]'
+                      : isCompact
+                        ? 'text-[6.8px]'
+                        : 'text-[8px]'
                   } font-extrabold text-slate-600 leading-none select-none pointer-events-none`}
                 >
                   {cell.value}

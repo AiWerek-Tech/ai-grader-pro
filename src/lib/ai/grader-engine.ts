@@ -14,6 +14,9 @@ export function normalizeTipe(raw: string | undefined): string {
     'PG_KOMPLEKS': 'multiple_select',
     'MTF': 'multiple_true_false',
     'MENJODOHKAN': 'matching',
+    'JDH-1': 'matching_single',
+    'JDH1': 'matching_single',
+    'MENJODOHKAN_TUNGGAL': 'matching_single',
     'ISIAN': 'short_answer',
     'ISIAN_SINGKAT': 'short_answer',
     'ESAI': 'essay',
@@ -81,6 +84,12 @@ export function normalizeAIAnswer(rawAns: any, tipe: string): any {
     if (s === 'b' || s.startsWith('benar') || s === 'true' || s === '1') return 'B';
     if (s === 's' || s.startsWith('salah') || s === 'false' || s === '0') return 'S';
     return String(rawAns).trim().toUpperCase();
+  }
+
+  // ── matching_single (1-ke-1 A–L): always single uppercase letter ──
+  if (normalized === 'matching_single') {
+    const cleaned = String(rawAns).trim().toUpperCase().replace(/[^A-L]/g, '');
+    return cleaned ? cleaned.charAt(0) : String(rawAns).trim().toUpperCase().charAt(0);
   }
 
   // ── single_choice: always uppercase ──
@@ -226,6 +235,7 @@ export function answersMatch(studentAnswer: any, keyAnswer: any, tipe: string): 
     case 'single_choice':
     case 'single_choice_4':
     case 'true_false':
+    case 'matching_single':
       return String(normalizedStudent ?? '').toUpperCase() === String(normalizedKey ?? '').toUpperCase();
 
     case 'multiple_select': {
@@ -495,10 +505,11 @@ export function hitungSkorV3(jawabanSiswa: any[], kunciObj: any) {
       kosongCount++;
     } else {
       switch (tipe) {
-        // ── Pilihan Ganda tunggal (A-E, A-D) dan Benar/Salah ──
+        // ── Pilihan Ganda tunggal (A-E, A-D), Benar/Salah, dan Menjodohkan 1-ke-1 (A-L) ──
         case 'single_choice':
         case 'single_choice_4':
-        case 'true_false': {
+        case 'true_false':
+        case 'matching_single': {
           const sJawab = Array.isArray(ansSiswa)
             ? String(ansSiswa[0]).toUpperCase()
             : String(ansSiswa).toUpperCase();

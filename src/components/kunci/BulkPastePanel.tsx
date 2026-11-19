@@ -507,7 +507,7 @@ export default function BulkPastePanel({
       {tab === 'excel' && (
         <div className="space-y-3">
           <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-            Isi tabel nomor, kode tipe (`PG-E`, `PG-D`, `B/S`, `PGK`, `MTF`, `JDH`, `ISN`, `ESI`), kunci jawaban, dan bobot poin di Excel, lalu unggah ke sini.
+            Isi tabel nomor, kode tipe (`PG-E`, `PG-D`, `B/S`, `PGK`, `MTF`, `JDH`, `JDH-1`, `ISN`, `ESI`), kunci jawaban, dan bobot poin di Excel, lalu unggah ke sini.
           </p>
           <div className="flex flex-wrap items-center gap-2.5">
             <button

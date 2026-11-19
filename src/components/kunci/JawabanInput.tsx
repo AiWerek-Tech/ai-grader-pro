@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getTipeMeta } from '@/lib/constants/tipe-soal';
+import { buildMatchingSingleOptions, getTipeMeta } from '@/lib/constants/tipe-soal';
 import { Check, Minus, Plus, Sparkles, UserCheck } from 'lucide-react';
 import { SoalItem } from './kunci-utils';
 
@@ -235,6 +235,57 @@ export default function JawabanInput({ item, onChangeJawaban, onPatchItem }: Jaw
         </div>
         {onPatchItem && (
           <SubStepper label="Pernyataan" value={jp} min={2} max={10} onChange={updateJumlah} />
+        )}
+      </div>
+    );
+  }
+
+  if (item.tipe === 'matching_single') {
+    const opsi = item.opsi && item.opsi.length >= 5 ? item.opsi : buildMatchingSingleOptions(10);
+    const opsiCount = Math.max(5, Math.min(12, opsi.length));
+    const lastLetter = opsi[opsi.length - 1] || 'J';
+
+    const updateOpsiCount = (nextCount: number) => {
+      const nextOpsi = buildMatchingSingleOptions(nextCount);
+      const curAns = typeof item.jawaban === 'string' ? item.jawaban.trim().toUpperCase() : '';
+      patch({
+        opsi: nextOpsi,
+        jawaban: nextOpsi.includes(curAns) ? curAns : '',
+      });
+    };
+
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-1.5">
+          {opsi.map((o) => {
+            const active = item.jawaban === o;
+            return (
+              <button
+                key={o}
+                type="button"
+                onClick={() => onChangeJawaban(o)}
+                aria-label={`Nomor ${item.no} pasangan ${o}`}
+                aria-pressed={active}
+                className={`w-8 h-8 rounded-xl text-xs font-black transition-all ${
+                  active
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-400/40'
+                    : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:border-amber-400 hover:text-amber-600 dark:hover:text-amber-300'
+                }`}>
+                {o}
+              </button>
+            );
+          })}
+        </div>
+        {onPatchItem && (
+          <div className="flex flex-wrap items-center gap-2">
+            <SubStepper
+              label={`Opsi A–${lastLetter}`}
+              value={opsiCount}
+              min={5}
+              max={12}
+              onChange={updateOpsiCount}
+            />
+          </div>
         )}
       </div>
     );

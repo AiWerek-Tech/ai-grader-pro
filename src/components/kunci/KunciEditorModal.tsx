@@ -391,7 +391,7 @@ export default function KunciEditorModal({
     if (pendingDraft.customJudul !== undefined) setCustomJudul(pendingDraft.customJudul);
     if (pendingDraft.idMapel) setIdMapel(pendingDraft.idMapel);
     if (pendingDraft.idKelas) setIdKelas(pendingDraft.idKelas);
-    if (pendingDraft.composition) setComposition(pendingDraft.composition);
+    if (pendingDraft.composition) setComposition({ ...DEFAULT_COMPOSITION, ...pendingDraft.composition });
     if (Array.isArray(pendingDraft.soalItems)) setSoalItems(pendingDraft.soalItems);
     setPendingDraft(null);
     toast.success('Draf kunci jawaban berhasil dipulihkan.');

@@ -4,7 +4,7 @@ import { dbGetAll } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
 import { runAIWithConsensus } from '@/lib/ai/gemini-fallback';
-import { hitungSkorV3, normalizeAIAnswer } from '@/lib/ai/grader-engine';
+import { hitungSkorV3, normalizeAIAnswer, normalizeTipe } from '@/lib/ai/grader-engine';
 import { runHybridObjectiveScan } from '@/lib/scan/hybrid-detector';
 
 /**
@@ -40,25 +40,6 @@ function nameSimilarity(a: string, b: string): number {
 
   const maxWords = Math.max(aWords.length, bWords.length);
   return maxWords > 0 ? Math.min(1, matches / maxWords) : 0;
-}
-
-function normalizeScanQuestionType(raw?: string) {
-  const map: Record<string, string> = {
-    'A-E': 'single_choice',
-    'A-D': 'single_choice_4',
-    'Benar-Salah': 'true_false',
-    'BENAR_SALAH': 'true_false',
-    'PG_TUNGGAL': 'single_choice',
-    'PG_KOMPLEKS': 'multiple_select',
-    MTF: 'multiple_true_false',
-    MENJODOHKAN: 'matching',
-    ISIAN: 'short_answer',
-    'ISIAN_SINGKAT': 'short_answer',
-    ESAI: 'essay',
-    URAIAN: 'essay',
-  };
-
-  return map[raw || ''] || raw || 'single_choice';
 }
 
 function normalizeInternalStudentId(raw?: string) {
@@ -141,21 +122,11 @@ export async function scanLJKAction(
       panjang_jawaban: item.panjang_jawaban,
     }));
 
-    const objectiveQuestionTypes = new Set([
-      'single_choice',
-      'single_choice_4',
-      'true_false',
-      'multiple_select',
-      'multiple_true_false',
-      'matching',
-    ]);
-    const textQuestionTypes = new Set(['short_answer', 'essay']);
-
     // Jalankan pembacaan QR lokal (Hybrid) dan Gemini Vision V6 secara PARALEL untuk kecepatan & akurasi maksimal
     const imageBuffer = Buffer.from(imageBase64, 'base64');
     let aiFailureWarning = '';
 
-    const [hybridResult, aiResult] = await Promise.all([
+    let [hybridResult, aiResult] = await Promise.all([
       runHybridObjectiveScan(imageBuffer, questionBlueprint, totalSoal),
       runAIWithConsensus(imageBase64, totalSoal, mimeType, questionBlueprint).catch((error: any) => {
         aiFailureWarning = `AI Vision kendala: ${error?.message || 'unknown error'}`;
@@ -201,6 +172,19 @@ export async function scanLJKAction(
               panjang_jawaban: item.panjang_jawaban,
             }));
             autoSwitchedKunciNote = `ℹ️ QR Code LJK terdeteksi untuk ujian "${qrMatchedRow.judul_ujian}" — dinilai otomatis menggunakan kunci tersebut.`;
+
+            // Re-scan memakai blueprint kunci yang cocok dengan QR agar jumlah soal & opsi (mis. PG-D vs JDH-1 A–J) 100% akurat!
+            const [rescanHybrid, rescanAi] = await Promise.all([
+              runHybridObjectiveScan(imageBuffer, activeBlueprint, activeDataJson.length),
+              runAIWithConsensus(imageBase64, activeDataJson.length, mimeType, activeBlueprint).catch((error: any) => {
+                aiFailureWarning = `AI Vision kendala: ${error?.message || 'unknown error'}`;
+                return null;
+              }),
+            ]);
+            if (rescanHybrid.success || rescanAi) {
+              hybridResult = rescanHybrid;
+              aiResult = rescanAi;
+            }
           }
         } catch {}
       }
@@ -219,15 +203,37 @@ export async function scanLJKAction(
 
     const rawAnswers = activeBlueprint.map((question) => {
       const no = Number(question.no);
+      const tipe = normalizeTipe(question.tipe || activeKunciObj.tipe_soal || 'single_choice');
       const hybridItem = hybridAnswerMap.get(no);
       const hybridAns = hybridItem?.ans;
+      const hybridConf = Number(hybridItem?.confidence || 0);
       const aiAns = aiAnswerMap.get(no);
 
       let mergedAnswer: any = '?';
 
-      if (aiResult) {
+      // Untuk baris lebar Menjodohkan 1-ke-1 (6–12 bulatan A–J/L), jika OMR lokal terkalibrasi penuh
+      // (4 sudut fiducial terkunci) dan keyakinan piksel sangat tinggi, prioritaskan OMR piksel-presisi
+      // karena bebas risiko salah hitung indeks 10-12 bulatan pada Vision LLM.
+      const useCalibratedWideOmr =
+        tipe === 'matching_single' &&
+        hybridResult.success &&
+        hybridResult.isCalibrated &&
+        hybridResult.confidenceScore >= 0.55 &&
+        isAnswerNonEmpty(hybridAns) &&
+        hybridConf >= 0.55;
+
+      if (useCalibratedWideOmr) {
+        mergedAnswer = hybridAns;
+      } else if (aiResult) {
         if (isAnswerNonEmpty(aiAns)) {
           mergedAnswer = aiAns;
+        } else if (
+          hybridResult.success &&
+          hybridResult.isCalibrated &&
+          isAnswerNonEmpty(hybridAns) &&
+          hybridConf >= 0.6
+        ) {
+          mergedAnswer = hybridAns;
         }
       } else if (isAnswerNonEmpty(hybridAns)) {
         mergedAnswer = hybridAns;

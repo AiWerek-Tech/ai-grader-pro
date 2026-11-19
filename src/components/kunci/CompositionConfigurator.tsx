@@ -11,6 +11,7 @@ import {
   Sliders,
   Wand2,
 } from 'lucide-react';
+import { MATCHING_SINGLE_LETTERS } from '@/lib/constants/tipe-soal';
 import { SafeNumberInput } from './JawabanInput';
 import {
   autoDistributeCompositionPct,
@@ -319,7 +320,7 @@ export default function CompositionConfigurator({
             )}
           </div>
 
-          {/* 5. Menjodohkan */}
+          {/* 5. Menjodohkan (2 Mode: Klasik 1-ke-1 A–J/L & Matriks AKM 2–5 Pasang) */}
           <div
             className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
               config.jdhCount > 0
@@ -331,8 +332,36 @@ export default function CompositionConfigurator({
                 Soal Menjodohkan
               </span>
               <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[9px] font-black">
-                Pasangan
+                {config.jdhMode === 'single'
+                  ? `1-ke-1 (A–${MATCHING_SINGLE_LETTERS[Math.max(5, Math.min(12, config.jdhOpsiCount || 10)) - 1]})`
+                  : 'Matriks AKM'}
               </span>
+            </div>
+
+            {/* Pilihan 2 Mode Menjodohkan */}
+            <div className="grid grid-cols-2 gap-1 p-0.5 rounded-xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => update({ jdhMode: 'single' })}
+                title="1 nomor soal = 1 huruf jawaban dari daftar pilihan bersama (misal No. 16–25 pilih A–J)"
+                className={`px-2 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                  config.jdhMode === 'single'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-amber-700 dark:hover:text-amber-300'
+                }`}>
+                1-ke-1 (A–J)
+              </button>
+              <button
+                type="button"
+                onClick={() => update({ jdhMode: 'matrix' })}
+                title="1 nomor soal berisi matriks 2–5 pasangan (1→A, 2→B, dst.) gaya AKM"
+                className={`px-2 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                  config.jdhMode !== 'single'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-amber-700 dark:hover:text-amber-300'
+                }`}>
+                Matriks (AKM)
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -366,18 +395,35 @@ export default function CompositionConfigurator({
                 <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
                   {perItemText(config.jdhCount, config.jdhPct)}
                 </p>
-                <label className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  <span>Pasang:</span>
-                  <SafeNumberInput
-                    value={config.jdhPasang}
-                    min={2}
-                    max={5}
-                    step={1}
-                    ariaLabel="Default pasang Menjodohkan"
-                    onChangeValue={(v) => update({ jdhPasang: Math.round(v) })}
-                    className="w-11 h-6 px-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center text-[11px] font-black"
-                  />
-                </label>
+                {config.jdhMode === 'single' ? (
+                  <label className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    <span>Opsi:</span>
+                    <select
+                      value={Math.max(5, Math.min(12, config.jdhOpsiCount || 10))}
+                      onChange={(e) => update({ jdhOpsiCount: Number(e.target.value) })}
+                      aria-label="Jumlah Opsi Huruf Menjodohkan 1-ke-1"
+                      className="h-6 px-1.5 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[11px] font-black text-slate-800 dark:text-white outline-none">
+                      {[5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                        <option key={n} value={n} className="bg-white dark:bg-[#0d111d]">
+                          A–{MATCHING_SINGLE_LETTERS[n - 1]} ({n})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <label className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    <span>Pasang:</span>
+                    <SafeNumberInput
+                      value={config.jdhPasang}
+                      min={2}
+                      max={5}
+                      step={1}
+                      ariaLabel="Default pasang Menjodohkan"
+                      onChangeValue={(v) => update({ jdhPasang: Math.round(v) })}
+                      className="w-11 h-6 px-1 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-center text-[11px] font-black"
+                    />
+                  </label>
+                )}
               </div>
             )}
           </div>

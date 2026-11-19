@@ -1180,12 +1180,14 @@ export default function HasilPage() {
                   {editingQuestionNo !== null && (() => {
                     const kItem = (detailHasil.kInfo.data_json as any[]).find((k: any, i: number) => Number(k.no || i + 1) === editingQuestionNo);
                     const tipe = normalizeTipe(kItem?.tipe || detailHasil.kInfo?.tipe_soal || 'single_choice');
-                    const isSimpleChoice = tipe === 'single_choice' || tipe === 'single_choice_4' || tipe === 'true_false';
+                    const isSimpleChoice = tipe === 'single_choice' || tipe === 'single_choice_4' || tipe === 'true_false' || tipe === 'matching_single';
                     const choiceOptions = tipe === 'true_false'
                       ? ['B', 'S']
                       : tipe === 'single_choice_4'
                         ? ['A', 'B', 'C', 'D']
-                        : (kItem?.opsi?.length ? kItem.opsi : ['A', 'B', 'C', 'D', 'E']);
+                        : tipe === 'matching_single'
+                          ? (kItem?.opsi?.length ? kItem.opsi : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'])
+                          : (kItem?.opsi?.length ? kItem.opsi : ['A', 'B', 'C', 'D', 'E']);
 
                     return (
                       <div className="mb-3 p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 space-y-2 animate-in fade-in duration-150">

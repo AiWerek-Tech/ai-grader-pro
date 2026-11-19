@@ -1,5 +1,14 @@
 // lib/constants/tipe-soal.ts
-// Definisi 8 Tipe Soal AKM & Standar Asesmen (kompatibel LJK Hybrid OMR & AI)
+// Definisi 9 Tipe Soal AKM & Standar Asesmen (kompatibel LJK Hybrid OMR & AI)
+
+export const MATCHING_SINGLE_LETTERS = [
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+] as const;
+
+export function buildMatchingSingleOptions(count = 10): string[] {
+  const safeCount = Math.max(5, Math.min(MATCHING_SINGLE_LETTERS.length, Math.round(Number(count) || 10)));
+  return MATCHING_SINGLE_LETTERS.slice(0, safeCount) as unknown as string[];
+}
 
 export const TIPE_SOAL_AKM = [
   {
@@ -54,13 +63,23 @@ export const TIPE_SOAL_AKM = [
   },
   {
     kode: 'matching',
-    label: 'Menjodohkan',
+    label: 'Menjodohkan Matriks (AKM)',
     short: 'JDH',
     opsi: [],
     color: 'amber',
     kategori: 'kompleks',
-    desc: 'Pasangkan 2–5 item kiri (1–5) ke jawaban kanan (A–E).',
+    desc: 'Pasangkan 2–5 item kiri (1–5) ke jawaban kanan (A–E) dalam 1 nomor.',
     contoh: '1→A, 2→C, 3→B',
+  },
+  {
+    kode: 'matching_single',
+    label: 'Menjodohkan 1-ke-1 (A–J)',
+    short: 'JDH-1',
+    opsi: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
+    color: 'amber',
+    kategori: 'objektif',
+    desc: '1 nomor = 1 huruf jawaban dari daftar pilihan bersama (A–E s.d. A–L).',
+    contoh: 'J / F / H',
   },
   {
     kode: 'short_answer',
@@ -95,7 +114,9 @@ export function getTipeMeta(kode?: string | null): TipeSoalMeta {
         ? 'single_choice_4'
         : kode === 'Benar-Salah'
           ? 'true_false'
-          : kode;
+          : kode === 'JDH-1' || kode === 'JDH1' || kode === 'MENJODOHKAN_TUNGGAL'
+            ? 'matching_single'
+            : kode;
   return TIPE_SOAL_AKM.find((t) => t.kode === normalized) ?? TIPE_SOAL_AKM[0];
 }
 

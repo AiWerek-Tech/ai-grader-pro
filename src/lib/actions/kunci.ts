@@ -21,7 +21,7 @@ import { logger } from '@/lib/logger';
 import { requireAuth } from '@/lib/session-server';
 import { getAcademicSessionAction, getSettingsAction } from '@/lib/actions/settings';
 import { hitungSkorV3 } from '@/lib/ai/grader-engine';
-import { getTipeMeta } from '@/lib/constants/tipe-soal';
+import { buildMatchingSingleOptions, getTipeMeta, MATCHING_SINGLE_LETTERS } from '@/lib/constants/tipe-soal';
 
 // Schema KUNCI_JAWABAN: [id_kunci, id_guru, id_mapel, id_kelas, judul_ujian, tipe_soal, pengaturan_poin, data_json, timestamp, segmen, tahun_ajaran, semester]
 
@@ -81,6 +81,17 @@ function normalizeKunciItemsAndPoin(dataKunci: any) {
     }
     if (tipe === 'matching') {
       baseItem.jumlah_pasang = Math.max(2, Math.min(5, Number(item.jumlah_pasang) || 3));
+    }
+    if (tipe === 'matching_single') {
+      const validSet = new Set<string>(MATCHING_SINGLE_LETTERS);
+      const rawOpsi = Array.isArray(item.opsi)
+        ? item.opsi.map((o: any) => String(o || '').trim().toUpperCase()).filter((o: string) => validSet.has(o))
+        : [];
+      const opsiCount = rawOpsi.length >= 5 ? Math.min(MATCHING_SINGLE_LETTERS.length, rawOpsi.length) : 10;
+      const resolvedOpsi = buildMatchingSingleOptions(opsiCount);
+      baseItem.opsi = resolvedOpsi;
+      const rawAns = String(item.jawaban ?? '').trim().toUpperCase().replace(/[^A-L]/g, '').charAt(0);
+      baseItem.jawaban = resolvedOpsi.includes(rawAns) ? rawAns : '';
     }
     if (tipe === 'short_answer') {
       baseItem.panjang_jawaban = Math.max(3, Math.min(20, Number(item.panjang_jawaban) || 10));

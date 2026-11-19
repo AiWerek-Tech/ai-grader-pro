@@ -1627,12 +1627,14 @@ export default function AnalisisPage() {
                     const kItem = selectedKunci?.data_json?.find((k: any) => Number(k.no) === activeEditNo);
                     const tipe = normalizeTipe(kItem?.tipe || selectedKunci?.tipe_soal || 'single_choice');
                     const kunciDisp = formatAnswerForDisplay(kItem?.jawaban ?? '—');
-                    const isSimpleChoice = tipe === 'single_choice' || tipe === 'single_choice_4' || tipe === 'true_false';
+                    const isSimpleChoice = tipe === 'single_choice' || tipe === 'single_choice_4' || tipe === 'true_false' || tipe === 'matching_single';
                     const choiceOptions = tipe === 'true_false'
                       ? ['B', 'S']
                       : tipe === 'single_choice_4'
                         ? ['A', 'B', 'C', 'D']
-                        : (kItem?.opsi?.length ? kItem.opsi : ['A', 'B', 'C', 'D', 'E']);
+                        : tipe === 'matching_single'
+                          ? (kItem?.opsi?.length ? kItem.opsi : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'])
+                          : (kItem?.opsi?.length ? kItem.opsi : ['A', 'B', 'C', 'D', 'E']);
 
                     return (
                       <div className="mb-3 p-3 rounded-2xl bg-violet-500/10 border-2 border-violet-500/40 space-y-2.5">

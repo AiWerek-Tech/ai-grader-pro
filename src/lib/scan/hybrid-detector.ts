@@ -330,7 +330,7 @@ function chooseMultiple(values: Array<{ value: string; score: number }>) {
 }
 
 function resolveQuestionAnswer(type: MachineQuestionType, scoredCells: Array<{ value: string; score: number; rowKey?: string }>) {
-  if (type === 'single_choice' || type === 'single_choice_4' || type === 'true_false') {
+  if (type === 'single_choice' || type === 'single_choice_4' || type === 'true_false' || type === 'matching_single') {
     return chooseSingle(scoredCells.map(({ value, score }) => ({ value, score })));
   }
 

@@ -64,7 +64,8 @@ function getNextGenAIFromPool(keys: string[], offset: number = 0): { genAI: Goog
  */
 async function optimizeImageForVision(
   imageBase64: string,
-  mimeType: string
+  mimeType: string,
+  maxDim: number = 1024
 ): Promise<{ base64: string; mimeType: string }> {
   try {
     const sharp = await getSharp();
@@ -73,12 +74,12 @@ async function optimizeImageForVision(
     }
 
     const inputBuffer = Buffer.from(imageBase64, 'base64');
-    // PENTING: Ukuran maksimal 1024px memastikan Gemini Vision memproses citra sebagai 1 Single-Frame utuh (258 token)
-    // tanpa memotong kertas menjadi 9 sub-tiles (yang menyebabkan waktu proses >25 detik / timeout dan membelah baris soal!).
+    // PENTING: Ukuran maksimal 1024px untuk LJK standar (1 Single-Frame cepat), atau 1536px untuk LJK lebar JDH-1 (A–J/L)
+    // agar huruf kecil di dalam 10-12 bulatan tetap terbaca tajam oleh Vision LLM.
     const fullPageBuffer = await sharp(inputBuffer)
       .rotate() // Auto-fix EXIF orientation dari kamera HP
-      .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 88, mozjpeg: true })
+      .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: maxDim > 1024 ? 91 : 88, mozjpeg: true })
       .toBuffer();
 
     return {
@@ -98,6 +99,9 @@ function getExpectedOptionsForItem(item?: QuestionBlueprintItem): string[] | nul
   }
   if (tipe === 'single_choice' || tipe === 'A-E') {
     return item?.opsi?.length ? item.opsi : ['A', 'B', 'C', 'D', 'E'];
+  }
+  if (tipe === 'matching_single' || tipe === 'JDH-1') {
+    return item?.opsi?.length ? item.opsi : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
   }
   return null;
 }
@@ -124,6 +128,10 @@ function buildQuestionBlueprintSummary(questionBlueprint: QuestionBlueprintItem[
     }
     if (tipe === 'multiple_true_false') {
       return `have ${item.jumlah_pernyataan || 3} statement rows of B/S (format: "B,S,B").`;
+    }
+    if (tipe === 'matching_single' || tipe === 'JDH-1') {
+      const opts = item.opsi?.length ? item.opsi : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+      return `have ${opts.length} circles from left to right: ${opts.join(', ')} (matching 1-to-1 single choice).`;
     }
     if (tipe === 'matching') {
       return `have ${item.jumlah_pasang || 3} matching rows (format: "1-A, 2-B, 3-C").`;
@@ -176,9 +184,10 @@ ${blueprintLines || `- Questions 1-${totalSoal} have circles from left to right.
 3. CRITICAL VISUAL & SPATIAL COUNTING RULE FOR BUBBLE QUESTIONS:
    - In each row, the student's chosen circle is completely blackened (filled solid black ●) or crossed (X), which COVERS the letter printed inside that circle.
    - Meanwhile, the OTHER unchosen circles on that same row remain white (○) with their printed letters visible inside!
-   - To avoid any confusion between adjacent circles (like B vs C in a 5-circle row):
+   - To avoid any confusion between adjacent circles (like B vs C in a 5-circle row, or G vs H in a 10-circle A-J row):
      * Count how many empty white circles (○) are to the LEFT of the black dot (●) on that row -> "left_empty" (e.g. ●○○○○ -> left_empty=0; ○●○○○ -> left_empty=1; ○○●○○ -> left_empty=2; ○○○●○ -> left_empty=3; ○○○○● -> left_empty=4).
      * Count how many empty white circles (○) are to the RIGHT of the black dot (●) on that row -> "right_empty".
+     * For wide matching rows (6-12 circles, e.g. A-J or A-L), ALWAYS confirm the blackened letter by checking the visible printed letters immediately to the LEFT and RIGHT of the black dot ● (e.g. if G is left and I is right, the covered letter is H), and list every remaining visible letter in "unfilled_letters_visible".
      * List the remaining visible letters in "unfilled_letters_visible".
      * Put the chosen letter in "filled_letter" (or "?" if all circles on that row are empty white).
 4. RULE FOR SHORT-ANSWER (ISN) & ESSAY QUESTIONS:
@@ -283,23 +292,38 @@ function validateAIResult(
       const expectedOpts = getExpectedOptionsForItem(bpItem);
 
       if (expectedOpts) {
-        // 1. Jika left_empty + right_empty + 1 === jumlah bulatan pada baris tersebut, maka indeks bulatan hitam adalah left_empty!
-        if (
+        const hasValidSpatialCount =
           Number.isFinite(leftEmpty) &&
           Number.isFinite(rightEmpty) &&
           leftEmpty >= 0 &&
           rightEmpty >= 0 &&
-          leftEmpty + rightEmpty + 1 === expectedOpts.length
-        ) {
-          ans = expectedOpts[leftEmpty];
-        } else if (Array.isArray(unfilled)) {
-          // 2. Fallback ke Hukum Eliminasi Himpunan Pasti (Set-Difference)
-          const visSet = new Set(unfilled.map((u: any) => String(u).trim().toUpperCase()));
-          const missing = expectedOpts.filter((o) => !visSet.has(o));
-          if (missing.length === 1) {
+          leftEmpty + rightEmpty + 1 === expectedOpts.length;
+        const visSet = Array.isArray(unfilled)
+          ? new Set(unfilled.map((u: any) => String(u).trim().toUpperCase()))
+          : null;
+        const missing = visSet ? expectedOpts.filter((o) => !visSet.has(o)) : null;
+
+        if (expectedOpts.length >= 6) {
+          // Untuk baris lebar (Menjodohkan 1-ke-1 A–F s.d. A–L), prioritaskan Hukum Eliminasi Himpunan Pasti (Set-Difference)
+          // karena membaca huruf tercetak di kiri/kanan bulatan hitam jauh lebih akurat daripada menghitung 8-11 bulatan kosong.
+          if (missing && missing.length === 1) {
             ans = missing[0];
-          } else if (missing.length === 0 && visSet.size === expectedOpts.length) {
+          } else if (missing && missing.length === 0 && visSet && visSet.size === expectedOpts.length) {
             ans = '?';
+          } else if (hasValidSpatialCount) {
+            ans = expectedOpts[leftEmpty];
+          }
+        } else {
+          // 1. Untuk baris standar 2-5 opsi (PG-D, PG-E, B/S): cek left_empty + right_empty + 1 === jumlah bulatan
+          if (hasValidSpatialCount) {
+            ans = expectedOpts[leftEmpty];
+          } else if (missing) {
+            // 2. Fallback ke Hukum Eliminasi Himpunan Pasti (Set-Difference)
+            if (missing.length === 1) {
+              ans = missing[0];
+            } else if (missing.length === 0 && visSet && visSet.size === expectedOpts.length) {
+              ans = '?';
+            }
           }
         }
       }
@@ -551,9 +575,12 @@ export async function runAIWithConsensus(
   mimeType: string = 'image/jpeg',
   questionBlueprint: QuestionBlueprintItem[] = []
 ) {
+  const hasWideMatching = questionBlueprint.some(
+    (q) => q.tipe === 'matching_single' || q.tipe === 'JDH-1'
+  );
   const [settingsRes, optimizedImg] = await Promise.all([
     getSettingsAction(true),
-    optimizeImageForVision(imageBase64, mimeType),
+    optimizeImageForVision(imageBase64, mimeType, hasWideMatching ? 1536 : 1024),
   ]);
 
   const settings = (settingsRes.data || {}) as Record<string, string>;

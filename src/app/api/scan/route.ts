@@ -6,25 +6,6 @@ import { dbGetAll } from "@/lib/google-sheets";
 import { runAIWithConsensus } from '@/lib/ai/gemini-fallback';
 import { runHybridObjectiveScan } from '@/lib/scan/hybrid-detector';
 
-function normalizeScanQuestionType(raw?: string) {
-  const map: Record<string, string> = {
-    'A-E': 'single_choice',
-    'A-D': 'single_choice_4',
-    'Benar-Salah': 'true_false',
-    'BENAR_SALAH': 'true_false',
-    'PG_TUNGGAL': 'single_choice',
-    'PG_KOMPLEKS': 'multiple_select',
-    MTF: 'multiple_true_false',
-    MENJODOHKAN: 'matching',
-    ISIAN: 'short_answer',
-    'ISIAN_SINGKAT': 'short_answer',
-    ESAI: 'essay',
-    URAIAN: 'essay',
-  };
-
-  return map[raw || ''] || raw || 'single_choice';
-}
-
 function normalizeInternalStudentId(raw?: string) {
   const value = String(raw || '').trim();
   if (!value) return '';
@@ -53,15 +34,6 @@ export async function POST(request: Request) {
     const mimeType = body.mimeType || 'image/jpeg';
 
     const questionBlueprint = Array.isArray(body.questionBlueprint) ? body.questionBlueprint : [];
-    const objectiveQuestionTypes = new Set([
-      'single_choice',
-      'single_choice_4',
-      'true_false',
-      'multiple_select',
-      'multiple_true_false',
-      'matching',
-    ]);
-    const textQuestionTypes = new Set(['short_answer', 'essay']);
 
     let aiFailureWarning = '';
     const [hybridResult, aiResult] = await Promise.all([
@@ -100,14 +72,33 @@ export async function POST(request: Request) {
     const mergedAnswers = (questionBlueprint.length > 0
       ? questionBlueprint.map((question: any, index: number) => {
           const no = Number(question?.no || index + 1);
+          const tipe = String(question?.tipe || 'single_choice');
           const hybridItem = hybridAnswerMap.get(no);
           const hybridAnswer = hybridItem?.ans;
+          const hybridConf = Number(hybridItem?.confidence || 0);
           const aiAnswer = aiAnswerMap.get(no);
 
           let chosen: any = '?';
-          if (aiResult) {
+          const useCalibratedWideOmr =
+            (tipe === 'matching_single' || tipe === 'JDH-1') &&
+            hybridResult.success &&
+            hybridResult.isCalibrated &&
+            hybridResult.confidenceScore >= 0.55 &&
+            isNonEmpty(hybridAnswer) &&
+            hybridConf >= 0.55;
+
+          if (useCalibratedWideOmr) {
+            chosen = hybridAnswer;
+          } else if (aiResult) {
             if (isNonEmpty(aiAnswer)) {
               chosen = aiAnswer;
+            } else if (
+              hybridResult.success &&
+              hybridResult.isCalibrated &&
+              isNonEmpty(hybridAnswer) &&
+              hybridConf >= 0.6
+            ) {
+              chosen = hybridAnswer;
             }
           } else if (isNonEmpty(hybridAnswer)) {
             chosen = hybridAnswer;

@@ -59,6 +59,13 @@ export default function QuickTapGrid({
         onChangeJawaban(item.no, key);
         moveNext(idx);
       }
+    } else if (item.tipe === 'matching_single') {
+      const allowed = item.opsi?.length ? item.opsi : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+      if (allowed.includes(key)) {
+        e.preventDefault();
+        onChangeJawaban(item.no, key);
+        moveNext(idx);
+      }
     } else if (item.tipe === 'true_false') {
       if (key === 'B' || key === 'S') {
         e.preventDefault();
@@ -73,7 +80,7 @@ export default function QuickTapGrid({
       <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
         <Keyboard className="w-3.5 h-3.5 shrink-0" />
         <span>
-          Tips Keyboard: klik nomor soal lalu tekan huruf <strong>A–E</strong> (atau <strong>B/S</strong>) untuk langsung mengisi dan pindah ke nomor berikutnya.
+          Tips Keyboard: klik nomor soal lalu tekan huruf <strong>A–E</strong> (atau <strong>A–L</strong> untuk JDH-1 / <strong>B/S</strong>) untuk langsung mengisi dan pindah ke nomor berikutnya.
         </span>
       </div>
 
@@ -84,6 +91,7 @@ export default function QuickTapGrid({
           const isFocused = focusedNo === item.no;
 
           const isSinglePg = item.tipe === 'single_choice' || item.tipe === 'single_choice_4';
+          const isMatchSingle = item.tipe === 'matching_single';
           const isTf = item.tipe === 'true_false';
           const isPgk = item.tipe === 'multiple_select';
 
@@ -195,7 +203,29 @@ export default function QuickTapGrid({
 
                 {item.perlakuan !== 'bonus' &&
                   item.perlakuan !== 'anulir' &&
+                  isMatchSingle && (
+                    <div className="flex flex-wrap items-center justify-center gap-1">
+                      {(item.opsi?.length ? item.opsi : meta.opsi).map((o) => (
+                        <button
+                          key={o}
+                          type="button"
+                          tabIndex={-1}
+                          onClick={() => onChangeJawaban(item.no, o)}
+                          className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${
+                            item.jawaban === o
+                              ? 'bg-amber-500 text-white shadow-sm'
+                              : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:border-amber-400'
+                          }`}>
+                          {o}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                {item.perlakuan !== 'bonus' &&
+                  item.perlakuan !== 'anulir' &&
                   !isSinglePg &&
+                  !isMatchSingle &&
                   !isTf &&
                   !isPgk && (
                   <button

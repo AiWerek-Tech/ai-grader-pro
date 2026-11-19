@@ -990,5 +990,6 @@ export default function CetakLJKPage() {
 function getDefaultOpts(tipe: string): string[] {
   if (tipe === 'true_false' || tipe === 'Benar-Salah') return ['B', 'S'];
   if (tipe === 'single_choice_4' || tipe === 'A-D') return ['A', 'B', 'C', 'D'];
+  if (tipe === 'matching_single' || tipe === 'JDH-1') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
   return ['A', 'B', 'C', 'D', 'E'];
 }

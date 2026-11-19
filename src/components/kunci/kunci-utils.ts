@@ -1,4 +1,11 @@
-import { formatJawaban, getTipeMeta, TIPE_SOAL_AKM, TipeSoalKode } from '@/lib/constants/tipe-soal';
+import {
+  buildMatchingSingleOptions,
+  formatJawaban,
+  getTipeMeta,
+  MATCHING_SINGLE_LETTERS,
+  TIPE_SOAL_AKM,
+  TipeSoalKode,
+} from '@/lib/constants/tipe-soal';
 import { buildMachinePageLayout } from '@/lib/scan/machine-layout';
 import {
   appendObjectRows,
@@ -49,7 +56,9 @@ export interface CompositionConfig {
   mtfPernyataan: number;
   jdhCount: number;
   jdhPct: number;
+  jdhMode: 'matrix' | 'single';
   jdhPasang: number;
+  jdhOpsiCount: number;
   isnCount: number;
   isnPct: number;
   isnPanjang: number;
@@ -70,7 +79,9 @@ export const DEFAULT_COMPOSITION: CompositionConfig = {
   mtfPernyataan: 3,
   jdhCount: 0,
   jdhPct: 0,
+  jdhMode: 'matrix',
   jdhPasang: 3,
+  jdhOpsiCount: 10,
   isnCount: 0,
   isnPct: 0,
   isnPanjang: 10,
@@ -109,6 +120,7 @@ export function defaultJawaban(tipe: TipeSoalKode | string, jp = 3, jps = 3): an
     case 'single_choice':
     case 'single_choice_4':
     case 'true_false':
+    case 'matching_single':
       return '';
     case 'multiple_select':
       return [];
@@ -217,7 +229,14 @@ export function hydrateSoalItems(kunciRow: any): SoalItem[] {
     const hydrated: SoalItem = {
       no,
       tipe: meta.kode,
-      opsi: Array.isArray(item.opsi) && item.opsi.length > 0 ? item.opsi : [...meta.opsi],
+      opsi:
+        meta.kode === 'matching_single'
+          ? buildMatchingSingleOptions(
+              Array.isArray(item.opsi) && item.opsi.length >= 5 ? item.opsi.length : 10
+            )
+          : Array.isArray(item.opsi) && item.opsi.length > 0
+            ? item.opsi
+            : [...meta.opsi],
       jawaban: item.jawaban ?? defaultJawaban(meta.kode, jp, jps),
       poin:
         perlakuan === 'anulir'
@@ -252,6 +271,7 @@ export function isSoalFilled(item: SoalItem): boolean {
     case 'single_choice':
     case 'single_choice_4':
     case 'true_false':
+    case 'matching_single':
       return typeof item.jawaban === 'string' && item.jawaban.trim().length > 0;
     case 'multiple_select':
       return Array.isArray(item.jawaban) && item.jawaban.length > 0;
@@ -503,7 +523,7 @@ export function estimateLjkPreview(items: SoalItem[]): LjkEstimateSummary {
   try {
     const layout = buildMachinePageLayout(items, items.length);
     const densityLabel =
-      layout.density === 'normal'
+      layout.density === 'spacious' || layout.density === 'normal'
         ? 'Lega & Nyaman'
         : layout.density === 'compact'
           ? 'Padat Rapi'
@@ -613,6 +633,17 @@ function applyTokenToSoal(list: SoalItem[], idx: number, rawToken: string): bool
     return true;
   }
 
+  if (item.tipe === 'matching_single') {
+    const allowed = item.opsi?.length ? item.opsi : buildMatchingSingleOptions(10);
+    const ch = upper.replace(/[^A-L]/g, '').slice(0, 1);
+    if (!ch || !MATCHING_SINGLE_LETTERS.includes(ch as any)) return false;
+    // Jika huruf melebihi jumlah opsi saat ini (mis. kunci = K tapi opsi baru A-J), perluas opsi otomatis
+    const chIdx = MATCHING_SINGLE_LETTERS.indexOf(ch as any);
+    const nextOpsi = chIdx >= allowed.length ? buildMatchingSingleOptions(chIdx + 1) : allowed;
+    list[idx] = { ...item, opsi: nextOpsi, jawaban: ch };
+    return true;
+  }
+
   if (item.tipe === 'matching') {
     const pairs = [...upper.matchAll(/(\d)\s*(?:->|→|:|-|=)?\s*([A-E])/g)];
     if (pairs.length >= 2) {
@@ -659,6 +690,12 @@ export function resolveTipeFromAlias(raw: any): TipeSoalKode {
     MTF: 'multiple_true_false',
     JDH: 'matching',
     MENJODOHKAN: 'matching',
+    'JDH-1': 'matching_single',
+    JDH1: 'matching_single',
+    JDH_1: 'matching_single',
+    'JDH-KLASIK': 'matching_single',
+    MENJODOHKAN_TUNGGAL: 'matching_single',
+    MATCHING_SINGLE: 'matching_single',
     ISN: 'short_answer',
     ISIAN: 'short_answer',
     ESI: 'essay',
@@ -682,8 +719,9 @@ export async function downloadKunciTemplateXlsx() {
       { No: 4, Tipe: 'PGK', Kunci_Jawaban: 'A, C', Poin: 4, Pernyataan_MTF: '', Pasang_JDH: '', Kotak_ISN: '' },
       { No: 5, Tipe: 'MTF', Kunci_Jawaban: 'BSB', Poin: 5, Pernyataan_MTF: 3, Pasang_JDH: '', Kotak_ISN: '' },
       { No: 6, Tipe: 'JDH', Kunci_Jawaban: '1-A 2-C 3-B', Poin: 5, Pernyataan_MTF: '', Pasang_JDH: 3, Kotak_ISN: '' },
-      { No: 7, Tipe: 'ISN', Kunci_Jawaban: 'Soekarno | Ir. Soekarno', Poin: 5, Pernyataan_MTF: '', Pasang_JDH: '', Kotak_ISN: 12 },
-      { No: 8, Tipe: 'ESI', Kunci_Jawaban: 'fotosintesis | klorofil', Poin: 10, Pernyataan_MTF: '', Pasang_JDH: '', Kotak_ISN: '' },
+      { No: 7, Tipe: 'JDH-1', Kunci_Jawaban: 'J', Poin: 2, Pernyataan_MTF: '', Pasang_JDH: 10, Kotak_ISN: '' },
+      { No: 8, Tipe: 'ISN', Kunci_Jawaban: 'Soekarno | Ir. Soekarno', Poin: 5, Pernyataan_MTF: '', Pasang_JDH: '', Kotak_ISN: 12 },
+      { No: 9, Tipe: 'ESI', Kunci_Jawaban: 'fotosintesis | klorofil', Poin: 10, Pernyataan_MTF: '', Pasang_JDH: '', Kotak_ISN: '' },
     ],
     { columnWidths: [8, 12, 28, 10, 16, 14, 14] }
   );
@@ -792,6 +830,9 @@ export async function importKunciFromXlsx(file: File): Promise<{
     if (rawJps !== undefined && rawJps !== null && Number(rawJps) >= 2 && tipe === 'matching') {
       item.jumlah_pasang = Math.min(5, Math.round(Number(rawJps)));
     }
+    if (rawJps !== undefined && rawJps !== null && Number(rawJps) >= 5 && tipe === 'matching_single') {
+      item.opsi = buildMatchingSingleOptions(Math.round(Number(rawJps)));
+    }
     if (rawPj !== undefined && rawPj !== null && Number(rawPj) >= 3 && tipe === 'short_answer') {
       item.panjang_jawaban = Math.min(20, Math.round(Number(rawPj)));
     }
@@ -850,7 +891,12 @@ export function hasInterleavedTypes(items: SoalItem[]): boolean {
   const seen = new Set<string>();
   let prev = '';
   for (const s of items) {
-    const key = s.tipe === 'single_choice' || s.tipe === 'single_choice_4' ? 'PG' : s.tipe;
+    const key =
+      s.tipe === 'single_choice' || s.tipe === 'single_choice_4'
+        ? 'PG'
+        : s.tipe === 'matching' || s.tipe === 'matching_single'
+          ? 'JDH'
+          : s.tipe;
     if (key !== prev) {
       if (seen.has(key)) return true;
       seen.add(key);
@@ -873,9 +919,12 @@ export function extractCompositionFromItems(items: SoalItem[]): CompositionConfi
   const tf = items.filter((s) => s.tipe === 'true_false');
   const pgk = items.filter((s) => s.tipe === 'multiple_select');
   const mtf = items.filter((s) => s.tipe === 'multiple_true_false');
-  const jdh = items.filter((s) => s.tipe === 'matching');
+  const jdhMatrix = items.filter((s) => s.tipe === 'matching');
+  const jdhSingle = items.filter((s) => s.tipe === 'matching_single');
+  const jdhAll = [...jdhMatrix, ...jdhSingle];
   const isn = items.filter((s) => s.tipe === 'short_answer');
   const esi = items.filter((s) => s.tipe === 'essay');
+  const useSingleJdh = jdhSingle.length >= jdhMatrix.length && jdhSingle.length > 0;
 
   return {
     pgCount: pgAll.length,
@@ -888,9 +937,11 @@ export function extractCompositionFromItems(items: SoalItem[]): CompositionConfi
     mtfCount: mtf.length,
     mtfPct: pct(sumActive(mtf)),
     mtfPernyataan: mtf[0]?.jumlah_pernyataan || 3,
-    jdhCount: jdh.length,
-    jdhPct: pct(sumActive(jdh)),
-    jdhPasang: jdh[0]?.jumlah_pasang || 3,
+    jdhCount: jdhAll.length,
+    jdhPct: pct(sumActive(jdhAll)),
+    jdhMode: useSingleJdh ? 'single' : 'matrix',
+    jdhPasang: jdhMatrix[0]?.jumlah_pasang || 3,
+    jdhOpsiCount: Math.max(5, Math.min(12, jdhSingle[0]?.opsi?.length || 10)),
     isnCount: isn.length,
     isnPct: pct(sumActive(isn)),
     isnPanjang: isn[0]?.panjang_jawaban || 10,
@@ -948,12 +999,14 @@ export function buildItemsFromComposition(
     TF: previousItems.filter((s) => s.tipe === 'true_false'),
     PGK: previousItems.filter((s) => s.tipe === 'multiple_select'),
     MTF: previousItems.filter((s) => s.tipe === 'multiple_true_false'),
-    JDH: previousItems.filter((s) => s.tipe === 'matching'),
+    JDH: previousItems.filter((s) => s.tipe === 'matching' || s.tipe === 'matching_single'),
     ISN: previousItems.filter((s) => s.tipe === 'short_answer'),
     ESI: previousItems.filter((s) => s.tipe === 'essay'),
   };
 
   const pgTipe: TipeSoalKode = comp.pgOpsi === '4' ? 'single_choice_4' : 'single_choice';
+  const jdhTipe: TipeSoalKode = comp.jdhMode === 'single' ? 'matching_single' : 'matching';
+  const jdhOpsiList = buildMatchingSingleOptions(comp.jdhOpsiCount || 10);
   const blocks: Array<{
     groupKey: string;
     tipe: TipeSoalKode;
@@ -961,6 +1014,7 @@ export function buildItemsFromComposition(
     totalPct: number;
     mtfPernyataan?: number;
     jdhPasang?: number;
+    jdhOpsi?: string[];
     isnPanjang?: number;
   }> = [
     { groupKey: 'PG', tipe: pgTipe, count: Math.max(0, Math.round(comp.pgCount) || 0), totalPct: Number(comp.pgPct) || 0 },
@@ -975,10 +1029,12 @@ export function buildItemsFromComposition(
     },
     {
       groupKey: 'JDH',
-      tipe: 'matching',
+      tipe: jdhTipe,
       count: Math.max(0, Math.round(comp.jdhCount) || 0),
       totalPct: Number(comp.jdhPct) || 0,
-      jdhPasang: Math.max(2, Math.min(5, Math.round(comp.jdhPasang) || 3)),
+      ...(jdhTipe === 'matching'
+        ? { jdhPasang: Math.max(2, Math.min(5, Math.round(comp.jdhPasang) || 3)) }
+        : { jdhOpsi: jdhOpsiList }),
     },
     {
       groupKey: 'ISN',
@@ -1010,6 +1066,10 @@ export function buildItemsFromComposition(
         fresh.jumlah_pasang = b.jdhPasang;
         fresh.jawaban = defaultJawaban('matching', 3, b.jdhPasang);
       }
+      if (b.jdhOpsi) {
+        fresh.opsi = [...b.jdhOpsi];
+        fresh.jawaban = '';
+      }
       if (b.isnPanjang) {
         fresh.panjang_jawaban = b.isnPanjang;
       }
@@ -1020,6 +1080,9 @@ export function buildItemsFromComposition(
         if (b.tipe === 'single_choice_4') {
           const ch = String(old.jawaban || '').toUpperCase();
           fresh.jawaban = ['A', 'B', 'C', 'D'].includes(ch) ? ch : '';
+        } else if (b.tipe === 'matching_single') {
+          const ch = typeof old.jawaban === 'string' ? old.jawaban.trim().toUpperCase() : '';
+          fresh.jawaban = (b.jdhOpsi || []).includes(ch) ? ch : '';
         } else if (old.tipe === b.tipe) {
           fresh.jawaban = old.jawaban;
           if (old.jumlah_pernyataan && b.mtfPernyataan === old.jumlah_pernyataan) {

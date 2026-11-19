@@ -5,6 +5,7 @@ export type MachineQuestionType =
   | 'multiple_select'
   | 'multiple_true_false'
   | 'matching'
+  | 'matching_single'
   | 'short_answer'
   | 'essay';
 
@@ -134,6 +135,21 @@ const DENSITY_CANDIDATES: DensitySpec[] = [
     matrixBubbleSize: 14,
   },
   {
+    density: 'compact',
+    columns: 2,
+    columnGap: 18,
+    blockGap: 3,
+    headerWidth: 40,
+    simpleHeight: 24,
+    mtfBaseHeight: 22,
+    mtfRowHeight: 15,
+    matchingBaseHeight: 23,
+    matchingRowHeight: 15,
+    bubbleMaxCircle: 16,
+    bubbleMaxSquare: 15,
+    matrixBubbleSize: 13,
+  },
+  {
     density: 'normal',
     columns: 3,
     columnGap: 18,
@@ -205,6 +221,9 @@ function normalizeType(raw?: string): MachineQuestionType {
     PG_KOMPLEKS: 'multiple_select',
     MTF: 'multiple_true_false',
     MENJODOHKAN: 'matching',
+    'JDH-1': 'matching_single',
+    JDH1: 'matching_single',
+    MENJODOHKAN_TUNGGAL: 'matching_single',
     ISIAN: 'short_answer',
     ISIAN_SINGKAT: 'short_answer',
     ESAI: 'essay',
@@ -218,6 +237,7 @@ export function getMachineQuestionOptions(question: MachineQuestionInput): strin
   if (question.opsi && question.opsi.length > 0) return [...question.opsi];
   if (type === 'single_choice_4') return ['A', 'B', 'C', 'D'];
   if (type === 'true_false') return ['B', 'S'];
+  if (type === 'matching_single') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
   return ['A', 'B', 'C', 'D', 'E'];
 }
 
@@ -229,6 +249,7 @@ function getShortLabel(type: MachineQuestionType) {
     multiple_select: 'PGK',
     multiple_true_false: 'MTF',
     matching: 'JDH',
+    matching_single: 'JDH',
     short_answer: 'ISN',
     essay: 'ESI',
   };
@@ -255,16 +276,20 @@ function buildSimpleChoiceCells(
   h: number,
   square: boolean,
   spec: DensitySpec,
-  maxChoiceWidth?: number
+  maxChoiceWidth?: number,
+  customHeaderWidth?: number
 ): MachineCell[] {
-  const areaX = x + spec.headerWidth;
-  const availableWidth = Math.max(40, w - spec.headerWidth - 8);
-  const choiceWidth = Math.min(maxChoiceWidth || availableWidth, availableWidth);
-  const startX = areaX + Math.max(0, (availableWidth - choiceWidth) * 0.35);
+  const effectiveHeaderWidth = customHeaderWidth ?? spec.headerWidth;
+  const areaX = x + effectiveHeaderWidth;
+  const availableWidth = Math.max(40, w - effectiveHeaderWidth - 6);
+  const isWideRow = options.length >= 6;
+  const choiceWidth = isWideRow ? availableWidth : Math.min(maxChoiceWidth || availableWidth, availableWidth);
+  const startX = isWideRow ? areaX + 4 : areaX + Math.max(0, (availableWidth - choiceWidth) * 0.35);
   const slotWidth = choiceWidth / Math.max(options.length, 1);
   const maxBubble = square ? spec.bubbleMaxSquare : spec.bubbleMaxCircle;
   const dynamicMaxBubble = h >= 56 ? maxBubble + 2 : maxBubble;
-  const bubbleSize = Math.max(12, Math.min(dynamicMaxBubble, Math.floor(slotWidth * 0.5), h - 8));
+  const slotRatio = isWideRow ? 0.68 : 0.5;
+  const bubbleSize = Math.max(11, Math.min(dynamicMaxBubble, Math.floor(slotWidth * slotRatio), h - 6));
   const bubbleY = y + Math.round((h - bubbleSize) / 2);
 
   return options.map((value, index) => {
@@ -409,6 +434,9 @@ function buildMachineQuestionLayout(
     };
   }
 
+  const effectiveHeaderWidth =
+    type === 'matching_single' ? Math.max(spec.headerWidth, 56) : headerWidth;
+
   const cells = buildSimpleChoiceCells(
     type === 'true_false' ? ['B', 'S'] : options,
     x,
@@ -418,14 +446,15 @@ function buildMachineQuestionLayout(
     type === 'multiple_select',
     spec,
     type === 'true_false'
-      ? Math.min(150, w - headerWidth - 10)
+      ? Math.min(150, w - effectiveHeaderWidth - 10)
       : type === 'single_choice_4'
-        ? Math.min(280, w - headerWidth - 10)
+        ? Math.min(280, w - effectiveHeaderWidth - 10)
         : type === 'single_choice' || type === 'multiple_select'
-          ? Math.min(340, w - headerWidth - 10)
-          : undefined
+          ? Math.min(340, w - effectiveHeaderWidth - 10)
+          : undefined,
+    effectiveHeaderWidth
   );
-  return { no: question.no, type, short, x, y, w, h, headerWidth, columnIndex, cells };
+  return { no: question.no, type, short, x, y, w, h, headerWidth: effectiveHeaderWidth, columnIndex, cells };
 }
 
 /**
@@ -650,6 +679,10 @@ export function buildMachinePageLayout(
     const t = normalizeType(q.tipe);
     return t === 'multiple_true_false' || t === 'matching';
   });
+  const hasWideSingleChoice = objectiveQuestions.some((q) => {
+    const t = normalizeType(q.tipe);
+    return t === 'matching_single' && getMachineQuestionOptions(q).length >= 6;
+  });
 
   // Hitung tinggi area esai secara adaptif & proporsional agar semua nomor esai muat utuh tanpa terpotong
   let essayArea: { x: number; y: number; w: number; h: number } | null = null;
@@ -690,14 +723,18 @@ export function buildMachinePageLayout(
 
   // Pilih jumlah kolom cerdas berdasarkan jumlah soal objektif:
   // - 1..5 soal   : 1 kolom (atau 2 jika matriks panjang)
-  // - 6..20 soal  : 2 kolom (mis. 10 -> 5+5, 20 -> 10+10)
+  // - 6..20 soal  : 2 kolom (atau hingga 54 soal jika ada Menjodohkan 1-ke-1 A–J/L agar bulatan lebar & mudah discan!)
   // - 21..45 soal : 3 kolom (mis. 30 -> 10+10+10, 35 -> 12+12+11, 40 -> 14+13+13)
   // - > 45 soal   : 4 kolom (mis. 50 -> 13+13+12+12)
   const validCandidates = DENSITY_CANDIDATES.filter((cand) => {
+    if (cand.columns === 2 && cand.density === 'compact' && !hasWideSingleChoice) return false;
     if (cand.columns === 1 && count > 5) return false;
-    if (cand.columns === 2 && (count <= 5 || count > 20)) return false;
-    if (cand.columns === 3 && (count <= 20 || count > 45) && !hasTallMatrix) return false;
-    if (cand.columns === 4 && count <= 45 && !hasTallMatrix) return false;
+    if (cand.columns === 2) {
+      if (hasWideSingleChoice) return count > 5 && count <= 54;
+      if (count <= 5 || count > 20) return false;
+    }
+    if (cand.columns === 3 && (count <= 20 || count > 45) && !hasTallMatrix && !hasWideSingleChoice) return false;
+    if (cand.columns === 4 && (hasWideSingleChoice || (count <= 45 && !hasTallMatrix))) return false;
     return true;
   });
 
