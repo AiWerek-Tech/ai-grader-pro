@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   AlertTriangle,
   Ban,
+  BookOpen,
   CheckCircle2,
   CreditCard,
   Eye,
@@ -64,6 +65,7 @@ import {
   LaporanKeuanganSheet,
 } from '@/components/tagihan/LaporanKeuanganSheet';
 import { PostingTagihanPanel } from '@/components/tagihan/PostingTagihanPanel';
+import { PanduanKeuanganModal } from '@/components/tagihan/PanduanKeuanganModal';
 import { resolveKeuanganLeaderSigner } from '@/components/tagihan/KeuanganKopSurat';
 import { appendObjectRows, createWorkbook, downloadWorkbook } from '@/lib/utils/excel';
 
@@ -143,8 +145,9 @@ export default function TagihanBiayaSekolahPage() {
   const [voidTargetKwitansi, setVoidTargetKwitansi] = useState<string | null>(null);
   const [voidAlasan, setVoidAlasan] = useState('');
 
-  // Print state
+  // Print & Guide state
   const [printPayload, setPrintPayload] = useState<PrintPayload>(null);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   const loadData = useCallback(async (silent: boolean = false) => {
     if (!silent) setLoading(true);
@@ -849,6 +852,13 @@ export default function TagihanBiayaSekolahPage() {
           description={`Posting tagihan tersisa dari Excel Bendahara, cetak surat pemberitahuan, loket kasir kwitansi, hingga validasi syarat Kartu Ujian (minimal ${config.minPercentForExamCard}%) • TA ${academicSession.tahunAjaran} (${academicSession.semester}).`}
           actions={
             <>
+              <button
+                type="button"
+                onClick={() => setShowGuideModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-black text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 cursor-pointer"
+              >
+                <BookOpen className="w-3.5 h-3.5" /> Panduan
+              </button>
               <button
                 type="button"
                 onClick={() => loadData(false)}
@@ -2478,6 +2488,15 @@ export default function TagihanBiayaSekolahPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL PANDUAN LENGKAP BENDAHARA & KASIR */}
+      <PanduanKeuanganModal
+        open={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+        canEdit={canEdit}
+        canInputKasir={canInputKasir}
+        minPercentForExamCard={config.minPercentForExamCard}
+      />
 
       {/* ROOT CETAK TERISOLASI */}
       {printPayload && (
